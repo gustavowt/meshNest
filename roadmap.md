@@ -1014,28 +1014,28 @@ Create a detail page that shows preview, metadata, AI description, tags, render 
 
 ## Tasks
 
-- [ ] Create or update `ModelDetailPage.vue`.
-- [ ] Add `ModelPreview3D.vue` to the detail page.
-- [ ] Add `ModelMetadataPanel.vue`.
-- [ ] Add `ModelRenderGallery.vue`.
-- [ ] Show filename and absolute path.
-- [ ] Show dimensions.
-- [ ] Show triangle and vertex count.
-- [ ] Show 3MF metadata when available.
-- [ ] Show AI description.
-- [ ] Show tags.
-- [ ] Show search phrases.
-- [ ] Show raw indexing error when file failed.
-- [ ] Add button to reindex the file.
-- [ ] Add button to reveal file in OS file manager if supported.
+- [x] Create or update `ModelDetailPage.vue`.
+- [x] Add `ModelPreview3D.vue` to the detail page.
+- [x] Add `ModelMetadataPanel.vue`.
+- [x] Add `ModelRenderGallery.vue`.
+- [x] Show filename and absolute path.
+- [x] Show dimensions.
+- [x] Show triangle and vertex count.
+- [x] Show 3MF metadata when available.
+- [x] Show AI description.
+- [x] Show tags.
+- [x] Show search phrases.
+- [x] Show raw indexing error when file failed.
+- [x] Add button to reindex the file.
+- [x] Add button to reveal file in OS file manager if supported.
 
 ## Success Criteria
 
-- [ ] User can open any model from the library.
-- [ ] Detail page shows interactive 3D preview.
-- [ ] Detail page shows render gallery.
-- [ ] Detail page shows AI metadata.
-- [ ] Failed files are inspectable and retryable.
+- [x] User can open any model from the library.
+- [x] Detail page shows interactive 3D preview.
+- [x] Detail page shows render gallery.
+- [x] Detail page shows AI metadata.
+- [x] Failed files are inspectable and retryable.
 
 ---
 

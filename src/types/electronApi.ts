@@ -2,6 +2,7 @@ import type { IndexingJob, IndexingJobType } from './indexing'
 import type { LibraryEntry } from './library'
 import type { AIModelDescription, ModelEmbedding } from './llm'
 import type { ModelFile, ScannedFile } from './modelFile'
+import type { ModelDetail } from './modelDetail'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from './modelMetadata'
 import type { ModelRenderAsset, RenderViewName } from './modelRender'
 
@@ -34,6 +35,10 @@ export type MeshNestApi = {
   cancelScan(scanId: string): Promise<void>
   /** Reads the raw bytes of a supported model file. */
   readModelFile(absolutePath: string): Promise<Uint8Array>
+  /** Stats and hashes a single supported model file. */
+  scanFile(absolutePath: string): Promise<ScannedFile>
+  /** Reveals the file in the OS file manager (Finder/Explorer). */
+  revealInFolder(absolutePath: string): Promise<void>
   /** Persists rendered views (images + DB records), replacing stale ones. */
   saveRenderAssets(modelFileId: string, views: RenderedViewTransfer[]): Promise<ModelRenderAsset[]>
   /** Reads a stored render PNG. The path must be inside the renders folder. */
@@ -43,6 +48,9 @@ export type MeshNestApi = {
   upsertModelFile(file: ScannedFile, projectId: string): Promise<ModelFile>
   listModelFiles(projectId?: string): Promise<ModelFile[]>
   listLibraryEntries(projectId?: string): Promise<LibraryEntry[]>
+  getModelDetail(modelFileId: string): Promise<ModelDetail | null>
+  /** Forces a file back to 'pending' so the next run reindexes it. */
+  resetToPending(modelFileId: string): Promise<void>
   storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>
   storeThreeMfMetadata(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void>
   storeAiDescription(

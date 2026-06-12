@@ -170,6 +170,16 @@ export class ModelFileRepository {
     )
   }
 
+  /** Forces a file back to 'pending' so the next indexing run reprocesses it. */
+  async resetToPending(id: string): Promise<void> {
+    await this.client.run(
+      `UPDATE model_files SET
+         status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()
+       WHERE id = $id`,
+      { id },
+    )
+  }
+
   async markFailed(id: string, errorMessage: string): Promise<void> {
     await this.client.run(
       `UPDATE model_files SET

@@ -201,6 +201,17 @@ The target structure for services, types, Electron main/preload, and components 
 - IPC additions: `database:listLibraryEntries`; `rendering:readRenderAsset` (validates the requested path is inside the renders root before reading).
 - Tests: `tests/unit/libraryRepository.spec.ts` (joined entries for indexed/failed files, project filter), `tests/unit/libraryStore.spec.ts` (bridge loading, error states, all three sort orders), `tests/unit/modelCard.spec.ts` (title fallback, tag overflow, status badge, failed state, placeholder, select event). Verified in Electron: empty state -> index 3 fixtures -> reload (restart equivalent) shows 3 cards with 2 blob thumbnails, AI names, chips, and the failed card's error.
 
+### Phase 18 - Model Detail UI
+
+- `src/types/modelDetail.ts`: `ModelDetail` — aggregate of file record, geometry, 3MF metadata, AI description, and render assets.
+- `src/services/database/modelDetailService.ts`: `getModelDetail(client, id)` composes existing repositories (3MF metadata only included for `.3mf` files); returns undefined for unknown ids.
+- `ModelFileRepository.resetToPending(id)` — forces a file back to `pending` so reindex bypasses the unchanged-file skip.
+- IPC additions: `database:getModelDetail`, `database:resetToPending`, `filesystem:scanFile` (stat + hash one supported file, for single-file reindex), `filesystem:revealInFolder` (Electron `shell.showItemInFolder`).
+- Components (`src/components/model/`): `ModelMetadataPanel.vue` (AI description with tags/print-use/style/confidence/search phrases, raw indexing error block for failed files, geometry facts with mm dimensions and counts, 3MF package section, file facts incl. absolute path), `ModelRenderGallery.vue` (all non-thumbnail views with captions), `GalleryImage.vue` (blob-URL image with placeholder).
+- `src/views/ModelDetailPage.vue`: route `/models/:id`. Header has back button, status badge, "Reveal" (OS file manager), and "Reindex" (resetToPending -> scanFile -> indexModelFile -> reload detail + library). Two-column layout (interactive `ModelPreview3D` + render gallery | metadata panel) collapsing to one column under 860px; loading and not-found states.
+- Library cards now navigate to the detail page (replacing the preview modal — the interactive preview lives on the detail page).
+- Tests: `tests/unit/modelDetailService.spec.ts` (aggregation for STL/3MF/failed/unknown, resetToPending), `tests/unit/modelMetadataPanel.spec.ts` (file facts, geometry formatting, AI section with chips/phrases, 3MF section, hidden sections, error block). Verified in Electron: detail page shows live 3D canvas, 6 gallery images, AI + geometry + path sections; failed file shows error and reindex button re-runs the pipeline.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

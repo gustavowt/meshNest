@@ -4,6 +4,7 @@ import { EmbeddingRepository } from '../../../src/services/database/embeddingRep
 import { GeometryMetadataRepository } from '../../../src/services/database/geometryMetadataRepository'
 import { IndexingJobRepository } from '../../../src/services/database/indexingJobRepository'
 import { LibraryRepository } from '../../../src/services/database/libraryRepository'
+import { getModelDetail } from '../../../src/services/database/modelDetailService'
 import { ModelFileRepository } from '../../../src/services/database/modelFileRepository'
 import { ThreeMfMetadataRepository } from '../../../src/services/database/threeMfMetadataRepository'
 import type { IndexingJobType } from '../../../src/types/indexing'
@@ -26,6 +27,15 @@ export function registerDatabaseIpc(): void {
   ipcMain.handle('database:listLibraryEntries', async (_event, projectId?: string) => {
     const repository = new LibraryRepository(await getDatabaseClient())
     return repository.listLibraryEntries(projectId)
+  })
+
+  ipcMain.handle('database:getModelDetail', async (_event, modelFileId: string) => {
+    return (await getModelDetail(await getDatabaseClient(), modelFileId)) ?? null
+  })
+
+  ipcMain.handle('database:resetToPending', async (_event, modelFileId: string) => {
+    const repository = new ModelFileRepository(await getDatabaseClient())
+    await repository.resetToPending(modelFileId)
   })
 
   ipcMain.handle(

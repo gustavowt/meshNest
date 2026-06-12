@@ -12,6 +12,10 @@ const api: MeshNestApi = {
 
   readModelFile: (absolutePath) => ipcRenderer.invoke('filesystem:readModelFile', absolutePath),
 
+  scanFile: (absolutePath) => ipcRenderer.invoke('filesystem:scanFile', absolutePath),
+
+  revealInFolder: (absolutePath) => ipcRenderer.invoke('filesystem:revealInFolder', absolutePath),
+
   saveRenderAssets: (modelFileId, views) =>
     ipcRenderer.invoke('rendering:saveRenderAssets', modelFileId, views),
 
@@ -20,6 +24,8 @@ const api: MeshNestApi = {
   upsertModelFile: (file, projectId) => ipcRenderer.invoke('database:upsertModelFile', file, projectId),
   listModelFiles: (projectId) => ipcRenderer.invoke('database:listModelFiles', projectId),
   listLibraryEntries: (projectId) => ipcRenderer.invoke('database:listLibraryEntries', projectId),
+  getModelDetail: (modelFileId) => ipcRenderer.invoke('database:getModelDetail', modelFileId),
+  resetToPending: (modelFileId) => ipcRenderer.invoke('database:resetToPending', modelFileId),
   storeGeometryMetadata: (modelFileId, metadata) =>
     ipcRenderer.invoke('database:storeGeometryMetadata', modelFileId, metadata),
   storeThreeMfMetadata: (modelFileId, metadata) =>

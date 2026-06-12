@@ -91,26 +91,7 @@
       </div>
 
       <!-- Library grid -->
-      <model-grid v-else :entries="library.sortedEntries.value" @select="previewEntry = $event" />
-
-      <ion-modal :is-open="previewEntry !== null" @did-dismiss="previewEntry = null">
-        <ion-header>
-          <ion-toolbar>
-            <ion-title>{{ previewEntry?.shortName ?? previewEntry?.filename }}</ion-title>
-            <ion-buttons slot="end">
-              <ion-button @click="previewEntry = null">Close</ion-button>
-            </ion-buttons>
-          </ion-toolbar>
-        </ion-header>
-        <ion-content>
-          <model-preview3-d
-            v-if="previewEntry"
-            :file-path="previewEntry.absolutePath"
-            :extension="previewEntry.extension"
-            class="preview-modal-body"
-          />
-        </ion-content>
-      </ion-modal>
+      <model-grid v-else :entries="library.sortedEntries.value" @select="openDetail" />
     </ion-content>
   </ion-page>
 </template>
@@ -122,7 +103,6 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
-  IonModal,
   IonPage,
   IonProgressBar,
   IonSelect,
@@ -133,16 +113,20 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { alertCircleOutline, cubeOutline, folderOpenOutline } from 'ionicons/icons'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import ModelGrid from '@/components/library/ModelGrid.vue'
-import ModelPreview3D from '@/components/model/ModelPreview3D.vue'
 import { useIndexingStore } from '@/stores/indexingStore'
 import { useLibraryStore } from '@/stores/libraryStore'
 import type { LibraryEntry } from '@/types/library'
 
+const router = useRouter()
 const library = useLibraryStore()
 const indexing = useIndexingStore()
-const previewEntry = ref<LibraryEntry | null>(null)
+
+function openDetail(entry: LibraryEntry): void {
+  router.push({ name: 'ModelDetail', params: { id: entry.id } })
+}
 
 const progressFraction = computed(() => {
   const progress = indexing.state.progress
@@ -263,9 +247,5 @@ onMounted(() => {
 .state-container p {
   max-width: 360px;
   margin: 0;
-}
-
-.preview-modal-body {
-  height: 100%;
 }
 </style>

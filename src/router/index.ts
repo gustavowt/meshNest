@@ -13,6 +13,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/LibraryPage.vue')
   },
   {
+    path: '/models/:id',
+    name: 'ModelDetail',
+    component: () => import('../views/ModelDetailPage.vue')
+  },
+  {
     path: '/home',
     name: 'Home',
     component: HomePage
