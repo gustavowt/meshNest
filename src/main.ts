@@ -49,25 +49,17 @@ if (window.meshNest) {
     import('@/services/rendering/thumbnailService'),
     import('@/services/indexing/indexModelFile'),
     import('@/services/indexing/indexDirectory'),
-    import('@/services/indexing/bridgeBackend'),
-    import('@/services/llm/mockVisionProvider'),
-    import('@/services/llm/mockEmbeddingProvider'),
-  ]).then(([thumbnails, indexing, directory, bridge, vision, embedding]) => {
-    const defaultDeps = () => ({
-      backend: bridge.createBridgeIndexingBackend(),
-      jobTracker: bridge.createBridgeJobTracker(),
-      visionProvider: new vision.MockVisionProvider(),
-      embeddingProvider: new embedding.MockEmbeddingProvider(),
-    })
+    import('@/services/indexing/desktopIndexingDeps'),
+  ]).then(([thumbnails, indexing, directory, deps]) => {
     ;(window as unknown as Record<string, unknown>).__meshNestDiagnostics = {
       renderAndStoreModelViews: thumbnails.renderAndStoreModelViews,
       indexScannedFile: (file: import('@/types/modelFile').ScannedFile, projectId: string) =>
-        indexing.indexModelFile(file, projectId, defaultDeps()),
+        indexing.indexModelFile(file, projectId, deps.createDesktopIndexingDeps()),
       indexDirectory: (
         path: string,
         projectId: string,
         options?: import('@/services/indexing/indexDirectory').IndexFilesOptions,
-      ) => directory.indexDirectory(path, projectId, defaultDeps(), options),
+      ) => directory.indexDirectory(path, projectId, deps.createDesktopIndexingDeps(), options),
     }
   })
 }

@@ -15,8 +15,11 @@ const api: MeshNestApi = {
   saveRenderAssets: (modelFileId, views) =>
     ipcRenderer.invoke('rendering:saveRenderAssets', modelFileId, views),
 
+  readRenderAsset: (absolutePath) => ipcRenderer.invoke('rendering:readRenderAsset', absolutePath),
+
   upsertModelFile: (file, projectId) => ipcRenderer.invoke('database:upsertModelFile', file, projectId),
   listModelFiles: (projectId) => ipcRenderer.invoke('database:listModelFiles', projectId),
+  listLibraryEntries: (projectId) => ipcRenderer.invoke('database:listLibraryEntries', projectId),
   storeGeometryMetadata: (modelFileId, metadata) =>
     ipcRenderer.invoke('database:storeGeometryMetadata', modelFileId, metadata),
   storeThreeMfMetadata: (modelFileId, metadata) =>

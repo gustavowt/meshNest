@@ -982,27 +982,27 @@ Create the first usable interface for browsing indexed files.
 
 ## Tasks
 
-- [ ] Create or update `LibraryPage.vue`.
-- [ ] Create `ModelGrid.vue`.
-- [ ] Create `ModelCard.vue`.
-- [ ] Display model thumbnail.
-- [ ] Display filename.
-- [ ] Display short AI name if available.
-- [ ] Display category if available.
-- [ ] Display tags if available.
-- [ ] Display indexing status.
-- [ ] Add empty state.
-- [ ] Add loading state.
-- [ ] Add failed/error state.
-- [ ] Add basic sorting by filename, date modified, and indexed date.
+- [x] Create or update `LibraryPage.vue`.
+- [x] Create `ModelGrid.vue`.
+- [x] Create `ModelCard.vue`.
+- [x] Display model thumbnail.
+- [x] Display filename.
+- [x] Display short AI name if available.
+- [x] Display category if available.
+- [x] Display tags if available.
+- [x] Display indexing status.
+- [x] Add empty state.
+- [x] Add loading state.
+- [x] Add failed/error state.
+- [x] Add basic sorting by filename, date modified, and indexed date.
 
 ## Success Criteria
 
-- [ ] Indexed files appear in the library.
-- [ ] Thumbnails are visible.
-- [ ] Cards make indexed and failed states obvious.
-- [ ] Empty library state guides the user to select/index a directory.
-- [ ] UI works after app restart.
+- [x] Indexed files appear in the library.
+- [x] Thumbnails are visible.
+- [x] Cards make indexed and failed states obvious.
+- [x] Empty library state guides the user to select/index a directory.
+- [x] UI works after app restart.
 
 ---
 

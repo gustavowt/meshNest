@@ -1,4 +1,5 @@
 import type { IndexingJob, IndexingJobType } from './indexing'
+import type { LibraryEntry } from './library'
 import type { AIModelDescription, ModelEmbedding } from './llm'
 import type { ModelFile, ScannedFile } from './modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from './modelMetadata'
@@ -35,10 +36,13 @@ export type MeshNestApi = {
   readModelFile(absolutePath: string): Promise<Uint8Array>
   /** Persists rendered views (images + DB records), replacing stale ones. */
   saveRenderAssets(modelFileId: string, views: RenderedViewTransfer[]): Promise<ModelRenderAsset[]>
+  /** Reads a stored render PNG. The path must be inside the renders folder. */
+  readRenderAsset(absolutePath: string): Promise<Uint8Array>
 
   // Database operations (executed in the main process).
   upsertModelFile(file: ScannedFile, projectId: string): Promise<ModelFile>
   listModelFiles(projectId?: string): Promise<ModelFile[]>
+  listLibraryEntries(projectId?: string): Promise<LibraryEntry[]>
   storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>
   storeThreeMfMetadata(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void>
   storeAiDescription(

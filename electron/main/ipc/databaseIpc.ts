@@ -3,6 +3,7 @@ import { AiDescriptionRepository } from '../../../src/services/database/aiDescri
 import { EmbeddingRepository } from '../../../src/services/database/embeddingRepository'
 import { GeometryMetadataRepository } from '../../../src/services/database/geometryMetadataRepository'
 import { IndexingJobRepository } from '../../../src/services/database/indexingJobRepository'
+import { LibraryRepository } from '../../../src/services/database/libraryRepository'
 import { ModelFileRepository } from '../../../src/services/database/modelFileRepository'
 import { ThreeMfMetadataRepository } from '../../../src/services/database/threeMfMetadataRepository'
 import type { IndexingJobType } from '../../../src/types/indexing'
@@ -20,6 +21,11 @@ export function registerDatabaseIpc(): void {
   ipcMain.handle('database:listModelFiles', async (_event, projectId?: string) => {
     const repository = new ModelFileRepository(await getDatabaseClient())
     return repository.listModelFiles(projectId)
+  })
+
+  ipcMain.handle('database:listLibraryEntries', async (_event, projectId?: string) => {
+    const repository = new LibraryRepository(await getDatabaseClient())
+    return repository.listLibraryEntries(projectId)
   })
 
   ipcMain.handle(

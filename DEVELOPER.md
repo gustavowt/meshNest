@@ -187,6 +187,20 @@ The target structure for services, types, Electron main/preload, and components 
 - Test helpers shared between indexing specs: `tests/unit/helpers/indexingTestUtils.ts` (in-process backend, job tracker, fake renderer, scanned-file factory).
 - Tests: `tests/unit/indexDirectory.spec.ts` (concurrency bound, progress snapshots, cancellation, throw containment, summary accuracy, job persistence with error reasons, skip-on-rerun, cancelled-job bookkeeping, retry semantics). Verified in Electron: directory with nested + broken files indexed with concurrency 2, accurate summary, and persisted job history.
 
+### Phase 17 - Library UI
+
+- `src/types/library.ts`: `LibraryEntry` (file record + AI summary + thumbnail path) and `LibrarySortKey`.
+- `src/services/database/libraryRepository.ts`: `listLibraryEntries(projectId?)` — read model joining `model_files` with `ai_model_descriptions` and the thumbnail row of `model_render_assets`.
+- Stores (plain Vue reactive singletons, no pinia):
+  - `src/stores/libraryStore.ts` — entries, loading/error/loaded flags, sort key, client-side sorting (filename asc; modified/indexed desc with unindexed last). All bridge access lives in the store.
+  - `src/stores/indexingStore.ts` — owns one indexing run (scan + queue): progress, summary, cancel (AbortController), and retry of failed files (merges retry results so repeated retries only pick still-failing files).
+- `src/services/indexing/desktopIndexingDeps.ts`: `createDesktopIndexingDeps()` — production wiring (bridge backend + job tracker + mock providers); used by the indexing store and the diagnostics hook.
+- Components (`src/components/library/`): `ModelCard.vue` (thumbnail or placeholder, AI short name with filename subtitle, category + up to 3 tag chips with overflow counter, status badge, error message on failed cards), `ModelGrid.vue` (responsive auto-fill grid), `IndexingStatusBadge.vue` (color-coded per `ModelFileStatus`).
+- `src/composables/useRenderAssetUrl.ts`: loads render PNG bytes over the bridge and exposes a managed object URL (revoked on change/unmount).
+- `src/views/LibraryPage.vue`: default route (`/` redirects to `/library`). Header has sort select + "Index folder" button; an in-header progress bar with current file and cancel appears while indexing; run summary line with "Retry n failed" button; loading / error / empty states; clicking a card opens the interactive `ModelPreview3D` modal. Library reloads automatically when a run finishes.
+- IPC additions: `database:listLibraryEntries`; `rendering:readRenderAsset` (validates the requested path is inside the renders root before reading).
+- Tests: `tests/unit/libraryRepository.spec.ts` (joined entries for indexed/failed files, project filter), `tests/unit/libraryStore.spec.ts` (bridge loading, error states, all three sort orders), `tests/unit/modelCard.spec.ts` (title fallback, tag overflow, status badge, failed state, placeholder, select event). Verified in Electron: empty state -> index 3 fixtures -> reload (restart equivalent) shows 3 cards with 2 blob thumbnails, AI names, chips, and the failed card's error.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

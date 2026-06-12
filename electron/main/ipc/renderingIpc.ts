@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises'
+import { resolve, sep } from 'node:path'
 import { ipcMain } from 'electron'
 import { RenderAssetRepository } from '../../../src/services/database/renderAssetRepository'
 import { RenderAssetStorage } from '../../../src/services/rendering/renderAssetStorage'
@@ -33,6 +35,19 @@ export function registerRenderingIpc(): void {
       }
       await repository.replaceForModelFile(modelFileId, saved)
       return repository.listByModelFileId(modelFileId)
+    },
+  )
+
+  ipcMain.handle(
+    'rendering:readRenderAsset',
+    async (_event, absolutePath: string): Promise<Uint8Array> => {
+      const rendersRoot = resolve(getModelRendersRoot())
+      const resolved = resolve(absolutePath)
+      // The renderer may only read images that live inside the renders folder.
+      if (resolved !== rendersRoot && !resolved.startsWith(rendersRoot + sep)) {
+        throw new Error('Path is outside the render assets folder')
+      }
+      return readFile(resolved)
     },
   )
 }
