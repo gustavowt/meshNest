@@ -582,27 +582,27 @@ Load STL files and extract basic geometry metadata.
 
 ## Tasks
 
-- [ ] Create `stlLoaderService.ts`.
-- [ ] Import and configure Three.js `STLLoader`.
-- [ ] Load binary STL files.
-- [ ] Load ASCII STL files.
-- [ ] Convert loaded geometry into a normalized internal scene representation.
-- [ ] Create `geometryMetadata.ts`.
-- [ ] Extract bounding box dimensions.
-- [ ] Extract vertex count.
-- [ ] Extract triangle count.
-- [ ] Extract mesh count.
-- [ ] Add placeholders for volume and surface area if not implemented yet.
-- [ ] Handle invalid STL files gracefully.
-- [ ] Store geometry metadata in DuckDB.
+- [x] Create `stlLoaderService.ts`.
+- [x] Import and configure Three.js `STLLoader`.
+- [x] Load binary STL files.
+- [x] Load ASCII STL files.
+- [x] Convert loaded geometry into a normalized internal scene representation.
+- [x] Create `geometryMetadata.ts`.
+- [x] Extract bounding box dimensions.
+- [x] Extract vertex count.
+- [x] Extract triangle count.
+- [x] Extract mesh count.
+- [x] Add placeholders for volume and surface area if not implemented yet.
+- [x] Handle invalid STL files gracefully.
+- [x] Store geometry metadata in DuckDB.
 
 ## Success Criteria
 
-- [ ] A valid STL file can be loaded.
-- [ ] Invalid STL files produce a controlled indexing error.
-- [ ] Dimensions are calculated consistently.
-- [ ] Geometry metadata is persisted.
-- [ ] The service has no direct UI dependency.
+- [x] A valid STL file can be loaded.
+- [x] Invalid STL files produce a controlled indexing error.
+- [x] Dimensions are calculated consistently.
+- [x] Geometry metadata is persisted.
+- [x] The service has no direct UI dependency.
 
 ---
 

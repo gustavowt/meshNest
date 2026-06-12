@@ -94,6 +94,14 @@ The target structure for services, types, Electron main/preload, and components 
 - Timestamps are stored as DuckDB TIMESTAMP (UTC, no timezone suffix) and mapped back to ISO strings in `ModelFile`.
 - Tests: `tests/unit/modelFileRepository.spec.ts`.
 
+### Phase 6 - STL Loading and Geometry Metadata
+
+- `src/services/model-parsing/modelScene.ts`: `ModelScene` (normalized `{ root: Object3D, source: 'stl' | '3mf' }` shared by preview/renderer/metadata) and `ModelParseError`.
+- `src/services/model-parsing/stlLoaderService.ts`: `loadStlScene(content)` parses binary/ASCII STL via Three.js `STLLoader.parse`, wraps the geometry in a Group, throws `ModelParseError` on invalid/empty content. STL is geometry-only.
+- `src/services/model-parsing/geometryMetadata.ts`: `extractGeometryMetadata(scene)` computes bounding-box dimensions (mm), triangle/vertex/mesh/object counts. Volume, surface area, and watertightness remain undefined placeholders.
+- `src/services/database/geometryMetadataRepository.ts`: `GeometryMetadataRepository.upsert/getByModelFileId` (delete+insert upsert).
+- Tests: `tests/unit/stlLoaderService.spec.ts` with fixture builders in `tests/unit/helpers/stlFixtures.ts` (ASCII + binary STL generators).
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
