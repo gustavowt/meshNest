@@ -239,6 +239,15 @@ The target structure for services, types, Electron main/preload, and components 
 - API keys are stored plaintext in the local DuckDB settings table (explicit user decision; local-first app).
 - Tests: `tests/unit/providerSettings.spec.ts` (defaults, provider-switch defaults, validation, JSON persistence round-trip/overwrite, connection testers with fake fetch). Verified in Electron: defaults round-trip, save persists, invalid save rejected over IPC, test buttons return clear success/auth-failure messages, page renders.
 
+### Phase 23 - Real Vision Providers
+
+- `src/services/llm/httpVisionProvider.ts`: abstract `HttpVisionProvider` base — subclasses implement one API round-trip (`requestOnce`); the base adds JSON validation with **one retry** on malformed/non-conforming responses (then `VisionProviderError`), markdown fence stripping (`stripJsonFences`), and HTTP error mapping (401/403 -> "rejected the API key", network -> "Could not reach"). `buildVisionUserText` composes the JSON prompt + filename/geometry/3MF context.
+- Implementations: `openaiVisionProvider.ts` (chat completions, data-URL images, `response_format: json_object`, custom `baseUrl` for OpenAI-compatible endpoints), `geminiVisionProvider.ts` (`generateContent`, `inline_data` images, `responseMimeType: application/json`), `ollamaVisionProvider.ts` (`/api/chat`, base64 `images` array, `format: 'json'`, `stream: false`). All take an injectable `fetch`.
+- `visionProviderFactory.ts`: `createVisionProvider(visionSettings)` -> mock/openai/gemini/ollama instance.
+- Vision runs in the **Electron main process**: `electron/main/ipc/llmIpc.ts` registers `llm:describeModel` (loads saved settings, builds provider, describes) and `llm:getActiveVisionProvider`. API keys never reach the renderer and main-process requests bypass CORS.
+- Renderer side: `src/services/llm/bridgeVisionProvider.ts` (`BridgeVisionProvider` + `createBridgeVisionProvider()`); `createDesktopIndexingDeps()` is now **async** and wires the bridge vision provider (callers must `await` it).
+- Tests: `tests/unit/visionProviders.spec.ts` (payload shapes per API with fake fetch, custom base URL, retry-once then success, failure after two invalid responses, 401 mapping without retry, fence-wrapped JSON, factory selection). Verified in Electron end-to-end through the IPC path with the mock provider (no real API keys in dev); remote payloads are covered by the unit tests.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

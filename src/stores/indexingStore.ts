@@ -42,7 +42,7 @@ async function runIndexing(directory: string): Promise<void> {
   try {
     const files = await window.meshNest.scanDirectory(directory, crypto.randomUUID())
     lastFiles = files
-    const outcome = await indexScannedFiles(files, DEFAULT_PROJECT_ID, createDesktopIndexingDeps(), {
+    const outcome = await indexScannedFiles(files, DEFAULT_PROJECT_ID, await createDesktopIndexingDeps(), {
       signal: abortController.signal,
       onProgress: (progress) => {
         state.progress = progress
@@ -72,7 +72,7 @@ async function retryFailed(): Promise<void> {
       lastFiles,
       lastResults,
       DEFAULT_PROJECT_ID,
-      createDesktopIndexingDeps(),
+      await createDesktopIndexingDeps(),
       {
         signal: abortController.signal,
         onProgress: (progress) => {

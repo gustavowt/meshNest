@@ -1206,24 +1206,24 @@ Connect the indexing pipeline to a real vision-capable LLM provider.
 
 ## Tasks
 
-- [ ] Create a real implementation of `VisionProvider`.
-- [ ] Load rendered image files as base64 or provider-compatible payloads.
-- [ ] Send the multi-view image set to the provider.
-- [ ] Include the structured JSON prompt.
-- [ ] Parse the provider response.
-- [ ] Validate response JSON.
-- [ ] Retry once when the response is invalid JSON.
-- [ ] Store raw response JSON.
-- [ ] Store validated AI description.
-- [ ] Add user-facing error messages for provider failures.
+- [x] Create a real implementation of `VisionProvider`.
+- [x] Load rendered image files as base64 or provider-compatible payloads.
+- [x] Send the multi-view image set to the provider.
+- [x] Include the structured JSON prompt.
+- [x] Parse the provider response.
+- [x] Validate response JSON.
+- [x] Retry once when the response is invalid JSON.
+- [x] Store raw response JSON.
+- [x] Store validated AI description.
+- [x] Add user-facing error messages for provider failures.
 
 ## Success Criteria
 
-- [ ] Real provider can describe an STL model from rendered views.
-- [ ] Real provider can describe a 3MF model from rendered views.
-- [ ] Invalid responses do not corrupt the database.
-- [ ] Provider failures mark the file as failed with a useful error.
-- [ ] Mock provider can still be used for development.
+- [x] Real provider can describe an STL model from rendered views.
+- [x] Real provider can describe a 3MF model from rendered views.
+- [x] Invalid responses do not corrupt the database.
+- [x] Provider failures mark the file as failed with a useful error.
+- [x] Mock provider can still be used for development.
 
 ---
 

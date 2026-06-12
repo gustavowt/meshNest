@@ -115,7 +115,7 @@ async function reindex(): Promise<void> {
     // Force reprocessing even when the file content is unchanged.
     await window.meshNest.resetToPending(file.id)
     const scanned = await window.meshNest.scanFile(file.absolutePath)
-    await indexModelFile(scanned, file.projectId, createDesktopIndexingDeps())
+    await indexModelFile(scanned, file.projectId, await createDesktopIndexingDeps())
     await loadDetail(file.id)
     // Keep library cards (status, thumbnail, AI name) in sync.
     await library.loadLibrary()

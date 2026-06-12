@@ -1,18 +1,19 @@
+import { createBridgeVisionProvider } from '@/services/llm/bridgeVisionProvider'
 import { MockEmbeddingProvider } from '@/services/llm/mockEmbeddingProvider'
-import { MockVisionProvider } from '@/services/llm/mockVisionProvider'
 import { createBridgeIndexingBackend, createBridgeJobTracker } from './bridgeBackend'
 import type { IndexFilesDeps } from './indexDirectory'
 
 /**
  * Default production wiring for the indexing pipeline inside the
- * desktop renderer. Providers are mocks until configurable real
- * providers arrive in a later phase.
+ * desktop renderer. Vision runs in the Electron main process with the
+ * provider configured in Settings; embeddings are still mock until the
+ * real embedding service phase.
  */
-export function createDesktopIndexingDeps(): IndexFilesDeps {
+export async function createDesktopIndexingDeps(): Promise<IndexFilesDeps> {
   return {
     backend: createBridgeIndexingBackend(),
     jobTracker: createBridgeJobTracker(),
-    visionProvider: new MockVisionProvider(),
+    visionProvider: await createBridgeVisionProvider(),
     embeddingProvider: new MockEmbeddingProvider(),
   }
 }

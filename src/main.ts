@@ -55,13 +55,13 @@ if (window.meshNest) {
   ]).then(([thumbnails, indexing, directory, deps, search, embedding]) => {
     ;(window as unknown as Record<string, unknown>).__meshNestDiagnostics = {
       renderAndStoreModelViews: thumbnails.renderAndStoreModelViews,
-      indexScannedFile: (file: import('@/types/modelFile').ScannedFile, projectId: string) =>
-        indexing.indexModelFile(file, projectId, deps.createDesktopIndexingDeps()),
-      indexDirectory: (
+      indexScannedFile: async (file: import('@/types/modelFile').ScannedFile, projectId: string) =>
+        indexing.indexModelFile(file, projectId, await deps.createDesktopIndexingDeps()),
+      indexDirectory: async (
         path: string,
         projectId: string,
         options?: import('@/services/indexing/indexDirectory').IndexFilesOptions,
-      ) => directory.indexDirectory(path, projectId, deps.createDesktopIndexingDeps(), options),
+      ) => directory.indexDirectory(path, projectId, await deps.createDesktopIndexingDeps(), options),
       semanticSearch: (query: string, limit?: number) =>
         search.semanticSearch(
           query,

@@ -12,6 +12,10 @@ import type {
   VisionSettings,
 } from './providerSettings'
 import type { SearchResult } from './search'
+import type {
+  VisionAnalysisInput,
+  VisionProviderResult,
+} from '@/services/llm/visionProvider'
 
 export type RenderedViewTransfer = {
   viewName: RenderViewName
@@ -71,6 +75,10 @@ export type MeshNestApi = {
   saveProviderSettings(settings: ProviderSettings): Promise<void>
   testVisionProvider(settings: VisionSettings): Promise<ProviderTestResult>
   testEmbeddingProvider(settings: EmbeddingSettings): Promise<ProviderTestResult>
+
+  // LLM calls (run in main with the configured provider).
+  describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult>
+  getActiveVisionProvider(): Promise<{ name: string; model: string }>
   storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>
   storeThreeMfMetadata(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void>
   storeAiDescription(
