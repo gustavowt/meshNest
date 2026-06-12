@@ -5,6 +5,12 @@ import type { ModelFile, ScannedFile } from './modelFile'
 import type { ModelDetail } from './modelDetail'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from './modelMetadata'
 import type { ModelRenderAsset, RenderViewName } from './modelRender'
+import type {
+  EmbeddingSettings,
+  ProviderSettings,
+  ProviderTestResult,
+  VisionSettings,
+} from './providerSettings'
 import type { SearchResult } from './search'
 
 export type RenderedViewTransfer = {
@@ -59,6 +65,12 @@ export type MeshNestApi = {
     options?: { limit?: number; projectId?: string },
   ): Promise<SearchResult[]>
   countEmbeddings(): Promise<number>
+
+  // Provider settings.
+  getProviderSettings(): Promise<ProviderSettings>
+  saveProviderSettings(settings: ProviderSettings): Promise<void>
+  testVisionProvider(settings: VisionSettings): Promise<ProviderTestResult>
+  testEmbeddingProvider(settings: EmbeddingSettings): Promise<ProviderTestResult>
   storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>
   storeThreeMfMetadata(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void>
   storeAiDescription(

@@ -23,6 +23,9 @@
           <ion-button router-link="/search" aria-label="Search models">
             <ion-icon slot="icon-only" :icon="searchOutline" />
           </ion-button>
+          <ion-button router-link="/settings" aria-label="Settings">
+            <ion-icon slot="icon-only" :icon="settingsOutline" />
+          </ion-button>
         </ion-buttons>
       </ion-toolbar>
 
@@ -115,7 +118,13 @@ import {
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
-import { alertCircleOutline, cubeOutline, folderOpenOutline, searchOutline } from 'ionicons/icons'
+import {
+  alertCircleOutline,
+  cubeOutline,
+  folderOpenOutline,
+  searchOutline,
+  settingsOutline,
+} from 'ionicons/icons'
 import { computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ModelGrid from '@/components/library/ModelGrid.vue'

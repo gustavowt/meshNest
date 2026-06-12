@@ -228,6 +228,17 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/views/SearchPage.vue`: route `/search`, reachable from the library header search icon. States: initial (clickable example queries), loading, nothing-indexed guidance (links back to library), backend error, no-results, and a responsive results grid. Clicking a result opens the model detail page.
 - Tests: `tests/unit/searchStore.spec.ts` (search round-trip with generated query embedding, blank query, error capture, missing bridge, index status), `tests/unit/searchResultCard.spec.ts` (content, score badge + tooltip, filename fallback, select event). Verified in Electron: typed query returns ranked cards (92% top score, blob thumbnails), result click navigates to detail with live preview, and back-navigation preserves query + results.
 
+### Phase 22 - Provider Settings
+
+- `src/types/providerSettings.ts`: `VisionSettings` (provider, model, apiKey?, baseUrl?), `EmbeddingSettings` (adds `dimensions`), `ProviderSettings`, `ProviderTestResult`. Provider ids: vision `mock | openai | gemini | ollama`; embedding `builtin | mock | openai | gemini | ollama`.
+- `src/services/settings/providerSettings.ts`: `VISION_PROVIDERS` / `EMBEDDING_PROVIDERS` metadata maps (label, needsApiKey, needsBaseUrl, default model/baseUrl/dimensions), `DEFAULT_PROVIDER_SETTINGS` (mock vision + **built-in local embedding** `Xenova/all-MiniLM-L6-v2`, 384 dims, downloaded from Hugging Face on first use), `defaultVisionSettings` / `defaultEmbeddingSettings` (provider-switch defaults), `validateProviderSettings` (human-readable problem list).
+- `src/services/database/settingsRepository.ts`: generic key-value store over the `settings` table with JSON helpers; provider settings stored under the `providers` key.
+- `src/services/settings/providerTester.ts`: cheap connectivity/auth checks that spend no tokens (OpenAI `GET /models`, Gemini models list, Ollama `GET /api/tags`; mock/builtin always pass). Takes an injectable `fetch` for tests.
+- Main process: `electron/main/services/providerSettings.ts` (load with default merge / validated save), `electron/main/ipc/settingsIpc.ts` (`settings:getProviderSettings`, `settings:saveProviderSettings`, `settings:testVisionProvider`, `settings:testEmbeddingProvider`).
+- UI: `src/stores/settingsStore.ts` (editable draft + explicit save; provider switch resets model/baseUrl to that provider's defaults but keeps the API key; state intentionally not `readonly` because the draft is a form), `src/views/SettingsPage.vue` (route `/settings`, gear icon in library header; Vision and Embedding sections with provider select, model, API key, base URL, dimensions, per-section Test connection buttons, validation problems list, re-embed warning footnote), `src/components/settings/ProviderTestBanner.vue`.
+- API keys are stored plaintext in the local DuckDB settings table (explicit user decision; local-first app).
+- Tests: `tests/unit/providerSettings.spec.ts` (defaults, provider-switch defaults, validation, JSON persistence round-trip/overwrite, connection testers with fake fetch). Verified in Electron: defaults round-trip, save persists, invalid save rejected over IPC, test buttons return clear success/auth-failure messages, page renders.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

@@ -4,6 +4,7 @@ import { BrowserWindow, app } from 'electron'
 import { registerDatabaseIpc } from './ipc/databaseIpc'
 import { registerFilesystemIpc } from './ipc/filesystemIpc'
 import { registerRenderingIpc } from './ipc/renderingIpc'
+import { registerSettingsIpc } from './ipc/settingsIpc'
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -30,6 +31,7 @@ app.whenReady().then(() => {
   registerFilesystemIpc()
   registerRenderingIpc()
   registerDatabaseIpc()
+  registerSettingsIpc()
   createWindow()
 
   app.on('activate', () => {

@@ -1167,17 +1167,17 @@ Allow the user to configure real vision and embedding providers.
 
 ## Tasks
 
-- [ ] Create or update `SettingsPage.vue`.
-- [ ] Create `providerSettings.ts`.
-- [ ] Add settings for vision provider.
-- [ ] Add settings for vision model.
-- [ ] Add settings for embedding provider.
-- [ ] Add settings for embedding model.
-- [ ] Add API key storage strategy appropriate for the existing Electron app.
-- [ ] Add base URL setting for OpenAI-compatible local or remote providers.
-- [ ] Add provider test button.
-- [ ] Add validation for required settings.
-- [ ] Keep mock providers available for development.
+- [x] Create or update `SettingsPage.vue`.
+- [x] Create `providerSettings.ts`.
+- [x] Add settings for vision provider.
+- [x] Add settings for vision model.
+- [x] Add settings for embedding provider.
+- [x] Add settings for embedding model.
+- [x] Add API key storage strategy appropriate for the existing Electron app.
+- [x] Add base URL setting for OpenAI-compatible local or remote providers.
+- [x] Add provider test button.
+- [x] Add validation for required settings.
+- [x] Keep mock providers available for development.
 
 ## Supported Provider Targets
 
@@ -1190,11 +1190,11 @@ Start with interfaces that can support:
 
 ## Success Criteria
 
-- [ ] User can select mock providers.
-- [ ] User can configure a real vision provider.
-- [ ] User can configure a real embedding provider.
-- [ ] Provider test gives clear success/failure feedback.
-- [ ] Settings persist after app restart.
+- [x] User can select mock providers.
+- [x] User can configure a real vision provider.
+- [x] User can configure a real embedding provider.
+- [x] Provider test gives clear success/failure feedback.
+- [x] Settings persist after app restart.
 
 ---
 

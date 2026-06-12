@@ -30,6 +30,12 @@ const api: MeshNestApi = {
   searchByEmbedding: (embedding, options) =>
     ipcRenderer.invoke('database:searchByEmbedding', embedding, options),
   countEmbeddings: () => ipcRenderer.invoke('database:countEmbeddings'),
+
+  getProviderSettings: () => ipcRenderer.invoke('settings:getProviderSettings'),
+  saveProviderSettings: (settings) => ipcRenderer.invoke('settings:saveProviderSettings', settings),
+  testVisionProvider: (settings) => ipcRenderer.invoke('settings:testVisionProvider', settings),
+  testEmbeddingProvider: (settings) =>
+    ipcRenderer.invoke('settings:testEmbeddingProvider', settings),
   storeGeometryMetadata: (modelFileId, metadata) =>
     ipcRenderer.invoke('database:storeGeometryMetadata', modelFileId, metadata),
   storeThreeMfMetadata: (modelFileId, metadata) =>
