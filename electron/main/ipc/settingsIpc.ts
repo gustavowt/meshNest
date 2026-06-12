@@ -16,7 +16,7 @@ export function registerSettingsIpc(): void {
   })
 
   ipcMain.handle('settings:saveProviderSettings', async (_event, settings: ProviderSettings) => {
-    await saveProviderSettings(settings)
+    return saveProviderSettings(settings)
   })
 
   ipcMain.handle('settings:testVisionProvider', async (_event, settings: VisionSettings) => {
