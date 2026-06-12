@@ -646,24 +646,24 @@ Load 3MF files into a Three.js scene for preview and rendering.
 
 ## Tasks
 
-- [ ] Create `threeMfLoaderService.ts`.
-- [ ] Import and configure Three.js `ThreeMFLoader`.
-- [ ] Load 3MF files from local file content.
-- [ ] Convert loaded 3MF data into a normalized internal scene representation.
-- [ ] Extract mesh count.
-- [ ] Extract object count where possible.
-- [ ] Extract bounding box dimensions.
-- [ ] Preserve basic material/color information where available.
-- [ ] Handle 3MF files with multiple objects.
-- [ ] Handle unsupported 3MF features gracefully.
+- [x] Create `threeMfLoaderService.ts`.
+- [x] Import and configure Three.js `ThreeMFLoader`.
+- [x] Load 3MF files from local file content.
+- [x] Convert loaded 3MF data into a normalized internal scene representation.
+- [x] Extract mesh count.
+- [x] Extract object count where possible.
+- [x] Extract bounding box dimensions.
+- [x] Preserve basic material/color information where available.
+- [x] Handle 3MF files with multiple objects.
+- [x] Handle unsupported 3MF features gracefully.
 
 ## Success Criteria
 
-- [ ] A standard 3MF file can be loaded.
-- [ ] Multi-object 3MF files do not crash the loader.
-- [ ] Basic geometry metadata is extracted.
-- [ ] Unsupported 3MF features produce warnings, not fatal errors.
-- [ ] Loaded 3MF scenes can be passed to the renderer.
+- [x] A standard 3MF file can be loaded.
+- [x] Multi-object 3MF files do not crash the loader.
+- [x] Basic geometry metadata is extracted.
+- [x] Unsupported 3MF features produce warnings, not fatal errors.
+- [x] Loaded 3MF scenes can be passed to the renderer.
 
 ---
 

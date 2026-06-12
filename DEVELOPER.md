@@ -109,6 +109,12 @@ The target structure for services, types, Electron main/preload, and components 
 - `DuckDbClient.run/all` now accept an optional `types` record (e.g. `LIST(VARCHAR)`) — required when binding empty list parameters.
 - Tests: `tests/unit/threeMfPackageParser.spec.ts` with the package builder in `tests/unit/helpers/threeMfFixtures.ts` (generates valid in-memory 3MF packages, also used by later phases).
 
+### Phase 8 - 3MF Scene Loading
+
+- `src/services/model-parsing/threeMfLoaderService.ts`: `loadThreeMfScene(content)` parses 3MF via Three.js `ThreeMFLoader.parse` into a `ModelScene`, validates that at least one mesh exists, and throws `ModelParseError` otherwise. Loader-preserved materials/colors are kept. Unsupported features surface as loader console warnings only.
+- Important constraint: `ThreeMFLoader` needs `DOMParser`, so this service requires a DOM context (Electron renderer or jsdom in tests) — it cannot run in the bare main process. Its tests therefore use the default jsdom environment, not `node`.
+- `extractGeometryMetadata` works unchanged on 3MF scenes (verified for single- and multi-object packages including transforms).
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
