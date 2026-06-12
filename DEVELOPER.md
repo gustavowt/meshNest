@@ -54,6 +54,14 @@ The target structure for services, types, Electron main/preload, and components 
   - `search.ts`: `SearchResult`, `SearchFilters`, `SearchQuery`.
 - Types are plain data shapes (no behavior) so services can import them without circular dependencies.
 
+### Phase 3 - Database Schema and Migrations
+
+- `src/services/database/duckdbClient.ts`: `DuckDbClient` wrapper around `@duckdb/node-api`. `DuckDbClient.open(path)` loads the VSS extension and enables HNSW persistence. `run()` executes statements, `all()` returns JSON-compatible row objects. Node-context only (Electron main / tests).
+- `src/services/database/schema.ts`: idempotent DDL for `model_files`, `geometry_metadata`, `three_mf_metadata`, `model_render_assets`, `ai_model_descriptions`, `model_embeddings`, `indexing_jobs`, `settings`, secondary indexes, and the HNSW cosine index. `EMBEDDING_DIMENSIONS = 1536` is the single source of truth for the vector dimension.
+- `src/services/database/migrations.ts`: ordered `MIGRATIONS` list tracked in a `schema_migrations` table; `runMigrations(client)` applies pending migrations and is safe to call repeatedly.
+- DuckDB binding notes: named parameters use `$name`; `TEXT[]` values must be wrapped with `listValue(...)` and `FLOAT[n]` vectors with `arrayValue(...)` from `@duckdb/node-api`.
+- Tests: `tests/unit/migrations.spec.ts` (fresh DB, double-run safety, embedding dimension, HNSW index + cosine search on a persisted DB). Database tests use `// @vitest-environment node`.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

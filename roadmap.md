@@ -387,19 +387,19 @@ Create the DuckDB schema for model files, geometry metadata, render assets, AI d
 
 ## Tasks
 
-- [ ] Create or update `src/services/database/schema.ts`.
-- [ ] Create or update `src/services/database/migrations.ts`.
-- [ ] Create a migration runner if one does not already exist.
-- [ ] Create a `model_files` table.
-- [ ] Create a `geometry_metadata` table.
-- [ ] Create a `three_mf_metadata` table.
-- [ ] Create a `model_render_assets` table.
-- [ ] Create an `ai_model_descriptions` table.
-- [ ] Create a `model_embeddings` table.
-- [ ] Create an `indexing_jobs` table.
-- [ ] Create a `settings` table if the project does not already have one.
-- [ ] Add indexes for file path, hash, extension, status, and category.
-- [ ] Add an HNSW vector index for embeddings.
+- [x] Create or update `src/services/database/schema.ts`.
+- [x] Create or update `src/services/database/migrations.ts`.
+- [x] Create a migration runner if one does not already exist.
+- [x] Create a `model_files` table.
+- [x] Create a `geometry_metadata` table.
+- [x] Create a `three_mf_metadata` table.
+- [x] Create a `model_render_assets` table.
+- [x] Create an `ai_model_descriptions` table.
+- [x] Create a `model_embeddings` table.
+- [x] Create an `indexing_jobs` table.
+- [x] Create a `settings` table if the project does not already have one.
+- [x] Add indexes for file path, hash, extension, status, and category.
+- [x] Add an HNSW vector index for embeddings.
 
 ## Suggested Schema
 
@@ -503,11 +503,11 @@ CREATE TABLE IF NOT EXISTS indexing_jobs (
 
 ## Success Criteria
 
-- [ ] Migrations run safely more than once.
-- [ ] Tables are created on a fresh database.
-- [ ] Existing database initialization still works.
-- [ ] Embedding table supports the selected embedding dimension.
-- [ ] HNSW index can be created successfully.
+- [x] Migrations run safely more than once.
+- [x] Tables are created on a fresh database.
+- [x] Existing database initialization still works.
+- [x] Embedding table supports the selected embedding dimension.
+- [x] HNSW index can be created successfully.
 
 ---
 
