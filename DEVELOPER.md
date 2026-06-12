@@ -25,11 +25,26 @@ src/
   views/            Ionic pages
   router/           Vue Router setup
   theme/            Ionic theme variables
+  types/            Shared domain types (barrel: src/types/index.ts)
+  services/
+    database/       DuckDB client, schema, migrations (Node-context only)
+    filesystem/     Directory scanner, file hashing, supported file helpers (Node-context only)
+electron/
+  main/             Electron main process entry + IPC handlers
+  preload/          contextBridge preload exposing window.meshNest
 tests/
   unit/             Vitest specs
   e2e/              Cypress specs
 roadmap.md          Phase-by-phase execution plan (source of truth for scope)
 ```
+
+## Electron integration
+
+- `vite-plugin-electron/simple` builds `electron/main/index.ts` to `dist-electron/main.js` (ESM) and `electron/preload/index.ts` to `dist-electron/preload.cjs` (CJS — the preload must stay CJS because the root package is `"type": "module"` and sandboxed preloads cannot run ESM).
+- The Electron plugin is disabled when `process.env.VITEST` is set so unit tests don't launch Electron.
+- `npm run dev` starts Vite and launches Electron against the dev server; `npm run build` also produces `dist-electron/`.
+- Native modules (`@duckdb/node-api`) are externalized in the main-process bundle.
+- The preload exposes a typed `window.meshNest` API; its contract lives in `src/types/electronApi.ts`. UI must feature-detect `window.meshNest` (it is undefined in a plain browser).
 
 The target structure for services, types, Electron main/preload, and components is documented in `roadmap.md` ("Suggested Directory Structure") and will be created as phases are executed.
 
@@ -61,6 +76,16 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/services/database/migrations.ts`: ordered `MIGRATIONS` list tracked in a `schema_migrations` table; `runMigrations(client)` applies pending migrations and is safe to call repeatedly.
 - DuckDB binding notes: named parameters use `$name`; `TEXT[]` values must be wrapped with `listValue(...)` and `FLOAT[n]` vectors with `arrayValue(...)` from `@duckdb/node-api`.
 - Tests: `tests/unit/migrations.spec.ts` (fresh DB, double-run safety, embedding dimension, HNSW index + cosine search on a persisted DB). Database tests use `// @vitest-environment node`.
+
+### Phase 4 - Filesystem Access and Directory Scanner
+
+- Bootstrapped the Electron layer (see "Electron integration" above): `electron/main/index.ts` creates the window and registers IPC; `electron/main/ipc/filesystemIpc.ts` handles `filesystem:pickDirectory`, `filesystem:scanDirectory` (with per-scan `AbortController` and `filesystem:scanProgress` events), and `filesystem:cancelScan`.
+- `src/services/filesystem/supportedFiles.ts`: ignored-directory set, hidden-name check, case-insensitive `.stl`/`.3mf` extension detection.
+- `src/services/filesystem/directoryScanner.ts`: recursive scan returning `DiscoveredFile[]`, deterministic (codepoint-sorted), cancellable via `AbortSignal` (`ScanCancelledError`), progress callback per found file.
+- `src/services/filesystem/fileHash.ts`: streaming SHA-256 `hashFile` + `hashBuffer`.
+- The scan IPC handler enriches results with content hashes and returns `ScannedFile[]`.
+- `src/views/HomePage.vue` provides the minimal select-directory + scan UI (will be replaced by the Library/Indexing pages in later phases).
+- Tests: `tests/unit/directoryScanner.spec.ts` (recursion, ignore rules, determinism, progress, cancellation, hashing).
 
 ## Conventions
 

@@ -519,28 +519,28 @@ Allow the user to select a directory and scan it recursively for `.stl` and `.3m
 
 ## Tasks
 
-- [ ] Create `filesystemIpc.ts` in Electron main if needed.
-- [ ] Expose a safe directory picker through preload.
-- [ ] Create `directoryScanner.ts`.
-- [ ] Scan directories recursively.
-- [ ] Ignore hidden directories by default.
-- [ ] Ignore common dependency/build folders such as `node_modules`, `.git`, `dist`, `build`, and cache folders.
-- [ ] Detect `.stl` and `.3mf` case-insensitively.
-- [ ] Return absolute path, relative path, filename, extension, size, and modified timestamp.
-- [ ] Create `fileHash.ts`.
-- [ ] Generate a content hash for each file.
-- [ ] Add cancellation support for long scans.
-- [ ] Add progress events for scanned files.
+- [x] Create `filesystemIpc.ts` in Electron main if needed. (The Electron main/preload layer was bootstrapped here since the base project did not include it yet.)
+- [x] Expose a safe directory picker through preload.
+- [x] Create `directoryScanner.ts`.
+- [x] Scan directories recursively.
+- [x] Ignore hidden directories by default.
+- [x] Ignore common dependency/build folders such as `node_modules`, `.git`, `dist`, `build`, and cache folders.
+- [x] Detect `.stl` and `.3mf` case-insensitively.
+- [x] Return absolute path, relative path, filename, extension, size, and modified timestamp.
+- [x] Create `fileHash.ts`.
+- [x] Generate a content hash for each file.
+- [x] Add cancellation support for long scans.
+- [x] Add progress events for scanned files.
 
 ## Success Criteria
 
-- [ ] User can select a directory from the UI.
-- [ ] Scanner finds STL files.
-- [ ] Scanner finds 3MF files.
-- [ ] Scanner ignores unsupported files.
-- [ ] Scanner does not block the UI.
-- [ ] Large directories show progress.
-- [ ] Scan output is deterministic and typed.
+- [x] User can select a directory from the UI.
+- [x] Scanner finds STL files.
+- [x] Scanner finds 3MF files.
+- [x] Scanner ignores unsupported files.
+- [x] Scanner does not block the UI.
+- [x] Large directories show progress.
+- [x] Scan output is deterministic and typed.
 
 ---
 

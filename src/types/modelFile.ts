@@ -37,3 +37,10 @@ export type DiscoveredFile = {
   sizeBytes: number
   modifiedAt: string
 }
+
+/**
+ * A discovered file enriched with its content hash, ready for persistence.
+ */
+export type ScannedFile = DiscoveredFile & {
+  contentHash: string
+}
