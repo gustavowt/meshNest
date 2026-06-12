@@ -165,6 +165,15 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/services/database/embeddingRepository.ts`: `EmbeddingRepository.upsert/getByModelFileId/countEmbeddings`; throws `EmbeddingDimensionError` when vector length does not match `EMBEDDING_DIMENSIONS`.
 - Tests: `tests/unit/embeddingProvider.spec.ts` (format, determinism, normalization, relatedness, dimension guard, persistence).
 
+### Phase 15 - Indexing Pipeline
+
+- `src/services/indexing/indexingBackend.ts`: `IndexingBackend` — the persistence contract the pipeline needs (upsert, read bytes, store geometry/3MF metadata/renders/description/embedding, mark indexed/failed).
+- `src/services/indexing/indexModelFile.ts`: `indexModelFile(file, projectId, deps)` runs the full per-file pipeline. Skips when the upserted record is already `indexed` (unchanged); any step failure marks the file `failed` with a persisted reason and returns a result instead of throwing. The render function is injectable (tests use a fake; production defaults to the WebGL renderer).
+- `src/services/indexing/bridgeBackend.ts`: `createBridgeIndexingBackend()` — production backend forwarding everything to main over IPC.
+- `electron/main/ipc/databaseIpc.ts`: `database:*` handlers (upsertModelFile, listModelFiles, storeGeometryMetadata, storeThreeMfMetadata, storeAiDescription, storeEmbedding, markIndexed, markFailed) over the shared DB client; all exposed on `window.meshNest`.
+- Diagnostics hook gained `indexScannedFile(file, projectId)` (mock providers + bridge backend).
+- Tests: `tests/unit/indexModelFile.spec.ts` (STL + 3MF end-to-end against real repositories with an in-process backend, failure persistence, skip-unchanged, reindex-changed, failure isolation). Full pipeline also verified inside Electron (real WebGL + IPC): scan -> index -> skipped on second run, failed file retried with stored reason.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

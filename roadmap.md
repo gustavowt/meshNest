@@ -918,30 +918,30 @@ Create the end-to-end pipeline for indexing one model file.
 
 ## Tasks
 
-- [ ] Create `indexModelFile.ts`.
-- [ ] Accept one discovered file as input.
-- [ ] Upsert file metadata.
-- [ ] Decide whether the file should be skipped or reindexed.
-- [ ] Load STL files through the STL loader.
-- [ ] Load 3MF files through the 3MF loader and package parser.
-- [ ] Extract geometry metadata.
-- [ ] Normalize the scene.
-- [ ] Generate render assets.
-- [ ] Send render assets to the vision provider.
-- [ ] Validate and store AI description.
-- [ ] Build embedding source text.
-- [ ] Generate and store embedding.
-- [ ] Mark file as indexed.
-- [ ] Mark file as failed when any step throws.
-- [ ] Persist the failure reason.
+- [x] Create `indexModelFile.ts`.
+- [x] Accept one discovered file as input.
+- [x] Upsert file metadata.
+- [x] Decide whether the file should be skipped or reindexed.
+- [x] Load STL files through the STL loader.
+- [x] Load 3MF files through the 3MF loader and package parser.
+- [x] Extract geometry metadata.
+- [x] Normalize the scene.
+- [x] Generate render assets.
+- [x] Send render assets to the vision provider.
+- [x] Validate and store AI description.
+- [x] Build embedding source text.
+- [x] Generate and store embedding.
+- [x] Mark file as indexed.
+- [x] Mark file as failed when any step throws.
+- [x] Persist the failure reason.
 
 ## Success Criteria
 
-- [ ] One STL file can be indexed end-to-end using mock providers.
-- [ ] One 3MF file can be indexed end-to-end using mock providers.
-- [ ] Failed files do not crash the whole app.
-- [ ] Indexed files contain metadata, renders, description, and embedding.
-- [ ] Re-running indexing skips unchanged files.
+- [x] One STL file can be indexed end-to-end using mock providers.
+- [x] One 3MF file can be indexed end-to-end using mock providers.
+- [x] Failed files do not crash the whole app.
+- [x] Indexed files contain metadata, renders, description, and embedding.
+- [x] Re-running indexing skips unchanged files.
 
 ---
 

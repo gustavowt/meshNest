@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BrowserWindow, app } from 'electron'
+import { registerDatabaseIpc } from './ipc/databaseIpc'
 import { registerFilesystemIpc } from './ipc/filesystemIpc'
 import { registerRenderingIpc } from './ipc/renderingIpc'
 
@@ -28,6 +29,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerFilesystemIpc()
   registerRenderingIpc()
+  registerDatabaseIpc()
   createWindow()
 
   app.on('activate', () => {

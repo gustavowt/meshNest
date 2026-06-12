@@ -1,4 +1,6 @@
-import type { ScannedFile } from './modelFile'
+import type { AIModelDescription, ModelEmbedding } from './llm'
+import type { ModelFile, ScannedFile } from './modelFile'
+import type { GeometryMetadata, ThreeMfPackageMetadata } from './modelMetadata'
 import type { ModelRenderAsset, RenderViewName } from './modelRender'
 
 export type RenderedViewTransfer = {
@@ -32,6 +34,20 @@ export type MeshNestApi = {
   readModelFile(absolutePath: string): Promise<Uint8Array>
   /** Persists rendered views (images + DB records), replacing stale ones. */
   saveRenderAssets(modelFileId: string, views: RenderedViewTransfer[]): Promise<ModelRenderAsset[]>
+
+  // Database operations (executed in the main process).
+  upsertModelFile(file: ScannedFile, projectId: string): Promise<ModelFile>
+  listModelFiles(projectId?: string): Promise<ModelFile[]>
+  storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>
+  storeThreeMfMetadata(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void>
+  storeAiDescription(
+    modelFileId: string,
+    description: AIModelDescription,
+    rawResponseJson: string,
+  ): Promise<void>
+  storeEmbedding(embedding: Omit<ModelEmbedding, 'createdAt'>): Promise<void>
+  markIndexed(modelFileId: string): Promise<void>
+  markFailed(modelFileId: string, errorMessage: string): Promise<void>
   /** Subscribes to scan progress events. Returns an unsubscribe function. */
   onScanProgress(callback: (event: ScanProgressEvent) => void): () => void
 }

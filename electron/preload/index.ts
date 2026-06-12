@@ -15,6 +15,19 @@ const api: MeshNestApi = {
   saveRenderAssets: (modelFileId, views) =>
     ipcRenderer.invoke('rendering:saveRenderAssets', modelFileId, views),
 
+  upsertModelFile: (file, projectId) => ipcRenderer.invoke('database:upsertModelFile', file, projectId),
+  listModelFiles: (projectId) => ipcRenderer.invoke('database:listModelFiles', projectId),
+  storeGeometryMetadata: (modelFileId, metadata) =>
+    ipcRenderer.invoke('database:storeGeometryMetadata', modelFileId, metadata),
+  storeThreeMfMetadata: (modelFileId, metadata) =>
+    ipcRenderer.invoke('database:storeThreeMfMetadata', modelFileId, metadata),
+  storeAiDescription: (modelFileId, description, rawResponseJson) =>
+    ipcRenderer.invoke('database:storeAiDescription', modelFileId, description, rawResponseJson),
+  storeEmbedding: (embedding) => ipcRenderer.invoke('database:storeEmbedding', embedding),
+  markIndexed: (modelFileId) => ipcRenderer.invoke('database:markIndexed', modelFileId),
+  markFailed: (modelFileId, errorMessage) =>
+    ipcRenderer.invoke('database:markFailed', modelFileId, errorMessage),
+
   onScanProgress: (callback) => {
     const listener = (_event: IpcRendererEvent, progress: ScanProgressEvent) => callback(progress)
     ipcRenderer.on('filesystem:scanProgress', listener)

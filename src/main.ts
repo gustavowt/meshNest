@@ -43,11 +43,23 @@ router.isReady().then(() => {
 });
 
 // Diagnostics hook for the desktop shell: lets integration checks (and
-// support tooling) exercise the rendering pipeline without UI wiring.
+// support tooling) exercise the indexing/rendering pipeline without UI wiring.
 if (window.meshNest) {
-  import('@/services/rendering/thumbnailService').then(({ renderAndStoreModelViews }) => {
+  Promise.all([
+    import('@/services/rendering/thumbnailService'),
+    import('@/services/indexing/indexModelFile'),
+    import('@/services/indexing/bridgeBackend'),
+    import('@/services/llm/mockVisionProvider'),
+    import('@/services/llm/mockEmbeddingProvider'),
+  ]).then(([thumbnails, indexing, bridge, vision, embedding]) => {
     ;(window as unknown as Record<string, unknown>).__meshNestDiagnostics = {
-      renderAndStoreModelViews,
+      renderAndStoreModelViews: thumbnails.renderAndStoreModelViews,
+      indexScannedFile: (file: import('@/types/modelFile').ScannedFile, projectId: string) =>
+        indexing.indexModelFile(file, projectId, {
+          backend: bridge.createBridgeIndexingBackend(),
+          visionProvider: new vision.MockVisionProvider(),
+          embeddingProvider: new embedding.MockEmbeddingProvider(),
+        }),
     }
   })
 }
