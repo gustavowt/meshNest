@@ -273,15 +273,15 @@ Install the required libraries for 3D file loading, rendering, ZIP/XML parsing, 
 
 ## Tasks
 
-- [ ] Install Three.js.
-- [ ] Install type definitions if needed.
-- [ ] Install a ZIP parser for reading `.3mf` packages.
-- [ ] Install an XML parser for reading 3MF model metadata.
-- [ ] Install a schema validation library for LLM JSON output.
-- [ ] Install or verify DuckDB support in the existing app.
-- [ ] Install or verify DuckDB VSS extension support.
-- [ ] Install utility libraries for hashing files if the project does not already have one.
-- [ ] Add a short dependency note in the project README explaining why each dependency exists.
+- [x] Install Three.js.
+- [x] Install type definitions if needed.
+- [x] Install a ZIP parser for reading `.3mf` packages.
+- [x] Install an XML parser for reading 3MF model metadata.
+- [x] Install a schema validation library for LLM JSON output.
+- [x] Install or verify DuckDB support in the existing app.
+- [x] Install or verify DuckDB VSS extension support.
+- [x] Install utility libraries for hashing files if the project does not already have one. (Node built-in `crypto` is used; no extra dependency.)
+- [x] Add a short dependency note in the project README explaining why each dependency exists.
 
 ## Suggested Dependencies
 
@@ -293,11 +293,11 @@ Depending on the existing project setup, DuckDB may already be installed. If not
 
 ## Success Criteria
 
-- [ ] The project builds after dependency installation.
-- [ ] TypeScript can import Three.js successfully.
-- [ ] TypeScript can import STL and 3MF loaders successfully.
-- [ ] TypeScript can import the ZIP and XML parser successfully.
-- [ ] No dependency is added without being used by a planned service.
+- [x] The project builds after dependency installation.
+- [x] TypeScript can import Three.js successfully.
+- [x] TypeScript can import STL and 3MF loaders successfully.
+- [x] TypeScript can import the ZIP and XML parser successfully.
+- [x] No dependency is added without being used by a planned service.
 
 ---
 
