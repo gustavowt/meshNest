@@ -733,14 +733,14 @@ Create a safe location for generated thumbnails and multi-view render images.
 
 ## Tasks
 
-- [ ] Create `appDataPaths.ts` if needed.
-- [ ] Define a model render cache directory.
-- [ ] Create a deterministic folder per model file ID.
-- [ ] Create `renderAssetStorage.ts`.
-- [ ] Save PNG render assets to disk.
-- [ ] Generate stable paths for views.
-- [ ] Clean stale render assets when a file is reindexed.
-- [ ] Store render asset records in DuckDB.
+- [x] Create `appDataPaths.ts` if needed.
+- [x] Define a model render cache directory.
+- [x] Create a deterministic folder per model file ID.
+- [x] Create `renderAssetStorage.ts`.
+- [x] Save PNG render assets to disk.
+- [x] Generate stable paths for views.
+- [x] Clean stale render assets when a file is reindexed.
+- [x] Store render asset records in DuckDB.
 
 ## Suggested Structure
 
@@ -759,10 +759,10 @@ app-data/
 
 ## Success Criteria
 
-- [ ] Render assets are saved outside the source model directory.
-- [ ] Render assets survive app restart.
-- [ ] Reindexing replaces old render assets.
-- [ ] Render asset database records match files on disk.
+- [x] Render assets are saved outside the source model directory.
+- [x] Render assets survive app restart.
+- [x] Reindexing replaces old render assets.
+- [x] Render asset database records match files on disk.
 
 ---
 

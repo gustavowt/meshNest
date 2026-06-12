@@ -130,6 +130,13 @@ The target structure for services, types, Electron main/preload, and components 
 - `HomePage.vue` opens a preview modal when a scanned file is clicked (temporary entry point until the detail page in Phase 18).
 - Tests: `tests/unit/modelPreview3D.spec.ts` (state machine, reload on prop change). IPC + WebGL availability verified manually in Electron via CDP.
 
+### Phase 11 - Render Asset Storage
+
+- `electron/main/services/appDataPaths.ts`: app-data locations under Electron `userData` — `getDatabasePath()` (`meshnest.duckdb`) and `getModelRendersRoot()` (`model-renders/`). Generated data never lives next to source models.
+- `src/services/rendering/renderAssetStorage.ts`: `RenderAssetStorage(rendersRoot)` saves PNGs at `<root>/<model-file-id>/<view>.png` (deterministic, stable paths), `clearModelRenders` removes a model's folder before reindexing, `listModelRenderFiles` for consistency checks. Takes the root as a constructor argument so it is testable without Electron.
+- `src/services/database/renderAssetRepository.ts`: `RenderAssetRepository.replaceForModelFile` (delete+insert keeps DB aligned with disk), `listByModelFileId`, `findThumbnail`, `deleteByModelFileId`.
+- Tests: `tests/unit/renderAssetStorage.spec.ts` (stable paths, restart survival, clearing, overwrite, DB/disk alignment).
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
