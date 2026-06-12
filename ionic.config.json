@@ -1,0 +1,7 @@
+{
+  "name": "meshNest",
+  "integrations": {
+    "capacitor": {}
+  },
+  "type": "vue-vite"
+}
