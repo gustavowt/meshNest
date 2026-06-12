@@ -1097,24 +1097,24 @@ Create a search interface focused on semantic discovery.
 
 ## Tasks
 
-- [ ] Create or update `SearchPage.vue`.
-- [ ] Create `ModelSearchBar.vue`.
-- [ ] Add query input.
-- [ ] Add loading state while searching.
-- [ ] Add search result grid/list.
-- [ ] Show semantic score or match confidence in a subtle way.
-- [ ] Allow opening a result in the detail page.
-- [ ] Preserve the last query in state.
-- [ ] Add helpful example queries.
-- [ ] Add empty search state.
-- [ ] Add no-results state.
+- [x] Create or update `SearchPage.vue`.
+- [x] Create `ModelSearchBar.vue`.
+- [x] Add query input.
+- [x] Add loading state while searching.
+- [x] Add search result grid/list.
+- [x] Show semantic score or match confidence in a subtle way.
+- [x] Allow opening a result in the detail page.
+- [x] Preserve the last query in state.
+- [x] Add helpful example queries.
+- [x] Add empty search state.
+- [x] Add no-results state.
 
 ## Success Criteria
 
-- [ ] User can type a natural language query.
-- [ ] User can see matching files.
-- [ ] User can open a matching file.
-- [ ] UI gives useful feedback when nothing is indexed.
+- [x] User can type a natural language query.
+- [x] User can see matching files.
+- [x] User can open a matching file.
+- [x] UI gives useful feedback when nothing is indexed.
 
 ---
 

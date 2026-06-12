@@ -221,6 +221,13 @@ The target structure for services, types, Electron main/preload, and components 
 - IMPORTANT DuckDB gotcha (fixed here): `arrayValue(...)` without an explicit type lets DuckDB infer the list element type from leading values; sparse embedding vectors starting with `0` were inferred as integer lists and **silently stored as all zeros**. Both the embedding upsert and the search query now bind with `ARRAY(FLOAT, EMBEDDING_DIMENSIONS)`. When binding any float list/array parameter, always pass the explicit DuckDB type.
 - Tests: `tests/unit/semanticSearch.spec.ts` (relevance ranking with mock providers, joined metadata + score bounds, limit, blank query, NoEmbeddingsError, dimension validation, project filter); embedding persistence test now asserts stored values roundtrip (would have caught the zero-truncation bug). Verified in Electron: empty index raises the error; after indexing three fixtures, "dragon phone stand" ranks the matching file first (score 0.92 vs 0.51).
 
+### Phase 20 - Search UI
+
+- `src/stores/searchStore.ts`: reactive singleton preserving the last query and results across navigation; `runSearch` (blank queries clear without searching; backend errors including the empty-index case become error state) and `refreshIndexStatus` (embedding count for the "nothing indexed" state).
+- Components (`src/components/search/`): `ModelSearchBar.vue` (`ion-searchbar` wrapper, v-model + Enter-to-search), `SearchResultCard.vue` (thumbnail, AI name with filename subtitle, category/tag chips, two-line description, subtle score badge showing `score` as a percentage with cosine distance in the tooltip; prop typed `DeepReadonly<SearchResult>` so readonly store state binds directly).
+- `src/views/SearchPage.vue`: route `/search`, reachable from the library header search icon. States: initial (clickable example queries), loading, nothing-indexed guidance (links back to library), backend error, no-results, and a responsive results grid. Clicking a result opens the model detail page.
+- Tests: `tests/unit/searchStore.spec.ts` (search round-trip with generated query embedding, blank query, error capture, missing bridge, index status), `tests/unit/searchResultCard.spec.ts` (content, score badge + tooltip, filename fallback, select event). Verified in Electron: typed query returns ranked cards (92% top score, blob thumbnails), result click navigates to detail with live preview, and back-navigation preserves query + results.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
