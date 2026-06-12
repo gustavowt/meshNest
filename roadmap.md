@@ -879,14 +879,14 @@ Build the embedding interface and a deterministic mock implementation for local 
 
 ## Tasks
 
-- [ ] Create `embeddingProvider.ts`.
-- [ ] Define an interface for generating embeddings from text.
-- [ ] Create `mockEmbeddingProvider.ts`.
-- [ ] Return deterministic vectors with the same dimension expected by the database.
-- [ ] Create a function that builds embedding source text from AI descriptions.
-- [ ] Store embedding provider name and model name.
-- [ ] Store embedding source text.
-- [ ] Store embedding vector in DuckDB.
+- [x] Create `embeddingProvider.ts`.
+- [x] Define an interface for generating embeddings from text.
+- [x] Create `mockEmbeddingProvider.ts`.
+- [x] Return deterministic vectors with the same dimension expected by the database.
+- [x] Create a function that builds embedding source text from AI descriptions.
+- [x] Store embedding provider name and model name.
+- [x] Store embedding source text.
+- [x] Store embedding vector in DuckDB.
 
 ## Embedding Source Text Format
 
@@ -903,10 +903,10 @@ Search phrases: <phrase1>; <phrase2>; <phrase3>
 
 ## Success Criteria
 
-- [ ] Embeddings can be generated without a real provider.
-- [ ] Embedding dimensions match the database schema.
-- [ ] Embeddings are stored successfully.
-- [ ] The indexing pipeline can run fully using mock AI services.
+- [x] Embeddings can be generated without a real provider.
+- [x] Embedding dimensions match the database schema.
+- [x] Embeddings are stored successfully.
+- [x] The indexing pipeline can run fully using mock AI services. (All mock pieces are in place; the pipeline itself is assembled in Phase 15.)
 
 ---
 

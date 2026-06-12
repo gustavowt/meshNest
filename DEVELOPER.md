@@ -158,6 +158,13 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/services/database/aiDescriptionRepository.ts`: `AiDescriptionRepository.upsert/getByModelFileId` storing the validated description plus the raw response JSON.
 - Tests: `tests/unit/visionProvider.spec.ts`.
 
+### Phase 14 - Mock Embedding Provider
+
+- `src/services/llm/embeddingProvider.ts`: `EmbeddingProvider` interface (`name`, `model`, `dimensions`, `embedText`) and `buildEmbeddingSourceText(description)` — the canonical, stable embedding text format.
+- `src/services/llm/mockEmbeddingProvider.ts`: `MockEmbeddingProvider` — deterministic feature-hashing embeddings (1536 dims, normalized); texts sharing tokens produce similar vectors so mock semantic search behaves plausibly.
+- `src/services/database/embeddingRepository.ts`: `EmbeddingRepository.upsert/getByModelFileId/countEmbeddings`; throws `EmbeddingDimensionError` when vector length does not match `EMBEDDING_DIMENSIONS`.
+- Tests: `tests/unit/embeddingProvider.spec.ts` (format, determinism, normalization, relatedness, dimension guard, persistence).
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
