@@ -82,4 +82,14 @@ export class AiDescriptionRepository {
     )
     return rows.length > 0 ? toDescription(rows[0]) : undefined
   }
+
+  /** All stored descriptions keyed by model file id (used for re-embedding). */
+  async listAll(): Promise<Array<{ modelFileId: string; description: StoredAIDescription }>> {
+    const rows = await this.client.all<AiDescriptionRow & { model_file_id: string }>(
+      `SELECT model_file_id, short_name, description, likely_category, tags, objects_detected,
+              print_use, style, confidence, search_phrases, raw_response_json
+       FROM ai_model_descriptions ORDER BY model_file_id`,
+    )
+    return rows.map((row) => ({ modelFileId: row.model_file_id, description: toDescription(row) }))
+  }
 }

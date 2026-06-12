@@ -39,6 +39,9 @@ const api: MeshNestApi = {
 
   describeModel: (input) => ipcRenderer.invoke('llm:describeModel', input),
   getActiveVisionProvider: () => ipcRenderer.invoke('llm:getActiveVisionProvider'),
+  embedText: (text) => ipcRenderer.invoke('llm:embedText', text),
+  getActiveEmbeddingProvider: () => ipcRenderer.invoke('llm:getActiveEmbeddingProvider'),
+  reembedAll: () => ipcRenderer.invoke('llm:reembedAll'),
   storeGeometryMetadata: (modelFileId, metadata) =>
     ipcRenderer.invoke('database:storeGeometryMetadata', modelFileId, metadata),
   storeThreeMfMetadata: (modelFileId, metadata) =>

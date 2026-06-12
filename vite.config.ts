@@ -20,7 +20,7 @@ const electronPlugins: PluginOption[] = process.env.VITEST
             resolve: { alias: srcAlias },
             build: {
               rollupOptions: {
-                external: ['@duckdb/node-api', '@duckdb/node-bindings'],
+                external: ['@duckdb/node-api', '@duckdb/node-bindings', '@huggingface/transformers'],
                 output: { entryFileNames: 'main.js' },
               },
             },

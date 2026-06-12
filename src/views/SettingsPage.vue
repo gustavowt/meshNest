@@ -168,13 +168,49 @@
             <ion-spinner v-if="settings.state.testingEmbedding" name="crescent" class="test-spinner" />
             Test connection
           </ion-button>
+          <ion-button
+            size="small"
+            :fill="settings.state.needsReembed ? 'solid' : 'outline'"
+            :color="settings.state.needsReembed ? 'warning' : undefined"
+            :disabled="settings.state.reembedding"
+            @click="settings.reembedLibrary()"
+          >
+            <ion-spinner v-if="settings.state.reembedding" name="crescent" class="test-spinner" />
+            Re-embed library
+          </ion-button>
         </div>
         <provider-test-banner :result="settings.state.embeddingTest" />
+
+        <ion-text v-if="settings.state.needsReembed && !settings.state.reembedding" color="warning">
+          <p class="save-error">
+            The embedding configuration changed, so stored embeddings were cleared. Run
+            "Re-embed library" to make semantic search work again.
+          </p>
+        </ion-text>
+        <ion-text
+          v-if="settings.state.reembedResult"
+          :color="settings.state.reembedResult.failed > 0 || settings.state.reembedResult.errorMessage ? 'danger' : 'success'"
+        >
+          <p class="save-error">
+            <template v-if="settings.state.reembedResult.errorMessage && settings.state.reembedResult.embedded === 0">
+              Re-embedding failed: {{ settings.state.reembedResult.errorMessage }}
+            </template>
+            <template v-else>
+              Re-embedded {{ settings.state.reembedResult.embedded }} model(s){{
+                settings.state.reembedResult.failed > 0
+                  ? `, ${settings.state.reembedResult.failed} failed: ${settings.state.reembedResult.errorMessage}`
+                  : '.'
+              }}
+            </template>
+          </p>
+        </ion-text>
 
         <ion-text color="medium">
           <p class="footnote">
             Changing the embedding provider or model changes the vector space: existing
             embeddings are cleared and the library needs to be re-embedded before search works.
+            The built-in model (~25 MB) is downloaded from Hugging Face on first use and then
+            works fully offline.
           </p>
         </ion-text>
       </div>

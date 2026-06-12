@@ -72,13 +72,16 @@ export type MeshNestApi = {
 
   // Provider settings.
   getProviderSettings(): Promise<ProviderSettings>
-  saveProviderSettings(settings: ProviderSettings): Promise<void>
+  saveProviderSettings(settings: ProviderSettings): Promise<{ embeddingsCleared: boolean }>
   testVisionProvider(settings: VisionSettings): Promise<ProviderTestResult>
   testEmbeddingProvider(settings: EmbeddingSettings): Promise<ProviderTestResult>
 
   // LLM calls (run in main with the configured provider).
   describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult>
   getActiveVisionProvider(): Promise<{ name: string; model: string }>
+  embedText(text: string): Promise<number[]>
+  getActiveEmbeddingProvider(): Promise<{ name: string; model: string; dimensions: number }>
+  reembedAll(): Promise<{ embedded: number; failed: number; errorMessage?: string }>
   storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>
   storeThreeMfMetadata(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void>
   storeAiDescription(

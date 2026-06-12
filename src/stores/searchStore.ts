@@ -1,5 +1,5 @@
 import { reactive, readonly } from 'vue'
-import { MockEmbeddingProvider } from '@/services/llm/mockEmbeddingProvider'
+import { createBridgeEmbeddingProvider } from '@/services/llm/bridgeEmbeddingProvider'
 import { createDesktopSearchDeps, semanticSearch } from '@/services/search/semanticSearch'
 import type { SearchResult } from '@/types/search'
 
@@ -54,7 +54,7 @@ async function runSearch(query: string): Promise<void> {
   try {
     state.results = await semanticSearch(
       query,
-      createDesktopSearchDeps(new MockEmbeddingProvider()),
+      createDesktopSearchDeps(await createBridgeEmbeddingProvider()),
     )
     state.searched = true
   } catch (error) {

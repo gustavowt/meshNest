@@ -1,6 +1,6 @@
 import { ARRAY, arrayValue, FLOAT } from '@duckdb/node-api'
 import type { ModelEmbedding } from '@/types/llm'
-import { EMBEDDING_DIMENSIONS } from './schema'
+import { getEmbeddingTableDimensions } from './embeddingTable'
 import type { DuckDbClient } from './duckdbClient'
 
 type EmbeddingRow = {
@@ -26,10 +26,10 @@ function toEmbedding(row: EmbeddingRow): ModelEmbedding {
 }
 
 export class EmbeddingDimensionError extends Error {
-  constructor(actual: number) {
+  constructor(actual: number, expected: number) {
     super(
-      `Embedding has ${actual} dimensions but the database schema expects ${EMBEDDING_DIMENSIONS}. ` +
-        'Update EMBEDDING_DIMENSIONS and migrate, or use a matching embedding model.',
+      `Embedding has ${actual} dimensions but the database table expects ${expected}. ` +
+        'Re-embed the library after changing the embedding provider or model.',
     )
     this.name = 'EmbeddingDimensionError'
   }
@@ -40,8 +40,12 @@ export class EmbeddingRepository {
 
   /** Replaces any existing embedding for the model file. */
   async upsert(embedding: Omit<ModelEmbedding, 'createdAt'>): Promise<void> {
-    if (embedding.embedding.length !== EMBEDDING_DIMENSIONS) {
-      throw new EmbeddingDimensionError(embedding.embedding.length)
+    const tableDimensions = await getEmbeddingTableDimensions(this.client)
+    if (tableDimensions === undefined) {
+      throw new Error('model_embeddings table does not exist; run migrations first.')
+    }
+    if (embedding.embedding.length !== tableDimensions) {
+      throw new EmbeddingDimensionError(embedding.embedding.length, tableDimensions)
     }
 
     await this.client.run('DELETE FROM model_embeddings WHERE model_file_id = $modelFileId', {
@@ -61,7 +65,7 @@ export class EmbeddingRepository {
       // Explicit type: without it DuckDB infers the element type from the
       // leading values, and sparse vectors starting with 0 get truncated
       // to an integer list (silently storing all zeros).
-      { embedding: ARRAY(FLOAT, EMBEDDING_DIMENSIONS) },
+      { embedding: ARRAY(FLOAT, tableDimensions) },
     )
   }
 

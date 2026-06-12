@@ -1235,21 +1235,21 @@ Connect the indexing and search pipeline to a real text embedding provider.
 
 ## Tasks
 
-- [ ] Create a real implementation of `EmbeddingProvider`.
-- [ ] Generate embeddings for AI description source text.
-- [ ] Generate embeddings for search queries.
-- [ ] Validate embedding dimensions.
-- [ ] Store provider and model name with each embedding.
-- [ ] Add clear error if embedding dimensions do not match the database schema.
-- [ ] Add migration or reset flow if changing embedding dimensions is required.
+- [x] Create a real implementation of `EmbeddingProvider`.
+- [x] Generate embeddings for AI description source text.
+- [x] Generate embeddings for search queries.
+- [x] Validate embedding dimensions.
+- [x] Store provider and model name with each embedding.
+- [x] Add clear error if embedding dimensions do not match the database schema.
+- [x] Add migration or reset flow if changing embedding dimensions is required.
 
 ## Success Criteria
 
-- [ ] Real embeddings are generated during indexing.
-- [ ] Real embeddings are generated during search.
-- [ ] Semantic search returns meaningful results.
-- [ ] Dimension mismatches are detected early.
-- [ ] Mock embedding provider remains available for development.
+- [x] Real embeddings are generated during indexing.
+- [x] Real embeddings are generated during search.
+- [x] Semantic search returns meaningful results.
+- [x] Dimension mismatches are detected early.
+- [x] Mock embedding provider remains available for development.
 
 ---
 

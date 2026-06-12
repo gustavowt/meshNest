@@ -1,7 +1,21 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { MockEmbeddingProvider } from '@/services/llm/mockEmbeddingProvider'
 import { resetSearchStore, useSearchStore } from '@/stores/searchStore'
 import type { MeshNestApi } from '@/types/electronApi'
 import type { SearchResult } from '@/types/search'
+
+/** Bridge methods the store needs to resolve the active embedding provider. */
+function embeddingBridge(): Partial<MeshNestApi> {
+  const mock = new MockEmbeddingProvider()
+  return {
+    getActiveEmbeddingProvider: async () => ({
+      name: mock.name,
+      model: mock.model,
+      dimensions: mock.dimensions,
+    }),
+    embedText: (text: string) => mock.embedText(text),
+  }
+}
 
 function result(overrides: Partial<SearchResult> = {}): SearchResult {
   return {
@@ -28,6 +42,7 @@ describe('searchStore', () => {
   test('runs a search and preserves the query and results', async () => {
     const captured: { embedding?: number[] } = {}
     window.meshNest = {
+      ...embeddingBridge(),
       searchByEmbedding: async (embedding: number[]) => {
         captured.embedding = embedding
         return [result()]
@@ -62,6 +77,7 @@ describe('searchStore', () => {
 
   test('captures backend errors (e.g. empty index) as error state', async () => {
     window.meshNest = {
+      ...embeddingBridge(),
       searchByEmbedding: async () => {
         throw new Error('No models have been indexed with embeddings yet.')
       },

@@ -21,6 +21,10 @@ type SettingsState = {
   error: string | null
   /** True briefly after a successful save. */
   saved: boolean
+  /** True when the last save cleared embeddings (provider/model change). */
+  needsReembed: boolean
+  reembedding: boolean
+  reembedResult: { embedded: number; failed: number; errorMessage?: string } | null
   visionTest: ProviderTestResult | null
   embeddingTest: ProviderTestResult | null
   testingVision: boolean
@@ -34,6 +38,9 @@ const state = reactive<SettingsState>({
   problems: [],
   error: null,
   saved: false,
+  needsReembed: false,
+  reembedding: false,
+  reembedResult: null,
   visionTest: null,
   embeddingTest: null,
   testingVision: false,
@@ -83,14 +90,40 @@ async function saveSettings(): Promise<boolean> {
   state.saving = true
   state.error = null
   try {
-    await window.meshNest.saveProviderSettings(JSON.parse(JSON.stringify(state.draft)))
+    const outcome = await window.meshNest.saveProviderSettings(
+      JSON.parse(JSON.stringify(state.draft)),
+    )
     state.saved = true
+    if (outcome.embeddingsCleared) {
+      state.needsReembed = true
+      state.reembedResult = null
+    }
     return true
   } catch (error) {
     state.error = error instanceof Error ? error.message : String(error)
     return false
   } finally {
     state.saving = false
+  }
+}
+
+async function reembedLibrary(): Promise<void> {
+  if (!window.meshNest || state.reembedding) return
+  state.reembedding = true
+  state.reembedResult = null
+  try {
+    state.reembedResult = await window.meshNest.reembedAll()
+    if (state.reembedResult.failed === 0) {
+      state.needsReembed = false
+    }
+  } catch (error) {
+    state.reembedResult = {
+      embedded: 0,
+      failed: 0,
+      errorMessage: error instanceof Error ? error.message : String(error),
+    }
+  } finally {
+    state.reembedding = false
   }
 }
 
@@ -142,6 +175,9 @@ export function resetSettingsStore(): void {
   state.problems = []
   state.error = null
   state.saved = false
+  state.needsReembed = false
+  state.reembedding = false
+  state.reembedResult = null
   state.visionTest = null
   state.embeddingTest = null
   state.testingVision = false
@@ -159,6 +195,7 @@ export function useSettingsStore() {
     state,
     loadSettings,
     saveSettings,
+    reembedLibrary,
     switchVisionProvider,
     switchEmbeddingProvider,
     testVision,

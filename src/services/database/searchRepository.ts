@@ -3,7 +3,7 @@ import type { SearchResult } from '@/types/search'
 import type { SupportedModelExtension } from '@/types/modelFile'
 import type { DuckDbClient } from './duckdbClient'
 import { EmbeddingDimensionError } from './embeddingRepository'
-import { EMBEDDING_DIMENSIONS } from './schema'
+import { getEmbeddingTableDimensions } from './embeddingTable'
 
 export class NoEmbeddingsError extends Error {
   constructor() {
@@ -61,8 +61,9 @@ export class SearchRepository {
     queryEmbedding: number[],
     options: SemanticSearchOptions = {},
   ): Promise<SearchResult[]> {
-    if (queryEmbedding.length !== EMBEDDING_DIMENSIONS) {
-      throw new EmbeddingDimensionError(queryEmbedding.length)
+    const tableDimensions = await getEmbeddingTableDimensions(this.client)
+    if (tableDimensions !== undefined && queryEmbedding.length !== tableDimensions) {
+      throw new EmbeddingDimensionError(queryEmbedding.length, tableDimensions)
     }
     if ((await this.countEmbeddings()) === 0) {
       throw new NoEmbeddingsError()
@@ -96,7 +97,7 @@ export class SearchRepository {
         ...(options.projectId ? { projectId: options.projectId } : {}),
       },
       // Explicit type so sparse vectors are not inferred as integer lists.
-      { queryEmbedding: ARRAY(FLOAT, EMBEDDING_DIMENSIONS) },
+      { queryEmbedding: ARRAY(FLOAT, queryEmbedding.length) },
     )
     return rows.map(toSearchResult)
   }
