@@ -614,27 +614,27 @@ Read 3MF files as ZIP/XML packages and extract useful metadata before rendering.
 
 ## Tasks
 
-- [ ] Create `threeMfPackageParser.ts`.
-- [ ] Open `.3mf` files as ZIP archives.
-- [ ] Detect `[Content_Types].xml`.
-- [ ] Detect `/3D/3dmodel.model` or equivalent model paths.
-- [ ] Parse model XML.
-- [ ] Extract object names where available.
-- [ ] Extract material names where available.
-- [ ] Extract color values where available.
-- [ ] Detect internal thumbnails where available.
-- [ ] Extract thumbnail path where available.
-- [ ] Store raw metadata JSON for debugging.
-- [ ] Store parsed 3MF metadata in DuckDB.
-- [ ] Handle malformed 3MF files gracefully.
+- [x] Create `threeMfPackageParser.ts`.
+- [x] Open `.3mf` files as ZIP archives.
+- [x] Detect `[Content_Types].xml`.
+- [x] Detect `/3D/3dmodel.model` or equivalent model paths.
+- [x] Parse model XML.
+- [x] Extract object names where available.
+- [x] Extract material names where available.
+- [x] Extract color values where available.
+- [x] Detect internal thumbnails where available.
+- [x] Extract thumbnail path where available.
+- [x] Store raw metadata JSON for debugging.
+- [x] Store parsed 3MF metadata in DuckDB.
+- [x] Handle malformed 3MF files gracefully.
 
 ## Success Criteria
 
-- [ ] Standard 3MF files can be opened as packages.
-- [ ] Missing optional metadata does not fail indexing.
-- [ ] Malformed package errors are captured per file.
-- [ ] Parsed metadata is visible in the detail page later.
-- [ ] Parser is independent from the Three.js 3D loader.
+- [x] Standard 3MF files can be opened as packages.
+- [x] Missing optional metadata does not fail indexing.
+- [x] Malformed package errors are captured per file.
+- [x] Parsed metadata is visible in the detail page later. (Persisted and readable; the detail page itself is Phase 18.)
+- [x] Parser is independent from the Three.js 3D loader.
 
 ---
 

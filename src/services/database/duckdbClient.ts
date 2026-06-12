@@ -1,7 +1,9 @@
 import { DuckDBConnection, DuckDBInstance } from '@duckdb/node-api'
-import type { DuckDBValue } from '@duckdb/node-api'
+import type { DuckDBType, DuckDBValue } from '@duckdb/node-api'
 
 export type SqlParams = Record<string, DuckDBValue>
+/** Optional explicit DuckDB types, needed e.g. for empty list parameters. */
+export type SqlParamTypes = Record<string, DuckDBType>
 
 /**
  * Thin wrapper around @duckdb/node-api. Owns one instance/connection pair.
@@ -27,9 +29,9 @@ export class DuckDbClient {
     return new DuckDbClient(instance, connection)
   }
 
-  async run(sql: string, params?: SqlParams): Promise<void> {
+  async run(sql: string, params?: SqlParams, types?: SqlParamTypes): Promise<void> {
     if (params) {
-      await this.connection.run(sql, params)
+      await this.connection.run(sql, params, types)
     } else {
       await this.connection.run(sql)
     }
@@ -39,9 +41,13 @@ export class DuckDbClient {
    * Runs a query and returns rows as plain JSON-compatible objects
    * (timestamps as strings, lists as arrays).
    */
-  async all<T = Record<string, unknown>>(sql: string, params?: SqlParams): Promise<T[]> {
+  async all<T = Record<string, unknown>>(
+    sql: string,
+    params?: SqlParams,
+    types?: SqlParamTypes,
+  ): Promise<T[]> {
     const reader = params
-      ? await this.connection.runAndReadAll(sql, params)
+      ? await this.connection.runAndReadAll(sql, params, types)
       : await this.connection.runAndReadAll(sql)
     return reader.getRowObjectsJson() as T[]
   }
