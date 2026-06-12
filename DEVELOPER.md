@@ -115,6 +115,14 @@ The target structure for services, types, Electron main/preload, and components 
 - Important constraint: `ThreeMFLoader` needs `DOMParser`, so this service requires a DOM context (Electron renderer or jsdom in tests) — it cannot run in the bare main process. Its tests therefore use the default jsdom environment, not `node`.
 - `extractGeometryMetadata` works unchanged on 3MF scenes (verified for single- and multi-object packages including transforms).
 
+### Phase 9 - Model Normalization
+
+- `src/services/model-parsing/modelNormalizer.ts`:
+  - `normalizeModelScene(scene)` wraps the loaded scene in a group, rotates it -90° around X (3D-printing Z-up to Three.js Y-up), and centers it at the origin. The source object/geometry is never mutated (only the wrapper transforms). Returns `NormalizedModel` with bounding box/sphere, normalized `size`, `maxDimension`, and `originalSize` (pre-orientation dimensions for metadata).
+  - `computeCameraDistance(model, fov)` fits the bounding sphere into the vertical FOV with a 1.4 safety margin.
+  - `getCameraPlacement(model, direction, fov)` returns deterministic `{ position, target, near, far }` for any view direction — shared by the preview component (Phase 10) and the multi-view renderer (Phase 12).
+- Tests: `tests/unit/modelNormalizer.spec.ts` (centering, orientation, non-mutation, determinism, STL + 3MF, camera fit proportionality).
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

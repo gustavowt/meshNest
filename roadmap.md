@@ -675,23 +675,23 @@ Normalize loaded STL/3MF scenes so previews and rendered views are consistent.
 
 ## Tasks
 
-- [ ] Create `modelNormalizer.ts`.
-- [ ] Center model geometry around the origin.
-- [ ] Compute model bounding sphere.
-- [ ] Compute model bounding box.
-- [ ] Normalize camera distance based on bounding size.
-- [ ] Preserve original dimensions in metadata.
-- [ ] Avoid permanently mutating source geometry when possible.
-- [ ] Add utility for fitting the model into a preview scene.
-- [ ] Add utility for deterministic model orientation.
+- [x] Create `modelNormalizer.ts`.
+- [x] Center model geometry around the origin.
+- [x] Compute model bounding sphere.
+- [x] Compute model bounding box.
+- [x] Normalize camera distance based on bounding size.
+- [x] Preserve original dimensions in metadata.
+- [x] Avoid permanently mutating source geometry when possible.
+- [x] Add utility for fitting the model into a preview scene.
+- [x] Add utility for deterministic model orientation.
 
 ## Success Criteria
 
-- [ ] Small and large models both render within frame.
-- [ ] Tall models do not get cropped.
-- [ ] Wide models do not get cropped.
-- [ ] Preview camera setup is deterministic.
-- [ ] Normalization works for both STL and 3MF scenes.
+- [x] Small and large models both render within frame.
+- [x] Tall models do not get cropped.
+- [x] Wide models do not get cropped.
+- [x] Preview camera setup is deterministic.
+- [x] Normalization works for both STL and 3MF scenes.
 
 ---
 
