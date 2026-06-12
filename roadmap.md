@@ -1047,15 +1047,15 @@ Implement vector search against embeddings stored in DuckDB.
 
 ## Tasks
 
-- [ ] Create `semanticSearch.ts`.
-- [ ] Accept a natural language query.
-- [ ] Generate query embedding using the embedding provider.
-- [ ] Query DuckDB using cosine distance.
-- [ ] Return top matching model files.
-- [ ] Include distance/score in results.
-- [ ] Join model metadata, thumbnails, descriptions, and tags.
-- [ ] Add empty result handling.
-- [ ] Add error handling when no embeddings exist.
+- [x] Create `semanticSearch.ts`.
+- [x] Accept a natural language query.
+- [x] Generate query embedding using the embedding provider.
+- [x] Query DuckDB using cosine distance.
+- [x] Return top matching model files.
+- [x] Include distance/score in results.
+- [x] Join model metadata, thumbnails, descriptions, and tags.
+- [x] Add empty result handling.
+- [x] Add error handling when no embeddings exist.
 
 ## Suggested Query Shape
 
@@ -1082,10 +1082,10 @@ LIMIT $limit;
 
 ## Success Criteria
 
-- [ ] User can search indexed models by natural language.
-- [ ] Search returns relevant mock-provider results during development.
-- [ ] Search results include thumbnail, filename, category, tags, and score.
-- [ ] Search handles an empty index gracefully.
+- [x] User can search indexed models by natural language.
+- [x] Search returns relevant mock-provider results during development.
+- [x] Search results include thumbnail, filename, category, tags, and score.
+- [x] Search handles an empty index gracefully.
 
 ---
 

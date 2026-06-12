@@ -212,6 +212,15 @@ The target structure for services, types, Electron main/preload, and components 
 - Library cards now navigate to the detail page (replacing the preview modal — the interactive preview lives on the detail page).
 - Tests: `tests/unit/modelDetailService.spec.ts` (aggregation for STL/3MF/failed/unknown, resetToPending), `tests/unit/modelMetadataPanel.spec.ts` (file facts, geometry formatting, AI section with chips/phrases, 3MF section, hidden sections, error block). Verified in Electron: detail page shows live 3D canvas, 6 gallery images, AI + geometry + path sections; failed file shows error and reindex button re-runs the pipeline.
 
+### Phase 19 - Semantic Search
+
+- `src/services/database/searchRepository.ts` (main process): `searchByEmbedding(queryEmbedding, { limit, projectId })` runs the cosine-distance query over `model_embeddings` joined with file metadata, AI description, and thumbnail; results sorted ascending by distance with `score = 1 - distance / 2` (0..1). Validates query dimensions (`EmbeddingDimensionError`) and throws `NoEmbeddingsError` on an empty index. `countEmbeddings()` lets the UI detect an empty index up front.
+- `src/services/search/semanticSearch.ts` (renderer-safe): `semanticSearch(query, deps, options)` trims the query (blank -> `[]`), embeds it via the provider, and delegates to the injected `searchByEmbedding` executor. `createDesktopSearchDeps(provider)` wires the IPC executor for production.
+- IPC: `database:searchByEmbedding`, `database:countEmbeddings`.
+- Diagnostics hook gained `semanticSearch(query, limit)`.
+- IMPORTANT DuckDB gotcha (fixed here): `arrayValue(...)` without an explicit type lets DuckDB infer the list element type from leading values; sparse embedding vectors starting with `0` were inferred as integer lists and **silently stored as all zeros**. Both the embedding upsert and the search query now bind with `ARRAY(FLOAT, EMBEDDING_DIMENSIONS)`. When binding any float list/array parameter, always pass the explicit DuckDB type.
+- Tests: `tests/unit/semanticSearch.spec.ts` (relevance ranking with mock providers, joined metadata + score bounds, limit, blank query, NoEmbeddingsError, dimension validation, project filter); embedding persistence test now asserts stored values roundtrip (would have caught the zero-truncation bug). Verified in Electron: empty index raises the error; after indexing three fixtures, "dragon phone stand" ranks the matching file first (score 0.92 vs 0.51).
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

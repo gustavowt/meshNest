@@ -26,6 +26,10 @@ const api: MeshNestApi = {
   listLibraryEntries: (projectId) => ipcRenderer.invoke('database:listLibraryEntries', projectId),
   getModelDetail: (modelFileId) => ipcRenderer.invoke('database:getModelDetail', modelFileId),
   resetToPending: (modelFileId) => ipcRenderer.invoke('database:resetToPending', modelFileId),
+
+  searchByEmbedding: (embedding, options) =>
+    ipcRenderer.invoke('database:searchByEmbedding', embedding, options),
+  countEmbeddings: () => ipcRenderer.invoke('database:countEmbeddings'),
   storeGeometryMetadata: (modelFileId, metadata) =>
     ipcRenderer.invoke('database:storeGeometryMetadata', modelFileId, metadata),
   storeThreeMfMetadata: (modelFileId, metadata) =>

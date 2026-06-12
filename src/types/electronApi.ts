@@ -5,6 +5,7 @@ import type { ModelFile, ScannedFile } from './modelFile'
 import type { ModelDetail } from './modelDetail'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from './modelMetadata'
 import type { ModelRenderAsset, RenderViewName } from './modelRender'
+import type { SearchResult } from './search'
 
 export type RenderedViewTransfer = {
   viewName: RenderViewName
@@ -51,6 +52,13 @@ export type MeshNestApi = {
   getModelDetail(modelFileId: string): Promise<ModelDetail | null>
   /** Forces a file back to 'pending' so the next run reindexes it. */
   resetToPending(modelFileId: string): Promise<void>
+
+  // Semantic search.
+  searchByEmbedding(
+    embedding: number[],
+    options?: { limit?: number; projectId?: string },
+  ): Promise<SearchResult[]>
+  countEmbeddings(): Promise<number>
   storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>
   storeThreeMfMetadata(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void>
   storeAiDescription(

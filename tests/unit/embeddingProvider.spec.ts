@@ -123,6 +123,16 @@ describe('EmbeddingRepository', () => {
     expect(stored?.sourceText).toBe(sourceText)
     expect(stored?.embedding).toHaveLength(EMBEDDING_DIMENSIONS)
     expect(await repository.countEmbeddings()).toBe(1)
+
+    // Values must survive the roundtrip (float32 precision), not just the
+    // shape: DuckDB list inference once truncated sparse vectors to zeros.
+    const storedNorm = Math.sqrt(stored!.embedding.reduce((sum, v) => sum + v * v, 0))
+    expect(storedNorm).toBeCloseTo(1, 3)
+    for (const [index, value] of vector.entries()) {
+      if (value !== 0) {
+        expect(stored!.embedding[index]).toBeCloseTo(value, 4)
+      }
+    }
   })
 
   test('rejects embeddings with mismatched dimensions', async () => {

@@ -5,6 +5,7 @@ import { GeometryMetadataRepository } from '../../../src/services/database/geome
 import { IndexingJobRepository } from '../../../src/services/database/indexingJobRepository'
 import { LibraryRepository } from '../../../src/services/database/libraryRepository'
 import { getModelDetail } from '../../../src/services/database/modelDetailService'
+import { SearchRepository } from '../../../src/services/database/searchRepository'
 import { ModelFileRepository } from '../../../src/services/database/modelFileRepository'
 import { ThreeMfMetadataRepository } from '../../../src/services/database/threeMfMetadataRepository'
 import type { IndexingJobType } from '../../../src/types/indexing'
@@ -110,5 +111,18 @@ export function registerDatabaseIpc(): void {
   ipcMain.handle('database:listIndexingJobs', async (_event, limit?: number) => {
     const repository = new IndexingJobRepository(await getDatabaseClient())
     return repository.listRecent(limit)
+  })
+
+  ipcMain.handle(
+    'database:searchByEmbedding',
+    async (_event, embedding: number[], options?: { limit?: number; projectId?: string }) => {
+      const repository = new SearchRepository(await getDatabaseClient())
+      return repository.searchByEmbedding(embedding, options)
+    },
+  )
+
+  ipcMain.handle('database:countEmbeddings', async () => {
+    const repository = new SearchRepository(await getDatabaseClient())
+    return repository.countEmbeddings()
   })
 }

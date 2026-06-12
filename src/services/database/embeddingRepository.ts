@@ -1,4 +1,4 @@
-import { arrayValue } from '@duckdb/node-api'
+import { ARRAY, arrayValue, FLOAT } from '@duckdb/node-api'
 import type { ModelEmbedding } from '@/types/llm'
 import { EMBEDDING_DIMENSIONS } from './schema'
 import type { DuckDbClient } from './duckdbClient'
@@ -58,6 +58,10 @@ export class EmbeddingRepository {
         embedding: arrayValue(embedding.embedding),
         sourceText: embedding.sourceText,
       },
+      // Explicit type: without it DuckDB infers the element type from the
+      // leading values, and sparse vectors starting with 0 get truncated
+      // to an integer list (silently storing all zeros).
+      { embedding: ARRAY(FLOAT, EMBEDDING_DIMENSIONS) },
     )
   }
 

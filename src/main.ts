@@ -50,7 +50,9 @@ if (window.meshNest) {
     import('@/services/indexing/indexModelFile'),
     import('@/services/indexing/indexDirectory'),
     import('@/services/indexing/desktopIndexingDeps'),
-  ]).then(([thumbnails, indexing, directory, deps]) => {
+    import('@/services/search/semanticSearch'),
+    import('@/services/llm/mockEmbeddingProvider'),
+  ]).then(([thumbnails, indexing, directory, deps, search, embedding]) => {
     ;(window as unknown as Record<string, unknown>).__meshNestDiagnostics = {
       renderAndStoreModelViews: thumbnails.renderAndStoreModelViews,
       indexScannedFile: (file: import('@/types/modelFile').ScannedFile, projectId: string) =>
@@ -60,6 +62,12 @@ if (window.meshNest) {
         projectId: string,
         options?: import('@/services/indexing/indexDirectory').IndexFilesOptions,
       ) => directory.indexDirectory(path, projectId, deps.createDesktopIndexingDeps(), options),
+      semanticSearch: (query: string, limit?: number) =>
+        search.semanticSearch(
+          query,
+          search.createDesktopSearchDeps(new embedding.MockEmbeddingProvider()),
+          { limit },
+        ),
     }
   })
 }
