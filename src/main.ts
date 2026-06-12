@@ -41,3 +41,13 @@ const app = createApp(App)
 router.isReady().then(() => {
   app.mount('#app');
 });
+
+// Diagnostics hook for the desktop shell: lets integration checks (and
+// support tooling) exercise the rendering pipeline without UI wiring.
+if (window.meshNest) {
+  import('@/services/rendering/thumbnailService').then(({ renderAndStoreModelViews }) => {
+    ;(window as unknown as Record<string, unknown>).__meshNestDiagnostics = {
+      renderAndStoreModelViews,
+    }
+  })
+}

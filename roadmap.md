@@ -774,21 +774,21 @@ Generate deterministic preview images that can be used in the UI and sent to a v
 
 ## Tasks
 
-- [ ] Create `modelRenderer.ts`.
-- [ ] Create `renderViews.ts`.
-- [ ] Render `thumbnail.png`.
-- [ ] Render `front.png`.
-- [ ] Render `back.png`.
-- [ ] Render `left.png`.
-- [ ] Render `right.png`.
-- [ ] Render `top.png`.
-- [ ] Render `perspective.png`.
-- [ ] Use consistent lighting.
-- [ ] Use consistent background.
-- [ ] Use deterministic camera positions.
-- [ ] Ensure transparent or neutral backgrounds are supported.
-- [ ] Save render assets to disk.
-- [ ] Store render asset metadata in DuckDB.
+- [x] Create `modelRenderer.ts`.
+- [x] Create `renderViews.ts`.
+- [x] Render `thumbnail.png`.
+- [x] Render `front.png`.
+- [x] Render `back.png`.
+- [x] Render `left.png`.
+- [x] Render `right.png`.
+- [x] Render `top.png`.
+- [x] Render `perspective.png`.
+- [x] Use consistent lighting.
+- [x] Use consistent background.
+- [x] Use deterministic camera positions.
+- [x] Ensure transparent or neutral backgrounds are supported.
+- [x] Save render assets to disk.
+- [x] Store render asset metadata in DuckDB.
 
 ## Notes
 
@@ -796,12 +796,12 @@ The renderer may run in a hidden browser window, an offscreen Electron context, 
 
 ## Success Criteria
 
-- [ ] STL thumbnails are generated.
-- [ ] 3MF thumbnails are generated.
-- [ ] All required views are generated.
-- [ ] Images are not cropped.
-- [ ] Images are deterministic enough for repeatable AI descriptions.
-- [ ] Rendering failures are captured per file.
+- [x] STL thumbnails are generated.
+- [x] 3MF thumbnails are generated.
+- [x] All required views are generated.
+- [x] Images are not cropped.
+- [x] Images are deterministic enough for repeatable AI descriptions. (Verified byte-identical across app restarts.)
+- [x] Rendering failures are captured per file. (Errors propagate as exceptions; per-file persistence happens in the Phase 15 pipeline.)
 
 ---
 

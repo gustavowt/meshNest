@@ -12,6 +12,9 @@ const api: MeshNestApi = {
 
   readModelFile: (absolutePath) => ipcRenderer.invoke('filesystem:readModelFile', absolutePath),
 
+  saveRenderAssets: (modelFileId, views) =>
+    ipcRenderer.invoke('rendering:saveRenderAssets', modelFileId, views),
+
   onScanProgress: (callback) => {
     const listener = (_event: IpcRendererEvent, progress: ScanProgressEvent) => callback(progress)
     ipcRenderer.on('filesystem:scanProgress', listener)

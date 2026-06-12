@@ -1,4 +1,12 @@
 import type { ScannedFile } from './modelFile'
+import type { ModelRenderAsset, RenderViewName } from './modelRender'
+
+export type RenderedViewTransfer = {
+  viewName: RenderViewName
+  png: Uint8Array
+  width: number
+  height: number
+}
 
 export type ScanProgressEvent = {
   scanId: string
@@ -22,6 +30,8 @@ export type MeshNestApi = {
   cancelScan(scanId: string): Promise<void>
   /** Reads the raw bytes of a supported model file. */
   readModelFile(absolutePath: string): Promise<Uint8Array>
+  /** Persists rendered views (images + DB records), replacing stale ones. */
+  saveRenderAssets(modelFileId: string, views: RenderedViewTransfer[]): Promise<ModelRenderAsset[]>
   /** Subscribes to scan progress events. Returns an unsubscribe function. */
   onScanProgress(callback: (event: ScanProgressEvent) => void): () => void
 }

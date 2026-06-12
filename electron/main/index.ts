@@ -2,6 +2,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { BrowserWindow, app } from 'electron'
 import { registerFilesystemIpc } from './ipc/filesystemIpc'
+import { registerRenderingIpc } from './ipc/renderingIpc'
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -26,6 +27,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   registerFilesystemIpc()
+  registerRenderingIpc()
   createWindow()
 
   app.on('activate', () => {

@@ -137,6 +137,18 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/services/database/renderAssetRepository.ts`: `RenderAssetRepository.replaceForModelFile` (delete+insert keeps DB aligned with disk), `listByModelFileId`, `findThumbnail`, `deleteByModelFileId`.
 - Tests: `tests/unit/renderAssetStorage.spec.ts` (stable paths, restart survival, clearing, overwrite, DB/disk alignment).
 
+### Phase 12 - Thumbnail and Multi-View Rendering
+
+- `src/services/rendering/renderViews.ts`: deterministic `RENDER_VIEW_DEFINITIONS` (thumbnail 256px + front/back/left/right/top/perspective 512px) with per-view direction and up vectors.
+- `src/services/rendering/modelRenderer.ts`: `renderModelViews(normalizedModel, options)` renders all views offscreen with `WebGLRenderer` (pixelRatio 1, antialias, preserveDrawingBuffer), neutral `#f1f2f4` background (configurable, `'transparent'` supported), ambient + camera-following key light, returns PNG bytes per view. Renders are byte-deterministic across app restarts (verified). Runs only in a WebGL context (Electron renderer); isolated so the host can change later.
+- `src/services/rendering/thumbnailService.ts`: `renderAndStoreModelViews(modelFileId, filePath, extension)` — renderer-process orchestrator (read via bridge -> load -> normalize -> render -> persist via IPC).
+- `electron/main/ipc/renderingIpc.ts`: `rendering:saveRenderAssets` clears stale renders, writes PNGs through `RenderAssetStorage`, replaces DB records. Exposed as `window.meshNest.saveRenderAssets`.
+- `electron/main/services/database.ts`: lazy singleton app DB (userData/meshnest.duckdb) with migrations on first use.
+- Architecture note: parsing + rendering run in the renderer process (DOMParser + WebGL); main owns FS/DB. The indexing pipeline therefore also runs renderer-side and talks through IPC.
+- Fixes required for packaged loading: removed `<base href="/">` from `index.html` and switched the router to hash history (file:// compatible).
+- `src/main.ts` exposes `window.__meshNestDiagnostics.renderAndStoreModelViews` in the desktop shell for integration checks.
+- Tests: `tests/unit/renderViews.spec.ts`; full STL+3MF render/store verified in Electron via CDP (file output, DB records, determinism).
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
