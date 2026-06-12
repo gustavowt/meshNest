@@ -1,3 +1,4 @@
+import type { IndexingJobTracker } from './indexDirectory'
 import type { IndexingBackend } from './indexingBackend'
 
 /**
@@ -22,5 +23,22 @@ export function createBridgeIndexingBackend(): IndexingBackend {
     storeEmbedding: (embedding) => bridge.storeEmbedding(embedding),
     markIndexed: (modelFileId) => bridge.markIndexed(modelFileId),
     markFailed: (modelFileId, errorMessage) => bridge.markFailed(modelFileId, errorMessage),
+  }
+}
+
+/**
+ * Production IndexingJobTracker: persists queue history in the main
+ * process database through the preload bridge.
+ */
+export function createBridgeJobTracker(): IndexingJobTracker {
+  const bridge = window.meshNest
+  if (!bridge) {
+    throw new Error('Indexing requires the desktop app')
+  }
+  return {
+    createJob: (job) => bridge.createIndexingJob(job),
+    markJobRunning: (id) => bridge.markIndexingJobRunning(id),
+    finishJob: (id, status, modelFileId, errorMessage) =>
+      bridge.finishIndexingJob(id, status, modelFileId, errorMessage),
   }
 }

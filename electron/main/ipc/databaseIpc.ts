@@ -2,8 +2,10 @@ import { ipcMain } from 'electron'
 import { AiDescriptionRepository } from '../../../src/services/database/aiDescriptionRepository'
 import { EmbeddingRepository } from '../../../src/services/database/embeddingRepository'
 import { GeometryMetadataRepository } from '../../../src/services/database/geometryMetadataRepository'
+import { IndexingJobRepository } from '../../../src/services/database/indexingJobRepository'
 import { ModelFileRepository } from '../../../src/services/database/modelFileRepository'
 import { ThreeMfMetadataRepository } from '../../../src/services/database/threeMfMetadataRepository'
+import type { IndexingJobType } from '../../../src/types/indexing'
 import type { AIModelDescription, ModelEmbedding } from '../../../src/types/llm'
 import type { ScannedFile } from '../../../src/types/modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from '../../../src/types/modelMetadata'
@@ -60,5 +62,37 @@ export function registerDatabaseIpc(): void {
   ipcMain.handle('database:markFailed', async (_event, modelFileId: string, errorMessage: string) => {
     const repository = new ModelFileRepository(await getDatabaseClient())
     await repository.markFailed(modelFileId, errorMessage)
+  })
+
+  ipcMain.handle(
+    'database:createIndexingJob',
+    async (_event, job: { id: string; absolutePath: string; jobType: IndexingJobType }) => {
+      const repository = new IndexingJobRepository(await getDatabaseClient())
+      await repository.create(job)
+    },
+  )
+
+  ipcMain.handle('database:markIndexingJobRunning', async (_event, id: string) => {
+    const repository = new IndexingJobRepository(await getDatabaseClient())
+    await repository.markRunning(id)
+  })
+
+  ipcMain.handle(
+    'database:finishIndexingJob',
+    async (
+      _event,
+      id: string,
+      status: 'succeeded' | 'failed' | 'cancelled',
+      modelFileId?: string,
+      errorMessage?: string,
+    ) => {
+      const repository = new IndexingJobRepository(await getDatabaseClient())
+      await repository.finish(id, status, modelFileId, errorMessage)
+    },
+  )
+
+  ipcMain.handle('database:listIndexingJobs', async (_event, limit?: number) => {
+    const repository = new IndexingJobRepository(await getDatabaseClient())
+    return repository.listRecent(limit)
   })
 }

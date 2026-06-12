@@ -1,3 +1,4 @@
+import type { IndexingJob, IndexingJobType } from './indexing'
 import type { AIModelDescription, ModelEmbedding } from './llm'
 import type { ModelFile, ScannedFile } from './modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from './modelMetadata'
@@ -48,6 +49,17 @@ export type MeshNestApi = {
   storeEmbedding(embedding: Omit<ModelEmbedding, 'createdAt'>): Promise<void>
   markIndexed(modelFileId: string): Promise<void>
   markFailed(modelFileId: string, errorMessage: string): Promise<void>
+
+  // Indexing job persistence (queue history).
+  createIndexingJob(job: { id: string; absolutePath: string; jobType: IndexingJobType }): Promise<void>
+  markIndexingJobRunning(id: string): Promise<void>
+  finishIndexingJob(
+    id: string,
+    status: 'succeeded' | 'failed' | 'cancelled',
+    modelFileId?: string,
+    errorMessage?: string,
+  ): Promise<void>
+  listIndexingJobs(limit?: number): Promise<IndexingJob[]>
   /** Subscribes to scan progress events. Returns an unsubscribe function. */
   onScanProgress(callback: (event: ScanProgressEvent) => void): () => void
 }

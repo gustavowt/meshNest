@@ -28,6 +28,12 @@ const api: MeshNestApi = {
   markFailed: (modelFileId, errorMessage) =>
     ipcRenderer.invoke('database:markFailed', modelFileId, errorMessage),
 
+  createIndexingJob: (job) => ipcRenderer.invoke('database:createIndexingJob', job),
+  markIndexingJobRunning: (id) => ipcRenderer.invoke('database:markIndexingJobRunning', id),
+  finishIndexingJob: (id, status, modelFileId, errorMessage) =>
+    ipcRenderer.invoke('database:finishIndexingJob', id, status, modelFileId, errorMessage),
+  listIndexingJobs: (limit) => ipcRenderer.invoke('database:listIndexingJobs', limit),
+
   onScanProgress: (callback) => {
     const listener = (_event: IpcRendererEvent, progress: ScanProgressEvent) => callback(progress)
     ipcRenderer.on('filesystem:scanProgress', listener)

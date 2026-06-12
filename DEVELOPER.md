@@ -174,6 +174,19 @@ The target structure for services, types, Electron main/preload, and components 
 - Diagnostics hook gained `indexScannedFile(file, projectId)` (mock providers + bridge backend).
 - Tests: `tests/unit/indexModelFile.spec.ts` (STL + 3MF end-to-end against real repositories with an in-process backend, failure persistence, skip-unchanged, reindex-changed, failure isolation). Full pipeline also verified inside Electron (real WebGL + IPC): scan -> index -> skipped on second run, failed file retried with stored reason.
 
+### Phase 16 - Directory Indexing Queue
+
+- `src/services/indexing/indexQueue.ts`: `processIndexQueue(items, worker, options)` — generic bounded-concurrency queue (default 2) with progress snapshots (`IndexingProgress`), cooperative cancellation via `AbortSignal` (in-flight items finish, queued items stay pending), and conversion of unexpected worker throws into failed results. Returns one result slot per input item in input order.
+- `src/services/indexing/indexDirectory.ts`:
+  - `indexScannedFiles(files, projectId, deps, options)` — runs `indexModelFile` for each file through the queue; persists one `indexing_jobs` row per file (`queued -> running -> succeeded|failed|cancelled`) via the injectable `IndexingJobTracker`; returns `{ summary, resultsByPath }` where the summary covers total/indexed/skipped/failed/pending/cancelled.
+  - `indexDirectory(directory, projectId, deps, options)` — scans through the bridge, then indexes everything.
+  - `retryFailedFiles(files, previousResults, ...)` — re-runs only files whose previous result was `failed`, recorded as `retry` jobs.
+- `src/services/database/indexingJobRepository.ts`: `create`, `markRunning`, `finish`, `listRecent`, `countByStatus` over the `indexing_jobs` table.
+- IPC: `database:createIndexingJob` / `markIndexingJobRunning` / `finishIndexingJob` / `listIndexingJobs`; `createBridgeJobTracker()` in `bridgeBackend.ts` is the production tracker. Progress events flow as renderer-side callbacks (no IPC needed: the queue runs in the renderer).
+- Diagnostics hook gained `indexDirectory(path, projectId, options)`.
+- Test helpers shared between indexing specs: `tests/unit/helpers/indexingTestUtils.ts` (in-process backend, job tracker, fake renderer, scanned-file factory).
+- Tests: `tests/unit/indexDirectory.spec.ts` (concurrency bound, progress snapshots, cancellation, throw containment, summary accuracy, job persistence with error reasons, skip-on-rerun, cancelled-job bookkeeping, retry semantics). Verified in Electron: directory with nested + broken files indexed with concurrency 2, accurate summary, and persisted job history.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

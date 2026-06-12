@@ -1,0 +1,81 @@
+import type { IndexingJob, IndexingJobStatus, IndexingJobType } from '@/types/indexing'
+import type { DuckDbClient } from './duckdbClient'
+
+type IndexingJobRow = {
+  id: string
+  model_file_id: string | null
+  absolute_path: string
+  job_type: string
+  status: string
+  error_message: string | null
+  started_at: string | null
+  finished_at: string | null
+  created_at: string
+}
+
+function toJob(row: IndexingJobRow): IndexingJob {
+  return {
+    id: row.id,
+    modelFileId: row.model_file_id ?? undefined,
+    absolutePath: row.absolute_path,
+    jobType: row.job_type as IndexingJobType,
+    status: row.status as IndexingJobStatus,
+    errorMessage: row.error_message ?? undefined,
+    startedAt: row.started_at ?? undefined,
+    finishedAt: row.finished_at ?? undefined,
+    createdAt: row.created_at,
+  }
+}
+
+export class IndexingJobRepository {
+  constructor(private readonly client: DuckDbClient) {}
+
+  async create(job: { id: string; absolutePath: string; jobType: IndexingJobType }): Promise<void> {
+    await this.client.run(
+      `INSERT INTO indexing_jobs (id, absolute_path, job_type, status)
+       VALUES ($id, $absolutePath, $jobType, 'queued')`,
+      { id: job.id, absolutePath: job.absolutePath, jobType: job.jobType },
+    )
+  }
+
+  async markRunning(id: string): Promise<void> {
+    await this.client.run(
+      `UPDATE indexing_jobs SET status = 'running', started_at = now() WHERE id = $id`,
+      { id },
+    )
+  }
+
+  async finish(
+    id: string,
+    status: Extract<IndexingJobStatus, 'succeeded' | 'failed' | 'cancelled'>,
+    modelFileId?: string,
+    errorMessage?: string,
+  ): Promise<void> {
+    await this.client.run(
+      `UPDATE indexing_jobs SET
+         status = $status,
+         model_file_id = $modelFileId,
+         error_message = $errorMessage,
+         finished_at = now()
+       WHERE id = $id`,
+      { id, status, modelFileId: modelFileId ?? null, errorMessage: errorMessage ?? null },
+    )
+  }
+
+  async listRecent(limit = 100): Promise<IndexingJob[]> {
+    const rows = await this.client.all<IndexingJobRow>(
+      `SELECT id, model_file_id, absolute_path, job_type, status, error_message,
+              started_at, finished_at, created_at
+       FROM indexing_jobs ORDER BY created_at DESC LIMIT $limit`,
+      { limit },
+    )
+    return rows.map(toJob)
+  }
+
+  async countByStatus(): Promise<Record<string, number>> {
+    const rows = await this.client.all<{ status: string; c: number | string }>(
+      'SELECT status, count(*) AS c FROM indexing_jobs GROUP BY status',
+    )
+    return Object.fromEntries(rows.map((row) => [row.status, Number(row.c)]))
+  }
+}

@@ -1,5 +1,5 @@
 // Uses jsdom (default): the 3MF loader needs DOMParser. DuckDB still runs natively.
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
@@ -11,16 +11,17 @@ import { runMigrations } from '@/services/database/migrations'
 import { ModelFileRepository } from '@/services/database/modelFileRepository'
 import { RenderAssetRepository } from '@/services/database/renderAssetRepository'
 import { ThreeMfMetadataRepository } from '@/services/database/threeMfMetadataRepository'
-import { hashBuffer } from '@/services/filesystem/fileHash'
 import { indexModelFile } from '@/services/indexing/indexModelFile'
 import type { IndexingBackend } from '@/services/indexing/indexingBackend'
 import { MockEmbeddingProvider } from '@/services/llm/mockEmbeddingProvider'
 import { MockVisionProvider } from '@/services/llm/mockVisionProvider'
-import type { NormalizedModel } from '@/services/model-parsing/modelNormalizer'
-import { RenderAssetStorage } from '@/services/rendering/renderAssetStorage'
-import type { RenderedView } from '@/services/rendering/modelRenderer'
 import { RENDER_VIEW_DEFINITIONS } from '@/services/rendering/renderViews'
 import type { ScannedFile } from '@/types/modelFile'
+import {
+  createTestBackend,
+  fakeRenderViews,
+  writeScannedFile as writeScannedFileIn,
+} from './helpers/indexingTestUtils'
 import { buildBinaryStl, SPANNING_TRIANGLES } from './helpers/stlFixtures'
 import { buildThreeMfPackage } from './helpers/threeMfFixtures'
 
@@ -32,63 +33,8 @@ let client: DuckDbClient
 let backend: IndexingBackend
 let modelFiles: ModelFileRepository
 
-/** Stand-in for the WebGL renderer (jsdom has no WebGL). */
-function fakeRenderViews(model: NormalizedModel): RenderedView[] {
-  expect(model.maxDimension).toBeGreaterThan(0)
-  return RENDER_VIEW_DEFINITIONS.map((view) => ({
-    viewName: view.viewName,
-    png: Uint8Array.from([0x89, 0x50, 0x4e, 0x47]),
-    width: view.width,
-    height: view.height,
-  }))
-}
-
-function createTestBackend(db: DuckDbClient, rendersRoot: string): IndexingBackend {
-  const files = new ModelFileRepository(db)
-  const geometry = new GeometryMetadataRepository(db)
-  const threeMf = new ThreeMfMetadataRepository(db)
-  const renders = new RenderAssetRepository(db)
-  const storage = new RenderAssetStorage(rendersRoot)
-  const descriptions = new AiDescriptionRepository(db)
-  const embeddings = new EmbeddingRepository(db)
-
-  return {
-    upsertModelFile: (file, projectId) => files.upsertModelFile(file, projectId),
-    readModelFile: async (absolutePath) => {
-      const { readFile } = await import('node:fs/promises')
-      return readFile(absolutePath)
-    },
-    storeGeometryMetadata: (id, metadata) => geometry.upsert(id, metadata),
-    storeThreeMfMetadata: (id, metadata) => threeMf.upsert(id, metadata),
-    saveRenderAssets: async (modelFileId, views) => {
-      await storage.clearModelRenders(modelFileId)
-      const saved = []
-      for (const view of views) {
-        const absolutePath = await storage.saveRenderAsset(modelFileId, view.viewName, view.png)
-        saved.push({ modelFileId, viewName: view.viewName, absolutePath, width: view.width, height: view.height })
-      }
-      await renders.replaceForModelFile(modelFileId, saved)
-      return renders.listByModelFileId(modelFileId)
-    },
-    storeAiDescription: (id, description, raw) => descriptions.upsert(id, description, raw),
-    storeEmbedding: (embedding) => embeddings.upsert(embedding),
-    markIndexed: (id) => files.markIndexed(id),
-    markFailed: (id, message) => files.markFailed(id, message),
-  }
-}
-
 function writeScannedFile(filename: string, content: Uint8Array | string): ScannedFile {
-  const absolutePath = join(filesDir, filename)
-  writeFileSync(absolutePath, content)
-  return {
-    absolutePath,
-    relativePath: filename,
-    filename,
-    extension: filename.toLowerCase().endsWith('.stl') ? 'stl' : '3mf',
-    sizeBytes: typeof content === 'string' ? content.length : content.byteLength,
-    modifiedAt: '2026-06-01T12:00:00.000Z',
-    contentHash: hashBuffer(content),
-  }
+  return writeScannedFileIn(filesDir, filename, content)
 }
 
 function deps() {

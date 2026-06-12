@@ -953,24 +953,24 @@ Index a full directory safely with progress, cancellation, retries, and bounded 
 
 ## Tasks
 
-- [ ] Create `indexQueue.ts`.
-- [ ] Create `indexDirectory.ts`.
-- [ ] Add a queue for discovered files.
-- [ ] Add bounded concurrency.
-- [ ] Add progress events.
-- [ ] Add cancellation support.
-- [ ] Add retry support for failed files.
-- [ ] Add queue status persistence.
-- [ ] Add indexing summary: total, indexed, skipped, failed, pending.
-- [ ] Expose indexing events through IPC or store updates.
+- [x] Create `indexQueue.ts`.
+- [x] Create `indexDirectory.ts`.
+- [x] Add a queue for discovered files.
+- [x] Add bounded concurrency.
+- [x] Add progress events.
+- [x] Add cancellation support.
+- [x] Add retry support for failed files.
+- [x] Add queue status persistence.
+- [x] Add indexing summary: total, indexed, skipped, failed, pending.
+- [x] Expose indexing events through IPC or store updates.
 
 ## Success Criteria
 
-- [ ] User can index a directory with multiple files.
-- [ ] UI remains responsive while indexing.
-- [ ] User can cancel indexing.
-- [ ] User can retry failed files.
-- [ ] Progress survives enough state to explain what happened after a failure.
+- [x] User can index a directory with multiple files.
+- [x] UI remains responsive while indexing.
+- [x] User can cancel indexing.
+- [x] User can retry failed files.
+- [x] Progress survives enough state to explain what happened after a failure.
 
 ---
 
