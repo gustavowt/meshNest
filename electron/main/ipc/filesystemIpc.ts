@@ -1,8 +1,10 @@
+import { readFile } from 'node:fs/promises'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import type { ScanProgressEvent } from '../../../src/types/electronApi'
 import type { ScannedFile } from '../../../src/types/modelFile'
 import { ScanCancelledError, scanDirectory } from '../../../src/services/filesystem/directoryScanner'
 import { hashFile } from '../../../src/services/filesystem/fileHash'
+import { getSupportedExtension } from '../../../src/services/filesystem/supportedFiles'
 
 const activeScans = new Map<string, AbortController>()
 
@@ -49,5 +51,12 @@ export function registerFilesystemIpc(): void {
 
   ipcMain.handle('filesystem:cancelScan', (_event, scanId: string) => {
     activeScans.get(scanId)?.abort()
+  })
+
+  ipcMain.handle('filesystem:readModelFile', async (_event, absolutePath: string) => {
+    if (!getSupportedExtension(absolutePath)) {
+      throw new Error('Only .stl and .3mf files can be read')
+    }
+    return readFile(absolutePath)
   })
 }

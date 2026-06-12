@@ -33,7 +33,7 @@
             <p>{{ files.length }} model file(s) found</p>
           </ion-text>
           <ion-list>
-            <ion-item v-for="file in files" :key="file.absolutePath">
+            <ion-item v-for="file in files" :key="file.absolutePath" button @click="previewFile = file">
               <ion-label>
                 <h3>{{ file.filename }}</h3>
                 <p>{{ file.relativePath }} · {{ formatSize(file.sizeBytes) }} · {{ file.extension }}</p>
@@ -46,6 +46,25 @@
           <p>No STL or 3MF files found in this directory.</p>
         </ion-text>
       </div>
+
+      <ion-modal :is-open="previewFile !== null" @did-dismiss="previewFile = null">
+        <ion-header>
+          <ion-toolbar>
+            <ion-title>{{ previewFile?.filename }}</ion-title>
+            <ion-buttons slot="end">
+              <ion-button @click="previewFile = null">Close</ion-button>
+            </ion-buttons>
+          </ion-toolbar>
+        </ion-header>
+        <ion-content>
+          <model-preview3-d
+            v-if="previewFile"
+            :file-path="previewFile.absolutePath"
+            :extension="previewFile.extension"
+            class="preview-modal-body"
+          />
+        </ion-content>
+      </ion-modal>
     </ion-content>
   </ion-page>
 </template>
@@ -53,17 +72,20 @@
 <script setup lang="ts">
 import {
   IonButton,
+  IonButtons,
   IonContent,
   IonHeader,
   IonItem,
   IonLabel,
   IonList,
+  IonModal,
   IonPage,
   IonText,
   IonTitle,
   IonToolbar,
 } from '@ionic/vue'
 import { onUnmounted, ref } from 'vue'
+import ModelPreview3D from '@/components/model/ModelPreview3D.vue'
 import type { ScannedFile } from '@/types/modelFile'
 
 const selectedDirectory = ref<string | null>(null)
@@ -73,6 +95,7 @@ const files = ref<ScannedFile[]>([])
 const error = ref<string | null>(null)
 const progressCount = ref(0)
 const progressPath = ref('')
+const previewFile = ref<ScannedFile | null>(null)
 
 let currentScanId: string | null = null
 let unsubscribeProgress: (() => void) | null = null
@@ -150,5 +173,9 @@ onUnmounted(() => {
   font-size: 12px;
   color: var(--ion-color-medium);
   word-break: break-all;
+}
+
+.preview-modal-body {
+  height: 100%;
 }
 </style>

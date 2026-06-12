@@ -123,6 +123,13 @@ The target structure for services, types, Electron main/preload, and components 
   - `getCameraPlacement(model, direction, fov)` returns deterministic `{ position, target, near, far }` for any view direction — shared by the preview component (Phase 10) and the multi-view renderer (Phase 12).
 - Tests: `tests/unit/modelNormalizer.spec.ts` (centering, orientation, non-mutation, determinism, STL + 3MF, camera fit proportionality).
 
+### Phase 10 - 3D Preview Component
+
+- `src/components/model/ModelPreview3D.vue`: reusable interactive preview for STL/3MF. Props: `filePath`, `extension`. Reads bytes through `window.meshNest.readModelFile`, loads via the phase 6/8 loaders, normalizes via Phase 9, renders with `WebGLRenderer` + `OrbitControls`, ambient + key/fill directional lights, deterministic camera fit. Handles loading/error states (including missing bridge and WebGL failures), resizes via `ResizeObserver`, and disposes renderer/controls/geometries/materials on unmount and on reload.
+- New IPC: `filesystem:readModelFile` (rejects non-.stl/.3mf paths); exposed as `window.meshNest.readModelFile`.
+- `HomePage.vue` opens a preview modal when a scanned file is clicked (temporary entry point until the detail page in Phase 18).
+- Tests: `tests/unit/modelPreview3D.spec.ts` (state machine, reload on prop change). IPC + WebGL availability verified manually in Electron via CDP.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

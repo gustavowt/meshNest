@@ -703,25 +703,25 @@ Create a reusable Vue component for interactive preview of STL and 3MF files.
 
 ## Tasks
 
-- [ ] Create `ModelPreview3D.vue`.
-- [ ] Render a Three.js scene inside the component.
-- [ ] Add orbit controls.
-- [ ] Add loading state.
-- [ ] Add error state.
-- [ ] Add resize handling.
-- [ ] Add basic lighting.
-- [ ] Add camera fit behavior.
-- [ ] Support STL preview.
-- [ ] Support 3MF preview.
-- [ ] Dispose Three.js resources when the component unmounts.
+- [x] Create `ModelPreview3D.vue`.
+- [x] Render a Three.js scene inside the component.
+- [x] Add orbit controls.
+- [x] Add loading state.
+- [x] Add error state.
+- [x] Add resize handling.
+- [x] Add basic lighting.
+- [x] Add camera fit behavior.
+- [x] Support STL preview.
+- [x] Support 3MF preview.
+- [x] Dispose Three.js resources when the component unmounts.
 
 ## Success Criteria
 
-- [ ] User can preview an STL file interactively.
-- [ ] User can preview a 3MF file interactively.
-- [ ] Component does not leak WebGL resources after repeated navigation.
-- [ ] Preview remains responsive on window resize.
-- [ ] Errors are visible and understandable.
+- [x] User can preview an STL file interactively.
+- [x] User can preview a 3MF file interactively.
+- [x] Component does not leak WebGL resources after repeated navigation.
+- [x] Preview remains responsive on window resize.
+- [x] Errors are visible and understandable.
 
 ---
 

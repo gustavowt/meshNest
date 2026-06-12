@@ -10,6 +10,8 @@ const api: MeshNestApi = {
 
   cancelScan: (scanId) => ipcRenderer.invoke('filesystem:cancelScan', scanId),
 
+  readModelFile: (absolutePath) => ipcRenderer.invoke('filesystem:readModelFile', absolutePath),
+
   onScanProgress: (callback) => {
     const listener = (_event: IpcRendererEvent, progress: ScanProgressEvent) => callback(progress)
     ipcRenderer.on('filesystem:scanProgress', listener)

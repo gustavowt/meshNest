@@ -20,6 +20,8 @@ export type MeshNestApi = {
   scanDirectory(directory: string, scanId: string): Promise<ScannedFile[]>
   /** Cancels a running scan by id. */
   cancelScan(scanId: string): Promise<void>
+  /** Reads the raw bytes of a supported model file. */
+  readModelFile(absolutePath: string): Promise<Uint8Array>
   /** Subscribes to scan progress events. Returns an unsubscribe function. */
   onScanProgress(callback: (event: ScanProgressEvent) => void): () => void
 }
