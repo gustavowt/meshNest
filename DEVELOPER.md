@@ -149,6 +149,15 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/main.ts` exposes `window.__meshNestDiagnostics.renderAndStoreModelViews` in the desktop shell for integration checks.
 - Tests: `tests/unit/renderViews.spec.ts`; full STL+3MF render/store verified in Electron via CDP (file output, DB records, determinism).
 
+### Phase 13 - Mock Vision Provider
+
+- `src/services/llm/visionProvider.ts`: `VisionProvider` interface (`name`, `model`, `describeModel(input)`), with `VisionAnalysisInput` carrying filename, extension, rendered images, geometry, and optional 3MF package metadata. The pipeline depends only on the interface.
+- `src/services/llm/prompts.ts`: `VISION_PROMPT` (strict-JSON instruction) and `SUGGESTED_CATEGORIES`.
+- `src/services/llm/jsonValidation.ts`: `aiModelDescriptionSchema` (zod) and `validateVisionResponse(stringOrObject)` throwing `VisionValidationError` with readable issue paths.
+- `src/services/llm/mockVisionProvider.ts`: `MockVisionProvider` — deterministic descriptions derived from filename/extension/geometry, validated through the same schema before returning; uses 3MF object names when present.
+- `src/services/database/aiDescriptionRepository.ts`: `AiDescriptionRepository.upsert/getByModelFileId` storing the validated description plus the raw response JSON.
+- Tests: `tests/unit/visionProvider.spec.ts`.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

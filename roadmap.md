@@ -813,15 +813,15 @@ Build the LLM vision interface and a mock implementation before using real AI pr
 
 ## Tasks
 
-- [ ] Create `visionProvider.ts`.
-- [ ] Define a provider interface for model image analysis.
-- [ ] Create `mockVisionProvider.ts`.
-- [ ] Return deterministic fake descriptions based on filename and extension.
-- [ ] Create `prompts.ts`.
-- [ ] Create the final vision prompt template.
-- [ ] Create `jsonValidation.ts`.
-- [ ] Validate the vision provider response using Zod or equivalent.
-- [ ] Store raw JSON responses for debugging.
+- [x] Create `visionProvider.ts`.
+- [x] Define a provider interface for model image analysis.
+- [x] Create `mockVisionProvider.ts`.
+- [x] Return deterministic fake descriptions based on filename and extension.
+- [x] Create `prompts.ts`.
+- [x] Create the final vision prompt template.
+- [x] Create `jsonValidation.ts`.
+- [x] Validate the vision provider response using Zod or equivalent.
+- [x] Store raw JSON responses for debugging.
 
 ## Required Vision Output Shape
 
@@ -864,10 +864,10 @@ Prefer practical 3D printing categories such as toys, tools, organizers, miniatu
 
 ## Success Criteria
 
-- [ ] Indexing can call a vision provider without knowing whether it is mock or real.
-- [ ] Mock provider returns valid structured data.
-- [ ] Invalid provider output fails validation cleanly.
-- [ ] AI descriptions are persisted in DuckDB.
+- [x] Indexing can call a vision provider without knowing whether it is mock or real.
+- [x] Mock provider returns valid structured data.
+- [x] Invalid provider output fails validation cleanly.
+- [x] AI descriptions are persisted in DuckDB.
 
 ---
 
