@@ -43,6 +43,17 @@ The target structure for services, types, Electron main/preload, and components 
 - `tests/unit/dependencies.spec.ts` smoke-tests that all Phase 1 libraries import and work.
 - Dependency rationale table lives in `README.md`.
 
+### Phase 2 - Core Types and Contracts
+
+- `src/types/` holds the shared domain types, re-exported from `src/types/index.ts`:
+  - `modelFile.ts`: `SUPPORTED_MODEL_EXTENSIONS`, `SupportedModelExtension`, `isSupportedModelExtension`, `ModelFileStatus`, `ModelFile` (persisted), `DiscoveredFile` (scanner output).
+  - `modelMetadata.ts`: `GeometryMetadata` (mm units), `ThreeMfPackageMetadata`.
+  - `modelRender.ts`: `RENDER_VIEW_NAMES`, `RenderViewName`, `ModelRenderAsset`.
+  - `indexing.ts`: `IndexingJob`, `IndexingJobType`, `IndexingJobStatus`, `IndexingProgress`, `IndexingResult`.
+  - `llm.ts`: `AIModelDescription`, `ModelEmbedding`, `VisionImageInput`.
+  - `search.ts`: `SearchResult`, `SearchFilters`, `SearchQuery`.
+- Types are plain data shapes (no behavior) so services can import them without circular dependencies.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.

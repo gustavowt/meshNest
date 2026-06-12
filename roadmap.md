@@ -309,20 +309,20 @@ Create the shared domain types that all future services will use.
 
 ## Tasks
 
-- [ ] Create `src/types/modelFile.ts`.
-- [ ] Create `src/types/modelMetadata.ts`.
-- [ ] Create `src/types/modelRender.ts`.
-- [ ] Create `src/types/indexing.ts`.
-- [ ] Create `src/types/llm.ts`.
-- [ ] Create `src/types/search.ts`.
-- [ ] Define supported file extensions: `.stl` and `.3mf`.
-- [ ] Define a `ModelFile` type.
-- [ ] Define a `GeometryMetadata` type.
-- [ ] Define a `ThreeMfPackageMetadata` type.
-- [ ] Define a `ModelRenderAsset` type.
-- [ ] Define an `AIModelDescription` type.
-- [ ] Define an `IndexingJob` type.
-- [ ] Define a `SearchResult` type.
+- [x] Create `src/types/modelFile.ts`.
+- [x] Create `src/types/modelMetadata.ts`.
+- [x] Create `src/types/modelRender.ts`.
+- [x] Create `src/types/indexing.ts`.
+- [x] Create `src/types/llm.ts`.
+- [x] Create `src/types/search.ts`.
+- [x] Define supported file extensions: `.stl` and `.3mf`.
+- [x] Define a `ModelFile` type.
+- [x] Define a `GeometryMetadata` type.
+- [x] Define a `ThreeMfPackageMetadata` type.
+- [x] Define a `ModelRenderAsset` type.
+- [x] Define an `AIModelDescription` type.
+- [x] Define an `IndexingJob` type.
+- [x] Define a `SearchResult` type.
 
 ## Suggested Type Shape
 
@@ -372,10 +372,10 @@ export type AIModelDescription = {
 
 ## Success Criteria
 
-- [ ] Types compile without errors.
-- [ ] Types are exported from a predictable location.
-- [ ] Future services can import these types without circular dependencies.
-- [ ] The type names are descriptive and stable.
+- [x] Types compile without errors.
+- [x] Types are exported from a predictable location.
+- [x] Future services can import these types without circular dependencies.
+- [x] The type names are descriptive and stable.
 
 ---
 
