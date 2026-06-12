@@ -552,25 +552,25 @@ Persist discovered files and determine whether each file needs indexing.
 
 ## Tasks
 
-- [ ] Create `modelFileRepository.ts`.
-- [ ] Implement `upsertModelFile`.
-- [ ] Implement `findByPath`.
-- [ ] Implement `findByHash`.
-- [ ] Implement `listModelFiles`.
-- [ ] Implement `listPendingFiles`.
-- [ ] Implement `markIndexed`.
-- [ ] Implement `markFailed`.
-- [ ] Implement `shouldReindexFile`.
-- [ ] Use file hash and modified timestamp to avoid unnecessary reindexing.
-- [ ] Add unit tests or lightweight integration tests for repository behavior.
+- [x] Create `modelFileRepository.ts`.
+- [x] Implement `upsertModelFile`.
+- [x] Implement `findByPath`.
+- [x] Implement `findByHash`.
+- [x] Implement `listModelFiles`.
+- [x] Implement `listPendingFiles`.
+- [x] Implement `markIndexed`.
+- [x] Implement `markFailed`.
+- [x] Implement `shouldReindexFile`.
+- [x] Use file hash and modified timestamp to avoid unnecessary reindexing.
+- [x] Add unit tests or lightweight integration tests for repository behavior.
 
 ## Success Criteria
 
-- [ ] New files are inserted.
-- [ ] Existing unchanged files are skipped.
-- [ ] Modified files are marked for reindexing.
-- [ ] Failed files preserve their error message.
-- [ ] Repository methods do not leak raw SQL into UI code.
+- [x] New files are inserted.
+- [x] Existing unchanged files are skipped.
+- [x] Modified files are marked for reindexing.
+- [x] Failed files preserve their error message.
+- [x] Repository methods do not leak raw SQL into UI code.
 
 ---
 

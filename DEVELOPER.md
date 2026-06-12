@@ -87,6 +87,13 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/views/HomePage.vue` provides the minimal select-directory + scan UI (will be replaced by the Library/Indexing pages in later phases).
 - Tests: `tests/unit/directoryScanner.spec.ts` (recursion, ignore rules, determinism, progress, cancellation, hashing).
 
+### Phase 5 - Model File Repository
+
+- `src/services/database/modelFileRepository.ts`: `ModelFileRepository` class wrapping a `DuckDbClient`. Methods: `upsertModelFile` (insert as pending / reset changed files to pending / return unchanged as-is), `findByPath`, `findById`, `findByHash`, `listModelFiles`, `listPendingFiles`, `markIndexed`, `markFailed`, `shouldReindexFile`.
+- Change detection compares content hash, modified timestamp, and size. `shouldReindexFile` also returns true for any non-`indexed` status.
+- Timestamps are stored as DuckDB TIMESTAMP (UTC, no timezone suffix) and mapped back to ISO strings in `ModelFile`.
+- Tests: `tests/unit/modelFileRepository.spec.ts`.
+
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
