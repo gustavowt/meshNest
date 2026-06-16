@@ -18,12 +18,12 @@ type ProviderInfo = {
   defaultBaseUrl?: string
 }
 
-export const VISION_PROVIDERS: Record<VisionProviderId, ProviderInfo> = {
-  mock: {
-    label: 'Mock (development)',
+export const VISION_PROVIDERS: Record<Exclude<VisionProviderId, 'mock'>, ProviderInfo> = {
+  none: {
+    label: 'None (disabled)',
     needsApiKey: false,
     needsBaseUrl: false,
-    defaultModel: 'mock-vision-1',
+    defaultModel: '',
   },
   openai: {
     label: 'OpenAI',
@@ -47,20 +47,20 @@ export const VISION_PROVIDERS: Record<VisionProviderId, ProviderInfo> = {
   },
 }
 
-export const EMBEDDING_PROVIDERS: Record<EmbeddingProviderId, ProviderInfo & { defaultDimensions: number }> = {
+export const EMBEDDING_PROVIDERS: Record<Exclude<EmbeddingProviderId, 'mock'>, ProviderInfo & { defaultDimensions: number }> = {
+  none: {
+    label: 'None (disabled)',
+    needsApiKey: false,
+    needsBaseUrl: false,
+    defaultModel: '',
+    defaultDimensions: 0,
+  },
   builtin: {
     label: 'Built-in local model (default)',
     needsApiKey: false,
     needsBaseUrl: false,
     defaultModel: BUILTIN_EMBEDDING_MODEL,
     defaultDimensions: BUILTIN_EMBEDDING_DIMENSIONS,
-  },
-  mock: {
-    label: 'Mock (development)',
-    needsApiKey: false,
-    needsBaseUrl: false,
-    defaultModel: 'mock-embedding-1',
-    defaultDimensions: 1536,
   },
   openai: {
     label: 'OpenAI',
@@ -87,36 +87,57 @@ export const EMBEDDING_PROVIDERS: Record<EmbeddingProviderId, ProviderInfo & { d
   },
 }
 
+export const OLLAMA_CLOUD_MODELS = [
+  'llama3:70b',
+  'mixtral:8x22b',
+  'command-r-plus',
+  'phi3:medium',
+  'qwen2:72b',
+]
+
+export const OLLAMA_CLOUD_EMBEDDING_MODELS = [
+  'nomic-embed-text',
+  'mxbai-embed-large',
+  'all-minilm',
+]
+
 export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   vision: {
-    provider: 'mock',
-    model: VISION_PROVIDERS.mock.defaultModel,
+    provider: 'ollama',
+    model: VISION_PROVIDERS.ollama.defaultModel,
+    baseUrl: VISION_PROVIDERS.ollama.defaultBaseUrl,
+    useCloud: false,
   },
   embedding: {
     provider: 'builtin',
     model: BUILTIN_EMBEDDING_MODEL,
     dimensions: BUILTIN_EMBEDDING_DIMENSIONS,
+    useCloud: false,
   },
+  libraryFolder: '',
+  appearance: 'system',
 }
 
 /** Returns sensible defaults when the user switches vision provider. */
 export function defaultVisionSettings(provider: VisionProviderId): VisionSettings {
-  const info = VISION_PROVIDERS[provider]
+  const info = VISION_PROVIDERS[provider as Exclude<VisionProviderId, 'mock'>]
   return {
     provider,
-    model: info.defaultModel,
-    baseUrl: info.defaultBaseUrl,
+    model: info?.defaultModel ?? '',
+    baseUrl: info?.defaultBaseUrl,
+    useCloud: false,
   }
 }
 
 /** Returns sensible defaults when the user switches embedding provider. */
 export function defaultEmbeddingSettings(provider: EmbeddingProviderId): EmbeddingSettings {
-  const info = EMBEDDING_PROVIDERS[provider]
+  const info = EMBEDDING_PROVIDERS[provider as Exclude<EmbeddingProviderId, 'mock'>]
   return {
     provider,
-    model: info.defaultModel,
-    baseUrl: info.defaultBaseUrl,
-    dimensions: info.defaultDimensions,
+    model: info?.defaultModel ?? '',
+    baseUrl: info?.defaultBaseUrl,
+    dimensions: info?.defaultDimensions ?? 384,
+    useCloud: false,
   }
 }
 
@@ -127,11 +148,13 @@ export function defaultEmbeddingSettings(provider: EmbeddingProviderId): Embeddi
 export function validateProviderSettings(settings: ProviderSettings): string[] {
   const problems: string[] = []
 
-  const vision = VISION_PROVIDERS[settings.vision.provider]
+  const vision = VISION_PROVIDERS[settings.vision.provider as Exclude<VisionProviderId, 'mock'>]
   if (!vision) {
-    problems.push(`Unknown vision provider "${settings.vision.provider}".`)
+    if (settings.vision.provider !== 'mock') {
+      problems.push(`Unknown vision provider "${settings.vision.provider}".`)
+    }
   } else {
-    if (!settings.vision.model.trim()) {
+    if (settings.vision.provider !== 'none' && !settings.vision.model.trim()) {
       problems.push('Vision model name is required.')
     }
     if (vision.needsApiKey && !settings.vision.apiKey?.trim()) {
@@ -142,11 +165,13 @@ export function validateProviderSettings(settings: ProviderSettings): string[] {
     }
   }
 
-  const embedding = EMBEDDING_PROVIDERS[settings.embedding.provider]
+  const embedding = EMBEDDING_PROVIDERS[settings.embedding.provider as Exclude<EmbeddingProviderId, 'mock'>]
   if (!embedding) {
-    problems.push(`Unknown embedding provider "${settings.embedding.provider}".`)
+    if (settings.embedding.provider !== 'mock') {
+      problems.push(`Unknown embedding provider "${settings.embedding.provider}".`)
+    }
   } else {
-    if (!settings.embedding.model.trim()) {
+    if (settings.embedding.provider !== 'none' && !settings.embedding.model.trim()) {
       problems.push('Embedding model name is required.')
     }
     if (embedding.needsApiKey && !settings.embedding.apiKey?.trim()) {
@@ -155,7 +180,7 @@ export function validateProviderSettings(settings: ProviderSettings): string[] {
     if (embedding.needsBaseUrl && !settings.embedding.baseUrl?.trim()) {
       problems.push(`${embedding.label} embedding provider requires a base URL.`)
     }
-    if (!Number.isInteger(settings.embedding.dimensions) || settings.embedding.dimensions <= 0) {
+    if (settings.embedding.provider !== 'none' && (!Number.isInteger(settings.embedding.dimensions) || settings.embedding.dimensions <= 0)) {
       problems.push('Embedding dimensions must be a positive integer.')
     }
   }

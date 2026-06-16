@@ -33,6 +33,9 @@ export type ReembedOutcome = {
 export async function reembedAllModels(): Promise<ReembedOutcome> {
   const client = await getDatabaseClient()
   const provider = await getActiveEmbeddingProvider()
+  if (provider.name === 'none') {
+    return { embedded: 0, failed: 0 }
+  }
   await ensureEmbeddingTable(client, provider.dimensions)
 
   const descriptions = await new AiDescriptionRepository(client).listAll()

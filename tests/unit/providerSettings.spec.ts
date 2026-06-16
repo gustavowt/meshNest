@@ -34,8 +34,8 @@ function validSettings(): ProviderSettings {
 }
 
 describe('provider settings defaults', () => {
-  test('defaults to mock vision and the built-in local embedding model', () => {
-    expect(DEFAULT_PROVIDER_SETTINGS.vision.provider).toBe('mock')
+  test('defaults to ollama vision and the built-in local embedding model', () => {
+    expect(DEFAULT_PROVIDER_SETTINGS.vision.provider).toBe('ollama')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.provider).toBe('builtin')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.model).toBe('Xenova/all-MiniLM-L6-v2')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.dimensions).toBe(384)
@@ -49,11 +49,26 @@ describe('provider settings defaults', () => {
     expect(ollama.baseUrl).toBe('http://localhost:11434')
     expect(ollama.dimensions).toBe(768)
   })
+
+  test('defaults to useCloud: false and empty libraryFolder', () => {
+    expect(DEFAULT_PROVIDER_SETTINGS.vision.useCloud).toBe(false)
+    expect(DEFAULT_PROVIDER_SETTINGS.embedding.useCloud).toBe(false)
+    expect(DEFAULT_PROVIDER_SETTINGS.libraryFolder).toBe('')
+  })
 })
 
 describe('validateProviderSettings', () => {
   test('accepts the defaults', () => {
     expect(validateProviderSettings(validSettings())).toEqual([])
+  })
+
+  test('accepts none (disabled) provider for vision and embedding', () => {
+    const settings = validSettings()
+    settings.vision = defaultVisionSettings('none')
+    settings.embedding = defaultEmbeddingSettings('none')
+
+    const problems = validateProviderSettings(settings)
+    expect(problems).toEqual([])
   })
 
   test('requires an API key for key-based providers', () => {
@@ -97,6 +112,21 @@ describe('settings persistence', () => {
     expect(reloaded?.embedding.provider).toBe('builtin')
   })
 
+  test('stores and reloads useCloud and libraryFolder settings', async () => {
+    const repository = new SettingsRepository(client)
+    const settings = validSettings()
+    settings.vision.useCloud = true
+    settings.embedding.useCloud = true
+    settings.libraryFolder = '/path/to/models'
+
+    await storeProviderSettings(repository, settings)
+    const reloaded = await loadStoredProviderSettings<ProviderSettings>(repository)
+
+    expect(reloaded?.vision.useCloud).toBe(true)
+    expect(reloaded?.embedding.useCloud).toBe(true)
+    expect(reloaded?.libraryFolder).toBe('/path/to/models')
+  })
+
   test('overwrites previous settings on save', async () => {
     const repository = new SettingsRepository(client)
     await storeProviderSettings(repository, validSettings())
@@ -122,12 +152,21 @@ describe('provider connection tests', () => {
     throw new Error('ECONNREFUSED')
   }) as unknown as typeof fetch
 
-  test('mock and builtin providers always pass without network access', async () => {
+  test('mock, none and builtin providers always pass without network access', async () => {
     expect((await testVisionConnection({ provider: 'mock', model: 'm' }, downFetch)).ok).toBe(true)
+    expect((await testVisionConnection({ provider: 'none', model: '' }, downFetch)).ok).toBe(true)
     expect(
       (
         await testEmbeddingConnection(
           { provider: 'builtin', model: 'm', dimensions: 384 },
+          downFetch,
+        )
+      ).ok,
+    ).toBe(true)
+    expect(
+      (
+        await testEmbeddingConnection(
+          { provider: 'none', model: '', dimensions: 0 },
           downFetch,
         )
       ).ok,

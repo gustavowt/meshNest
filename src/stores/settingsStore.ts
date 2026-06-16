@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, watch } from 'vue'
 import {
   defaultEmbeddingSettings,
   defaultVisionSettings,
@@ -29,6 +29,12 @@ type SettingsState = {
   embeddingTest: ProviderTestResult | null
   testingVision: boolean
   testingEmbedding: boolean
+  ollamaVisionModels: string[]
+  ollamaEmbeddingModels: string[]
+  fetchingOllamaVisionModels: boolean
+  fetchingOllamaEmbeddingModels: boolean
+  ollamaVisionError: string | null
+  ollamaEmbeddingError: string | null
 }
 
 const state = reactive<SettingsState>({
@@ -45,7 +51,47 @@ const state = reactive<SettingsState>({
   embeddingTest: null,
   testingVision: false,
   testingEmbedding: false,
+  ollamaVisionModels: [],
+  ollamaEmbeddingModels: [],
+  fetchingOllamaVisionModels: false,
+  fetchingOllamaEmbeddingModels: false,
+  ollamaVisionError: null,
+  ollamaEmbeddingError: null,
 })
+
+let systemThemeListener: ((e: MediaQueryListEvent) => void) | null = null
+
+export function applyAppearance(appearance: 'clear' | 'dark' | 'system') {
+  if (typeof window === 'undefined') return
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+
+  if (systemThemeListener) {
+    mediaQuery.removeEventListener('change', systemThemeListener)
+    systemThemeListener = null
+  }
+
+  const updateTheme = (isDark: boolean) => {
+    document.documentElement.classList.toggle('dark', isDark)
+  }
+
+  if (appearance === 'system') {
+    updateTheme(mediaQuery.matches)
+    systemThemeListener = (e: MediaQueryListEvent) => {
+      updateTheme(e.matches)
+    }
+    mediaQuery.addEventListener('change', systemThemeListener)
+  } else {
+    updateTheme(appearance === 'dark')
+  }
+}
+
+// Watch for appearance changes in the draft (live preview)
+watch(
+  () => state.draft?.appearance,
+  (newAppearance) => {
+    applyAppearance(newAppearance || 'system')
+  }
+)
 
 async function loadSettings(): Promise<void> {
   if (!window.meshNest) {
@@ -56,6 +102,12 @@ async function loadSettings(): Promise<void> {
   state.error = null
   try {
     state.draft = await window.meshNest.getProviderSettings()
+    if (state.draft) {
+      if (!state.draft.appearance) {
+        state.draft.appearance = 'system'
+      }
+      applyAppearance(state.draft.appearance)
+    }
   } catch (error) {
     state.error = error instanceof Error ? error.message : String(error)
   } finally {
@@ -163,6 +215,32 @@ async function testEmbedding(): Promise<void> {
   }
 }
 
+async function fetchOllamaVisionModels(baseUrl: string): Promise<void> {
+  if (!window.meshNest) return
+  state.fetchingOllamaVisionModels = true
+  state.ollamaVisionError = null
+  try {
+    state.ollamaVisionModels = await window.meshNest.getOllamaModels(baseUrl)
+  } catch (error) {
+    state.ollamaVisionError = error instanceof Error ? error.message : String(error)
+  } finally {
+    state.fetchingOllamaVisionModels = false
+  }
+}
+
+async function fetchOllamaEmbeddingModels(baseUrl: string): Promise<void> {
+  if (!window.meshNest) return
+  state.fetchingOllamaEmbeddingModels = true
+  state.ollamaEmbeddingError = null
+  try {
+    state.ollamaEmbeddingModels = await window.meshNest.getOllamaModels(baseUrl)
+  } catch (error) {
+    state.ollamaEmbeddingError = error instanceof Error ? error.message : String(error)
+  } finally {
+    state.fetchingOllamaEmbeddingModels = false
+  }
+}
+
 function markDirty(): void {
   state.saved = false
 }
@@ -182,6 +260,12 @@ export function resetSettingsStore(): void {
   state.embeddingTest = null
   state.testingVision = false
   state.testingEmbedding = false
+  state.ollamaVisionModels = []
+  state.ollamaEmbeddingModels = []
+  state.fetchingOllamaVisionModels = false
+  state.fetchingOllamaEmbeddingModels = false
+  state.ollamaVisionError = null
+  state.ollamaEmbeddingError = null
 }
 
 /**
@@ -201,5 +285,7 @@ export function useSettingsStore() {
     testVision,
     testEmbedding,
     markDirty,
+    fetchOllamaVisionModels,
+    fetchOllamaEmbeddingModels,
   }
 }

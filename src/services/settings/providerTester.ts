@@ -37,6 +37,8 @@ export async function testVisionConnection(
   fetchImpl: FetchLike = fetch,
 ): Promise<ProviderTestResult> {
   switch (settings.provider) {
+    case 'none':
+      return { ok: true, message: 'Vision provider is disabled.' }
     case 'mock':
       return { ok: true, message: 'Mock provider is always available.' }
     case 'openai':
@@ -66,6 +68,8 @@ export async function testEmbeddingConnection(
   fetchImpl: FetchLike = fetch,
 ): Promise<ProviderTestResult> {
   switch (settings.provider) {
+    case 'none':
+      return { ok: true, message: 'Embedding provider is disabled.' }
     case 'builtin':
       return {
         ok: true,
