@@ -1,6 +1,6 @@
-export type VisionProviderId = 'mock' | 'openai' | 'gemini' | 'ollama'
+export type VisionProviderId = 'none' | 'mock' | 'openai' | 'gemini' | 'ollama'
 
-export type EmbeddingProviderId = 'builtin' | 'mock' | 'openai' | 'gemini' | 'ollama'
+export type EmbeddingProviderId = 'none' | 'builtin' | 'mock' | 'openai' | 'gemini' | 'ollama'
 
 /**
  * Configuration of the vision-capable LLM used for visual enrichment.
@@ -11,6 +11,7 @@ export type VisionSettings = {
   apiKey?: string
   /** Override for OpenAI-compatible or Ollama endpoints. */
   baseUrl?: string
+  useCloud?: boolean
 }
 
 /**
@@ -23,11 +24,14 @@ export type EmbeddingSettings = {
   baseUrl?: string
   /** Vector size produced by the configured model. */
   dimensions: number
+  useCloud?: boolean
 }
 
 export type ProviderSettings = {
   vision: VisionSettings
   embedding: EmbeddingSettings
+  libraryFolder?: string
+  appearance?: 'clear' | 'dark' | 'system'
 }
 
 export type ProviderTestResult = {

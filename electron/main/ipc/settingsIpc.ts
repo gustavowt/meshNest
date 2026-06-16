@@ -26,4 +26,18 @@ export function registerSettingsIpc(): void {
   ipcMain.handle('settings:testEmbeddingProvider', async (_event, settings: EmbeddingSettings) => {
     return testEmbeddingConnection(settings)
   })
+
+  ipcMain.handle('settings:getOllamaModels', async (_event, baseUrl: string) => {
+    try {
+      const url = `${baseUrl.replace(/\/$/, '')}/api/tags`
+      const res = await fetch(url)
+      if (!res.ok) {
+        throw new Error(`Failed to fetch Ollama models: HTTP ${res.status}`)
+      }
+      const data = (await res.json()) as { models?: { name: string }[] }
+      return (data.models || []).map((m) => m.name)
+    } catch (error) {
+      throw new Error(error instanceof Error ? error.message : String(error))
+    }
+  })
 }

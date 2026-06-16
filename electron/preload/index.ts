@@ -36,6 +36,7 @@ const api: MeshNestApi = {
   testVisionProvider: (settings) => ipcRenderer.invoke('settings:testVisionProvider', settings),
   testEmbeddingProvider: (settings) =>
     ipcRenderer.invoke('settings:testEmbeddingProvider', settings),
+  getOllamaModels: (baseUrl) => ipcRenderer.invoke('settings:getOllamaModels', baseUrl),
 
   describeModel: (input) => ipcRenderer.invoke('llm:describeModel', input),
   getActiveVisionProvider: () => ipcRenderer.invoke('llm:getActiveVisionProvider'),

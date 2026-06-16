@@ -75,6 +75,7 @@ export type MeshNestApi = {
   saveProviderSettings(settings: ProviderSettings): Promise<{ embeddingsCleared: boolean }>
   testVisionProvider(settings: VisionSettings): Promise<ProviderTestResult>
   testEmbeddingProvider(settings: EmbeddingSettings): Promise<ProviderTestResult>
+  getOllamaModels(baseUrl: string): Promise<string[]>
 
   // LLM calls (run in main with the configured provider).
   describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult>
