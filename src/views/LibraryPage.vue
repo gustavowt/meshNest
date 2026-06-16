@@ -16,13 +16,6 @@
             <ion-select-option value="modifiedAt">Date modified</ion-select-option>
             <ion-select-option value="indexedAt">Date indexed</ion-select-option>
           </ion-select>
-          <ion-button :disabled="indexing.state.running" @click="selectAndIndex">
-            <ion-icon slot="start" :icon="folderOpenOutline" />
-            Index folder
-          </ion-button>
-          <ion-button router-link="/search" aria-label="Search models">
-            <ion-icon slot="icon-only" :icon="searchOutline" />
-          </ion-button>
           <ion-button router-link="/settings" aria-label="Settings">
             <ion-icon slot="icon-only" :icon="settingsOutline" />
           </ion-button>
@@ -73,7 +66,7 @@
       </ion-text>
 
       <!-- Loading state -->
-      <div v-if="library.state.loading" class="state-container">
+      <div v-if="library.state.loading || settings.state.loading" class="state-container">
         <ion-spinner name="crescent" />
         <p>Loading library…</p>
       </div>
@@ -85,19 +78,74 @@
         <ion-button fill="outline" @click="library.loadLibrary()">Try again</ion-button>
       </div>
 
-      <!-- Empty state -->
-      <div v-else-if="library.state.loaded && library.state.entries.length === 0" class="state-container">
-        <ion-icon :icon="cubeOutline" class="state-icon" />
-        <h2>Your library is empty</h2>
-        <p>Select a folder with STL or 3MF files to scan and index your 3D models.</p>
-        <ion-button :disabled="indexing.state.running" @click="selectAndIndex">
-          <ion-icon slot="start" :icon="folderOpenOutline" />
-          Index a folder
+      <!-- State A: No library folder selected yet -->
+      <div v-else-if="!settings.state.draft?.libraryFolder" class="state-container">
+        <ion-icon :icon="folderOutline" class="state-icon" />
+        <h2>Select a library folder</h2>
+        <p>Choose a folder containing your STL or 3MF files to scan and index your 3D models.</p>
+        <ion-button :disabled="indexing.state.running" @click="selectAndIndex" fill="solid">
+          <ion-icon slot="start" :icon="folderOutline" />
+          Select folder
         </ion-button>
       </div>
 
-      <!-- Library grid -->
-      <model-grid v-else :entries="library.sortedEntries.value" @select="openDetail" />
+      <!-- State B: Folder selected, but library is empty -->
+      <div v-else-if="library.state.loaded && library.state.entries.length === 0" class="state-container">
+        <ion-icon :icon="cubeOutline" class="state-icon" />
+        <h2>No models found</h2>
+        <p>We couldn't find any STL or 3MF files in the selected folder: <strong>{{ settings.state.draft.libraryFolder }}</strong></p>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <ion-button :disabled="indexing.state.running" fill="outline" @click="rescanCurrentFolder">
+            <ion-icon slot="start" :icon="refreshOutline" />
+            Re-scan
+          </ion-button>
+          <ion-button router-link="/settings" fill="clear">
+            Change folder
+          </ion-button>
+        </div>
+      </div>
+
+      <!-- Main Library View with Hero Section -->
+      <div v-else>
+        <div class="hero-section">
+          <div class="hero-content">
+            <h1 class="hero-title">MeshNest</h1>
+            <p class="hero-subtitle">Search your library using natural language descriptions</p>
+            <div class="hero-search-container">
+              <model-search-bar v-model="searchQuery" @search="handleSearch" class="hero-search-bar" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Search results states (when searchQuery is active) -->
+        <div v-if="searchQuery.trim().length > 0">
+          <!-- Search Loading progress bar (non-blocking, keeps items on screen) -->
+          <ion-progress-bar
+            v-if="search.state.loading"
+            type="indeterminate"
+            style="margin-bottom: 8px;"
+          />
+
+          <!-- Search Error -->
+          <div v-if="search.state.error" class="state-container">
+            <ion-icon :icon="alertCircleOutline" class="state-icon error" />
+            <p>{{ search.state.error }}</p>
+          </div>
+
+          <!-- No search results -->
+          <div v-else-if="displayedEntries.length === 0 && !search.state.loading" class="state-container">
+            <ion-icon :icon="searchOutline" class="state-icon" />
+            <h2>No matches</h2>
+            <p>Nothing matched "{{ searchQuery }}". Try different words or fewer details.</p>
+          </div>
+
+          <!-- Render search results grid -->
+          <model-grid v-else :entries="displayedEntries" @select="openDetail" />
+        </div>
+
+        <!-- Normal library grid -->
+        <model-grid v-else :entries="library.sortedEntries.value" @select="openDetail" />
+      </div>
     </ion-content>
   </ion-page>
 </template>
@@ -121,20 +169,69 @@ import {
 import {
   alertCircleOutline,
   cubeOutline,
-  folderOpenOutline,
+  folderOutline,
+  refreshOutline,
   searchOutline,
   settingsOutline,
 } from 'ionicons/icons'
-import { computed, onMounted, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ModelGrid from '@/components/library/ModelGrid.vue'
+import ModelSearchBar from '@/components/search/ModelSearchBar.vue'
 import { useIndexingStore } from '@/stores/indexingStore'
 import { useLibraryStore } from '@/stores/libraryStore'
+import { useSearchStore } from '@/stores/searchStore'
+import { useSettingsStore } from '@/stores/settingsStore'
 import type { LibraryEntry } from '@/types/library'
 
 const router = useRouter()
 const library = useLibraryStore()
 const indexing = useIndexingStore()
+const search = useSearchStore()
+const settings = useSettingsStore()
+
+const searchQuery = ref(search.state.query)
+
+const searchEntries = computed<LibraryEntry[]>(() => {
+  return search.state.results
+    .filter((r) => r.score > 0.6)
+    .map((r) => {
+      const original = library.state.entries.find((e) => e.id === r.modelFileId)
+      return {
+        id: r.modelFileId,
+        filename: r.filename,
+        relativePath: original?.relativePath ?? '',
+        absolutePath: r.absolutePath,
+        extension: r.extension,
+        sizeBytes: original?.sizeBytes ?? 0,
+        modifiedAt: original?.modifiedAt ?? new Date().toISOString(),
+        indexedAt: original?.indexedAt,
+        status: original?.status ?? 'indexed',
+        errorMessage: original?.errorMessage,
+        shortName: r.shortName,
+        likelyCategory: r.likelyCategory,
+        tags: [...r.tags],
+        thumbnailPath: r.thumbnailPath,
+        score: r.score,
+      }
+    })
+})
+
+const displayedEntries = computed<LibraryEntry[]>(() => {
+  const query = searchQuery.value.trim()
+  if (!query) {
+    return library.sortedEntries.value
+  }
+  return searchEntries.value
+})
+
+function handleSearch(val: string): void {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+    searchTimeout = null
+  }
+  search.runSearch(val)
+}
 
 function openDetail(entry: LibraryEntry): void {
   router.push({ name: 'ModelDetail', params: { id: entry.id } })
@@ -165,7 +262,21 @@ async function selectAndIndex(): Promise<void> {
   if (!directory) {
     return
   }
+  if (!settings.state.draft) {
+    await settings.loadSettings()
+  }
+  if (settings.state.draft) {
+    settings.state.draft.libraryFolder = directory
+    await settings.saveSettings()
+  }
   await indexing.runIndexing(directory)
+}
+
+async function rescanCurrentFolder(): Promise<void> {
+  const directory = settings.state.draft?.libraryFolder
+  if (directory) {
+    await indexing.runIndexing(directory)
+  }
 }
 
 async function retryFailed(): Promise<void> {
@@ -182,9 +293,36 @@ watch(
   },
 )
 
-onMounted(() => {
+let searchTimeout: NodeJS.Timeout | null = null
+
+watch(searchQuery, (newVal) => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+    searchTimeout = null
+  }
+  const query = newVal.trim()
+  if (query === '') {
+    search.runSearch('')
+  } else {
+    searchTimeout = setTimeout(() => {
+      search.runSearch(newVal)
+    }, 300)
+  }
+})
+
+onBeforeUnmount(() => {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+})
+
+onMounted(async () => {
   if (!library.state.loaded) {
     library.loadLibrary()
+  }
+  search.refreshIndexStatus()
+  if (!settings.state.draft) {
+    await settings.loadSettings()
   }
 })
 </script>
@@ -259,5 +397,92 @@ onMounted(() => {
 .state-container p {
   max-width: 360px;
   margin: 0;
+}
+
+.select-folder-header-btn {
+  text-transform: none;
+  font-weight: 500;
+  --color: var(--ion-color-primary);
+  font-size: 14px;
+  white-space: nowrap;
+}
+
+.select-folder-btn {
+  text-transform: none;
+  font-weight: 500;
+  margin-top: 8px;
+}
+
+.hero-section {
+  padding: 56px 24px;
+  background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  margin-bottom: 8px;
+}
+
+@media (prefers-color-scheme: light) {
+  .hero-section {
+    background: radial-gradient(circle at top, #4f46e5 0%, #312e81 100%);
+  }
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  max-width: 600px;
+  width: 100%;
+}
+
+.hero-title {
+  font-size: 38px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 10%, #c7d2fe 60%, #c084fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 0 0 10px;
+  letter-spacing: -0.8px;
+  font-family: 'Outfit', sans-serif;
+}
+
+.hero-subtitle {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 0 28px;
+  font-weight: 400;
+  letter-spacing: -0.1px;
+}
+
+.hero-search-container {
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+.hero-search-bar {
+  --background: rgba(255, 255, 255, 0.09);
+  --color: #ffffff;
+  --placeholder-color: rgba(255, 255, 255, 0.55);
+  --border-radius: 28px;
+  --box-shadow: none;
+  background: transparent;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 28px;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.hero-search-bar:focus-within {
+  border-color: rgba(129, 140, 248, 0.7);
+  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.25), 0 12px 40px 0 rgba(0, 0, 0, 0.3);
 }
 </style>

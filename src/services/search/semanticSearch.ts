@@ -23,7 +23,7 @@ export async function semanticSearch(
   options: SemanticSearchOptions = {},
 ): Promise<SearchResult[]> {
   const trimmed = query.trim()
-  if (trimmed.length === 0) {
+  if (trimmed.length === 0 || deps.embeddingProvider.name === 'none') {
     return []
   }
   const embedding = await deps.embeddingProvider.embedText(trimmed)

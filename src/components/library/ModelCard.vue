@@ -3,7 +3,10 @@
     <div class="thumbnail">
       <img v-if="thumbnailUrl" :src="thumbnailUrl" :alt="entry.filename" />
       <ion-icon v-else :icon="cubeOutline" class="placeholder-icon" aria-hidden="true" />
-      <indexing-status-badge :status="entry.status" class="card-status" />
+      <span v-if="entry.score !== undefined" class="score-badge">
+        {{ Math.round(entry.score * 100) }}%
+      </span>
+      <indexing-status-badge v-else :status="entry.status" class="card-status" />
     </div>
 
     <ion-card-header class="card-header">
@@ -86,24 +89,55 @@ function formatSize(bytes: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ion-color-light);
+  background: rgba(255, 255, 255, 0.4);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding: 12px;
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .thumbnail {
+    background: rgba(11, 17, 32, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
 }
 
 .thumbnail img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+  border-radius: 12px;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.model-card:hover .thumbnail img {
+  transform: scale(1.06);
 }
 
 .placeholder-icon {
   font-size: 56px;
   color: var(--ion-color-medium);
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.card-status {
+.model-card:hover .placeholder-icon {
+  transform: scale(1.08) rotate(4deg);
+}
+
+.card-status,
+.score-badge {
   position: absolute;
   top: 8px;
   right: 8px;
+}
+
+.score-badge {
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  z-index: 10;
 }
 
 .card-header {

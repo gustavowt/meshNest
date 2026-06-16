@@ -21,6 +21,8 @@ export type LibraryEntry = {
   tags: string[]
   /** Absolute path of the thumbnail PNG on disk. */
   thumbnailPath?: string
+  /** Vector search similarity score (0..1) when retrieved via semantic search. */
+  score?: number
 }
 
 export type LibrarySortKey = 'filename' | 'modifiedAt' | 'indexedAt'
