@@ -157,13 +157,24 @@ function formatDate(isoString: string): string {
 .metadata-panel {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 16px;
+}
+
+.panel-section {
+  background: var(--card-glass-bg);
+  border: var(--card-glass-border);
+  box-shadow: var(--card-glass-shadow);
+  border-radius: 16px;
+  padding: 18px;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .panel-section h2 {
-  font-size: 15px;
-  font-weight: 600;
-  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px;
+  color: var(--ion-color-primary);
 }
 
 .panel-section h3 {

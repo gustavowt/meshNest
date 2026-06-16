@@ -26,7 +26,7 @@ export type RenderOptions = {
   background?: string
 }
 
-const DEFAULT_BACKGROUND = '#f1f2f4'
+const DEFAULT_BACKGROUND = 'transparent'
 
 /**
  * Renders every defined view of a normalized model into PNG bytes using

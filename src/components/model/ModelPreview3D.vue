@@ -14,7 +14,6 @@
 import { IonSpinner } from '@ionic/vue'
 import {
   AmbientLight,
-  Color,
   DirectionalLight,
   Mesh,
   PerspectiveCamera,
@@ -122,11 +121,11 @@ async function loadModel(): Promise<void> {
       return
     }
 
-    renderer = new WebGLRenderer({ antialias: true })
+    renderer = new WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(window.devicePixelRatio)
+    renderer.setClearColor(0x000000, 0)
 
     scene = new Scene()
-    scene.background = new Color(0x1e1e24)
     scene.add(new AmbientLight(0xffffff, 0.7))
     const keyLight = new DirectionalLight(0xffffff, 1.6)
     keyLight.position.set(1, 2, 1.5)
@@ -174,8 +173,7 @@ onBeforeUnmount(disposeThree)
   height: 100%;
   min-height: 280px;
   overflow: hidden;
-  background: #1e1e24;
-  border-radius: 8px;
+  background: transparent;
 }
 
 .model-preview__overlay {

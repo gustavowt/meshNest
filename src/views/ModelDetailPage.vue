@@ -199,9 +199,13 @@ onMounted(() => {
 
 .preview {
   height: 420px;
-  border-radius: 8px;
+  border-radius: 20px;
   overflow: hidden;
-  background: var(--ion-color-light);
+  background: var(--card-glass-bg);
+  border: var(--card-glass-border);
+  box-shadow: var(--card-glass-shadow);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .gallery-section h2 {

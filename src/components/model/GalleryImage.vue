@@ -24,9 +24,29 @@ const url = useRenderAssetUrl(() => props.path)
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--ion-color-light);
-  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: var(--card-glass-shadow);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.gallery-image:hover {
+  transform: translateY(-2px);
+  border-color: rgba(94, 114, 228, 0.3);
+}
+
+@media (prefers-color-scheme: dark) {
+  .gallery-image {
+    background: rgba(11, 17, 32, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+  }
+  .gallery-image:hover {
+    border-color: rgba(121, 141, 246, 0.3);
+  }
 }
 
 .gallery-image img {
