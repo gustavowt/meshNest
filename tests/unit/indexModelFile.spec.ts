@@ -155,4 +155,57 @@ describe('indexModelFile', () => {
     expect(badResult.status).toBe('failed')
     expect(goodResult.status).toBe('indexed')
   })
+
+  test('indexes successfully using local description when vision provider is set to none', async () => {
+    const file = writeScannedFile('test-box.3mf', buildThreeMfPackage({ objectName: 'TestBox', includeMaterial: true }))
+    const customDeps = {
+      ...deps(),
+      visionProvider: {
+        name: 'none',
+        model: '',
+        describeModel: async () => {
+          throw new Error('Should not be called')
+        }
+      }
+    }
+
+    const result = await indexModelFile(file, PROJECT_ID, customDeps)
+    if (result.status === 'failed') {
+      console.error('Index failed:', result.errorMessage)
+    }
+    expect(result.status).toBe('indexed')
+
+    const description = (await new AiDescriptionRepository(client).getByModelFileId(result.modelFileId))!
+    expect(description.shortName).toBe('test box')
+    expect(description.description).toContain('Local 3D model file named "test-box.3mf"')
+    expect(description.description).toContain('TestBox')
+    expect(description.description).toContain('Red PLA')
+
+    const embedding = (await new EmbeddingRepository(client).getByModelFileId(result.modelFileId))!
+    expect(embedding.sourceText).toContain('test box')
+  })
+
+  test('indexes successfully without creating embedding when embedding provider is set to none', async () => {
+    const file = writeScannedFile('no-embed-model.stl', new Uint8Array(buildBinaryStl(SPANNING_TRIANGLES)))
+    const customDeps = {
+      ...deps(),
+      embeddingProvider: {
+        name: 'none',
+        model: '',
+        dimensions: 0,
+        embedText: async () => {
+          throw new Error('Should not be called')
+        }
+      }
+    }
+
+    const result = await indexModelFile(file, PROJECT_ID, customDeps)
+    expect(result.status).toBe('indexed')
+
+    const description = await new AiDescriptionRepository(client).getByModelFileId(result.modelFileId)
+    expect(description).toBeDefined()
+
+    const embedding = await new EmbeddingRepository(client).getByModelFileId(result.modelFileId)
+    expect(embedding).toBeUndefined()
+  })
 })

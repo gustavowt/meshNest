@@ -51,6 +51,9 @@ export async function ensureEmbeddingTable(
   client: DuckDbClient,
   dimensions: number,
 ): Promise<{ rebuilt: boolean }> {
+  if (dimensions <= 0) {
+    return { rebuilt: false }
+  }
   const current = await getEmbeddingTableDimensions(client)
   if (current === dimensions) {
     return { rebuilt: false }

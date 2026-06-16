@@ -21,6 +21,13 @@ export function createEmbeddingProvider(
   options: CreateEmbeddingProviderOptions = {},
 ): EmbeddingProvider {
   switch (settings.provider) {
+    case 'none':
+      return {
+        name: 'none',
+        model: '',
+        dimensions: 0,
+        embedText: async () => [],
+      }
     case 'builtin':
       if (!options.builtinFactory) {
         throw new Error('The built-in embedding model only runs in the Electron main process.')

@@ -15,6 +15,23 @@ export function createVisionProvider(
   fetchImpl?: FetchLike,
 ): VisionProvider {
   switch (settings.provider) {
+    case 'none':
+      return {
+        name: 'none',
+        model: '',
+        describeModel: async () => ({
+          description: {
+            shortName: '',
+            description: '',
+            likelyCategory: '',
+            tags: [],
+            objectsDetected: [],
+            confidence: 0,
+            searchPhrases: [],
+          },
+          rawResponseJson: '{}',
+        }),
+      }
     case 'mock':
       return new MockVisionProvider()
     case 'openai':
