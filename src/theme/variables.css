@@ -1,2 +1,362 @@
-/* For information on how to create your own theme, please refer to:
-http://ionicframework.com/docs/theming/ */
+/* Ionic variables and global styles for meshNest */
+
+:root {
+  /* Typography */
+  --ion-font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-heading: 'Outfit', sans-serif;
+
+  /* Aurora Frost Color Palette */
+  --ion-color-primary: #4F46E5;
+  --ion-color-primary-rgb: 79, 70, 229;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #453eb9;
+  --ion-color-primary-tint: #6058e7;
+
+  --ion-color-secondary: #B19FFB;
+  --ion-color-secondary-rgb: 177, 159, 251;
+  --ion-color-secondary-contrast: #ffffff;
+  --ion-color-secondary-contrast-rgb: 255, 255, 255;
+  --ion-color-secondary-shade: #9c8cdd;
+  --ion-color-secondary-tint: #b9a9fc;
+
+  --ion-color-tertiary: #E879F9;
+  --ion-color-tertiary-rgb: 232, 121, 249;
+  --ion-color-tertiary-contrast: #ffffff;
+  --ion-color-tertiary-contrast-rgb: 255, 255, 255;
+  --ion-color-tertiary-shade: #cc6adc;
+  --ion-color-tertiary-tint: #ea86fa;
+
+  --ion-color-success: #2DCE89;
+  --ion-color-success-rgb: 45, 206, 137;
+  --ion-color-success-contrast: #ffffff;
+  --ion-color-success-contrast-rgb: 255, 255, 255;
+  --ion-color-success-shade: #28b578;
+  --ion-color-success-tint: #42d395;
+
+  --ion-color-warning: #FB6340;
+  --ion-color-warning-rgb: 251, 99, 64;
+  --ion-color-warning-contrast: #ffffff;
+  --ion-color-warning-contrast-rgb: 255, 255, 255;
+  --ion-color-warning-shade: #dd5738;
+  --ion-color-warning-tint: #fb7253;
+
+  --ion-color-danger: #F5365C;
+  --ion-color-danger-rgb: 245, 54, 92;
+  --ion-color-danger-contrast: #ffffff;
+  --ion-color-danger-contrast-rgb: 255, 255, 255;
+  --ion-color-danger-shade: #d83051;
+  --ion-color-danger-tint: #f64a6c;
+
+  --ion-color-light: #F4F7FC;
+  --ion-color-light-rgb: 244, 247, 252;
+  --ion-color-light-contrast: #0C1630;
+  --ion-color-light-contrast-rgb: 12, 22, 48;
+  --ion-color-light-shade: #d7dade;
+  --ion-color-light-tint: #f5f8fc;
+
+  --ion-color-medium: #7F8C9F;
+  --ion-color-medium-rgb: 127, 140, 159;
+  --ion-color-medium-contrast: #ffffff;
+  --ion-color-medium-contrast-rgb: 255, 255, 255;
+  --ion-color-medium-shade: #707b8c;
+  --ion-color-medium-tint: #8c98a9;
+
+  --ion-color-dark: #0C1630;
+  --ion-color-dark-rgb: 12, 22, 48;
+  --ion-color-dark-contrast: #ffffff;
+  --ion-color-dark-contrast-rgb: 255, 255, 255;
+  --ion-color-dark-shade: #0b132a;
+  --ion-color-dark-tint: #242d45;
+
+  /* App Background and Text Colors */
+  --ion-background-color: #F4F7FC;
+  --ion-background-color-rgb: 244, 247, 252;
+  --ion-text-color: #0C1630;
+  --ion-text-color-rgb: 12, 22, 48;
+
+  /* Custom Glassmorphism Properties */
+  --app-bg-gradient: linear-gradient(135deg, #F4F7FC 0%, #FAEBF4 100%);
+  --card-glass-bg: rgba(255, 255, 255, 0.78);
+  --card-glass-border: 1px solid rgba(79, 70, 229, 0.18);
+  --card-glass-shadow: 0 6px 20px rgba(79, 70, 229, 0.06);
+}
+
+/* =========================================================================
+   Global App Styling & Custom Component Overrides
+   ========================================================================= */
+
+/* Use the heading font for titles and headers */
+h1, h2, h3, h4, h5, h6, ion-title, .card-title {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+/* Apply gradient background to pages and content */
+body {
+  background: var(--app-bg-gradient) !important;
+}
+
+ion-content {
+  --background: var(--app-bg-gradient) !important;
+}
+
+/* Glassmorphic Toolbars */
+ion-toolbar {
+  --background: transparent !important;
+  --border-width: 0 !important;
+  color: var(--ion-text-color);
+}
+
+ion-toolbar::part(background) {
+  background: rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(79, 70, 229, 0.15) !important;
+}
+
+
+ion-header {
+  box-shadow: 0 4px 20px rgba(79, 70, 229, 0.05) !important;
+  border: none !important;
+}
+
+ion-header::after {
+  display: none !important;
+}
+
+/* Glassmorphic Cards global styling */
+ion-card {
+  --background: var(--card-glass-bg) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: var(--card-glass-border);
+  box-shadow: var(--card-glass-shadow) !important;
+  border-radius: 20px !important;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.3s ease !important;
+}
+
+ion-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(79, 70, 229, 0.15) !important;
+  border-color: rgba(79, 70, 229, 0.35) !important;
+}
+
+
+/* Smooth Buttons with Micro-interactions */
+ion-button {
+  --border-radius: 12px !important;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease;
+}
+
+ion-button:hover {
+  filter: brightness(1.05);
+}
+
+ion-button:active {
+  transform: scale(0.96);
+}
+
+/* Premium Rounded Chips */
+ion-chip {
+  border-radius: 10px !important;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  border: 1px solid rgba(79, 70, 229, 0.18) !important;
+  --background: rgba(79, 70, 229, 0.05) !important;
+  color: var(--ion-color-primary) !important;
+}
+
+
+/* Glassmorphic Searchbars */
+ion-searchbar {
+  --background: var(--card-glass-bg) !important;
+  --color: var(--ion-text-color) !important;
+  --placeholder-color: var(--ion-color-medium) !important;
+  --placeholder-opacity: 0.85 !important;
+  --icon-color: var(--ion-color-medium) !important;
+  --clear-button-color: var(--ion-color-medium) !important;
+  --border-radius: 12px !important;
+  --box-shadow: var(--card-glass-shadow) !important;
+}
+
+ion-searchbar::part(searchbar-input) {
+  border: var(--card-glass-border) !important;
+}
+
+/* Scrollbars styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(79, 70, 229, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(79, 70, 229, 0.4);
+}
+
+/* Glassmorphic Inset Lists (Settings Page, forms) */
+ion-list[inset] {
+  background: var(--card-glass-bg) !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: var(--card-glass-border);
+  box-shadow: var(--card-glass-shadow) !important;
+  border-radius: 20px !important;
+  padding: 8px 0;
+  margin-top: 16px;
+  margin-bottom: 16px;
+}
+
+ion-list[inset] ion-item {
+  --background: transparent !important;
+  --border-color: rgba(255, 255, 255, 0.15) !important;
+  --padding-start: 16px;
+  --padding-end: 16px;
+  color: var(--ion-text-color);
+}
+
+ion-list-header {
+  --background: transparent !important;
+  padding-bottom: 8px;
+  --color: var(--ion-color-primary) !important;
+}
+
+ion-list-header h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ion-color-primary) !important;
+}
+
+ion-list-header p {
+  font-size: 12px;
+  color: var(--ion-color-medium) !important;
+  margin-top: 4px;
+}
+
+/* =========================================================================
+   Deep Nebula Dark Theme Palette & Overrides
+   ========================================================================= */
+:root.dark {
+  /* Dark mode overrides for Aurora Frost / Deep Nebula */
+  --ion-color-primary: #6366F1;
+  --ion-color-primary-rgb: 99, 102, 241;
+  --ion-color-primary-shade: #575ae6;
+  --ion-color-primary-tint: #7375f2;
+
+  --ion-color-secondary: #A5B4FC;
+  --ion-color-secondary-rgb: 165, 180, 252;
+  --ion-color-secondary-shade: #919ede;
+  --ion-color-secondary-tint: #b3c0fd;
+
+  --ion-color-tertiary: #F472B6;
+  --ion-color-tertiary-rgb: 244, 114, 182;
+  --ion-color-tertiary-shade: #d764a0;
+  --ion-color-tertiary-tint: #f580bd;
+
+  --ion-color-success: #10B981;
+  --ion-color-success-rgb: 16, 185, 129;
+  --ion-color-success-shade: #0e9f6f;
+  --ion-color-success-tint: #34d399;
+
+  --ion-color-warning: #F59E0B;
+  --ion-color-warning-rgb: 245, 158, 11;
+  --ion-color-warning-shade: #d97706;
+  --ion-color-warning-tint: #fbbf24;
+
+  --ion-color-danger: #EF4444;
+  --ion-color-danger-rgb: 239, 68, 68;
+  --ion-color-danger-shade: #dc2626;
+  --ion-color-danger-tint: #f87171;
+
+  --ion-color-light: #1E293B;
+  --ion-color-light-rgb: 30, 41, 59;
+  --ion-color-light-contrast: #F8FAFC;
+  --ion-color-light-contrast-rgb: 248, 250, 252;
+  --ion-color-light-shade: #1a2434;
+  --ion-color-light-tint: #334155;
+
+  --ion-color-medium: #94A3B8;
+  --ion-color-medium-rgb: 148, 163, 184;
+  --ion-color-medium-contrast: #0F172A;
+  --ion-color-medium-contrast-rgb: 15, 23, 42;
+  --ion-color-medium-shade: #8393a7;
+  --ion-color-medium-tint: #a1b0c3;
+
+  --ion-color-dark: #F8FAFC;
+  --ion-color-dark-rgb: 248, 250, 252;
+  --ion-color-dark-contrast: #0F172A;
+  --ion-color-dark-contrast-rgb: 15, 23, 42;
+  --ion-color-dark-shade: #dadcde;
+  --ion-color-dark-tint: #ffffff;
+
+  /* App Background and Text Colors */
+  --ion-background-color: #0F172A;
+  --ion-background-color-rgb: 15, 23, 42;
+  --ion-text-color: #F8FAFC;
+  --ion-text-color-rgb: 248, 250, 252;
+
+  /* Custom Glassmorphism Properties */
+  --app-bg-gradient: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+  --card-glass-bg: rgba(30, 41, 59, 0.7);
+  --card-glass-border: 1px solid rgba(99, 102, 241, 0.15);
+  --card-glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Component theme overrides for high visual quality */
+:root.dark ion-toolbar::part(background) {
+  background: rgba(15, 23, 42, 0.75) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(99, 102, 241, 0.15) !important;
+}
+
+:root.dark .mobile-tabs ion-segment {
+  --background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(99, 102, 241, 0.1);
+}
+
+:root.dark .mobile-tabs ion-segment-button {
+  --background-checked: rgba(99, 102, 241, 0.12);
+}
+
+:root.dark .mobile-tabs ion-segment-button::part(indicator-background) {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+}
+
+:root.dark .settings-sidebar {
+  background: rgba(15, 23, 42, 0.3);
+  border-right: 1px solid rgba(99, 102, 241, 0.12);
+}
+
+:root.dark .nav-item:hover {
+  background: rgba(99, 102, 241, 0.05);
+  color: #ffffff !important;
+}
+
+:root.dark .nav-item.active {
+  background: rgba(99, 102, 241, 0.15) !important;
+  color: #ffffff !important;
+  font-weight: 600;
+  border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+:root.dark .nav-item.active ion-icon {
+  color: #ffffff !important;
+}
+
+

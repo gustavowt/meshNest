@@ -109,6 +109,22 @@ describe('semanticSearch', () => {
     expect(results).toEqual([])
   })
 
+  test('returns an empty list when embedding provider is set to none', async () => {
+    const customDeps = {
+      ...deps,
+      embeddingProvider: {
+        name: 'none',
+        model: '',
+        dimensions: 0,
+        embedText: async () => {
+          throw new Error('Should not be called')
+        }
+      }
+    }
+    const results = await semanticSearch('query', customDeps)
+    expect(results).toEqual([])
+  })
+
   test('throws NoEmbeddingsError when nothing is indexed', async () => {
     await expect(semanticSearch('dragon', deps)).rejects.toBeInstanceOf(NoEmbeddingsError)
   })

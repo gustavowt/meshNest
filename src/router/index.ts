@@ -17,11 +17,7 @@ const routes: Array<RouteRecordRaw> = [
     name: 'ModelDetail',
     component: () => import('../views/ModelDetailPage.vue')
   },
-  {
-    path: '/search',
-    name: 'Search',
-    component: () => import('../views/SearchPage.vue')
-  },
+
   {
     path: '/settings',
     name: 'Settings',
