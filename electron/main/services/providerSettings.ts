@@ -29,6 +29,8 @@ export async function resolveProviderSettings(client: DuckDbClient): Promise<Pro
     embedding: { ...DEFAULT_PROVIDER_SETTINGS.embedding, ...stored.embedding },
     libraryFolder: stored.libraryFolder ?? DEFAULT_PROVIDER_SETTINGS.libraryFolder,
     appearance: stored.appearance ?? DEFAULT_PROVIDER_SETTINGS.appearance,
+    language: stored.language ?? DEFAULT_PROVIDER_SETTINGS.language,
+    defaultSlicer: stored.defaultSlicer ?? DEFAULT_PROVIDER_SETTINGS.defaultSlicer,
   }
 }
 

@@ -7,7 +7,7 @@ import type {
 } from '@/types/providerSettings'
 
 /** Built-in local embedding model (downloaded from Hugging Face on first use). */
-export const BUILTIN_EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2'
+export const BUILTIN_EMBEDDING_MODEL = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2'
 export const BUILTIN_EMBEDDING_DIMENSIONS = 384
 
 type ProviderInfo = {
@@ -116,6 +116,8 @@ export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   },
   libraryFolder: '',
   appearance: 'system',
+  language: 'en',
+  defaultSlicer: 'system',
 }
 
 /** Returns sensible defaults when the user switches vision provider. */
@@ -183,6 +185,10 @@ export function validateProviderSettings(settings: ProviderSettings): string[] {
     if (settings.embedding.provider !== 'none' && (!Number.isInteger(settings.embedding.dimensions) || settings.embedding.dimensions <= 0)) {
       problems.push('Embedding dimensions must be a positive integer.')
     }
+  }
+
+  if (settings.defaultSlicer && !['system', 'bambu', 'creality', 'prusa', 'orca', 'cura'].includes(settings.defaultSlicer)) {
+    problems.push(`Unknown default slicer "${settings.defaultSlicer}".`)
   }
 
   return problems

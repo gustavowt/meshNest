@@ -27,11 +27,15 @@ export type EmbeddingSettings = {
   useCloud?: boolean
 }
 
+export type SlicerId = 'system' | 'bambu' | 'creality' | 'prusa' | 'orca' | 'cura'
+
 export type ProviderSettings = {
   vision: VisionSettings
   embedding: EmbeddingSettings
   libraryFolder?: string
   appearance?: 'clear' | 'dark' | 'system'
+  language?: 'en' | 'pt' | 'es'
+  defaultSlicer?: SlicerId
 }
 
 export type ProviderTestResult = {

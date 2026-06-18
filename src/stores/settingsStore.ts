@@ -1,4 +1,5 @@
 import { reactive, watch } from 'vue'
+import i18n from '@/i18n'
 import {
   defaultEmbeddingSettings,
   defaultVisionSettings,
@@ -93,6 +94,16 @@ watch(
   }
 )
 
+// Watch for language changes in the draft (live preview)
+watch(
+  () => state.draft?.language,
+  (newLanguage) => {
+    if (newLanguage) {
+      i18n.global.locale.value = newLanguage
+    }
+  }
+)
+
 async function loadSettings(): Promise<void> {
   if (!window.meshNest) {
     state.error = 'Settings are only available in the desktop app.'
@@ -107,6 +118,11 @@ async function loadSettings(): Promise<void> {
         state.draft.appearance = 'system'
       }
       applyAppearance(state.draft.appearance)
+      if (state.draft.language) {
+        i18n.global.locale.value = state.draft.language
+      } else {
+        state.draft.language = 'en'
+      }
     }
   } catch (error) {
     state.error = error instanceof Error ? error.message : String(error)

@@ -37,7 +37,7 @@ describe('provider settings defaults', () => {
   test('defaults to ollama vision and the built-in local embedding model', () => {
     expect(DEFAULT_PROVIDER_SETTINGS.vision.provider).toBe('ollama')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.provider).toBe('builtin')
-    expect(DEFAULT_PROVIDER_SETTINGS.embedding.model).toBe('Xenova/all-MiniLM-L6-v2')
+    expect(DEFAULT_PROVIDER_SETTINGS.embedding.model).toBe('Xenova/paraphrase-multilingual-MiniLM-L12-v2')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.dimensions).toBe(384)
   })
 
@@ -95,6 +95,14 @@ describe('validateProviderSettings', () => {
     const problems = validateProviderSettings(settings)
     expect(problems.some((p) => p.includes('Vision model'))).toBe(true)
     expect(problems.some((p) => p.includes('dimensions'))).toBe(true)
+  })
+
+  test('rejects invalid default slicer', () => {
+    const settings = validSettings()
+    settings.defaultSlicer = 'invalid' as any
+
+    const problems = validateProviderSettings(settings)
+    expect(problems.some((p) => p.includes('Unknown default slicer'))).toBe(true)
   })
 })
 
