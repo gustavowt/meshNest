@@ -2,21 +2,21 @@
   <ion-page>
     <ion-header :translucent="true">
       <ion-toolbar>
-        <ion-title>Library</ion-title>
+        <ion-title>{{ $t('common.library') }}</ion-title>
         <ion-buttons slot="end">
           <ion-select
             v-if="library.state.entries.length > 0"
             :value="library.state.sortKey"
             interface="popover"
-            aria-label="Sort models"
+            :aria-label="$t('library.sort')"
             class="sort-select"
             @ion-change="library.setSortKey($event.detail.value)"
           >
-            <ion-select-option value="filename">Name</ion-select-option>
-            <ion-select-option value="modifiedAt">Date modified</ion-select-option>
-            <ion-select-option value="indexedAt">Date indexed</ion-select-option>
+            <ion-select-option value="filename">{{ $t('library.sortOptions.name') }}</ion-select-option>
+            <ion-select-option value="modifiedAt">{{ $t('library.sortOptions.modified') }}</ion-select-option>
+            <ion-select-option value="indexedAt">{{ $t('library.sortOptions.indexed') }}</ion-select-option>
           </ion-select>
-          <ion-button router-link="/settings" aria-label="Settings">
+          <ion-button router-link="/settings" :aria-label="$t('common.settings')">
             <ion-icon slot="icon-only" :icon="settingsOutline" />
           </ion-button>
         </ion-buttons>
@@ -35,9 +35,9 @@
                 · {{ indexing.state.progress.currentFile }}
               </span>
             </span>
-            <span v-else>Scanning {{ indexing.state.directory }}…</span>
+            <span v-else>{{ $t('library.indexing', { dir: indexing.state.directory }) }}</span>
             <ion-button size="small" fill="clear" color="medium" @click="indexing.cancelIndexing()">
-              Cancel
+              {{ $t('library.indexingCancel') }}
             </ion-button>
           </div>
         </div>
@@ -57,7 +57,7 @@
           color="warning"
           @click="retryFailed"
         >
-          Retry {{ indexing.failedCount() }} failed
+          {{ $t('library.retryFailed', { count: indexing.failedCount() }) }}
         </ion-button>
       </div>
 
@@ -68,39 +68,39 @@
       <!-- Loading state -->
       <div v-if="library.state.loading || settings.state.loading" class="state-container">
         <ion-spinner name="crescent" />
-        <p>Loading library…</p>
+        <p>{{ $t('library.loadingLibrary') }}</p>
       </div>
 
       <!-- Error state -->
       <div v-else-if="library.state.error" class="state-container">
         <ion-icon :icon="alertCircleOutline" class="state-icon error" />
         <p>{{ library.state.error }}</p>
-        <ion-button fill="outline" @click="library.loadLibrary()">Try again</ion-button>
+        <ion-button fill="outline" @click="library.loadLibrary()">{{ $t('common.tryAgain') }}</ion-button>
       </div>
 
       <!-- State A: No library folder selected yet -->
       <div v-else-if="!settings.state.draft?.libraryFolder" class="state-container">
         <ion-icon :icon="folderOutline" class="state-icon" />
-        <h2>Select a library folder</h2>
-        <p>Choose a folder containing your STL or 3MF files to scan and index your 3D models.</p>
+        <h2>{{ $t('library.noFolderTitle') }}</h2>
+        <p>{{ $t('library.noFolderDesc') }}</p>
         <ion-button :disabled="indexing.state.running" @click="selectAndIndex" fill="solid">
           <ion-icon slot="start" :icon="folderOutline" />
-          Select folder
+          {{ $t('library.selectFolderBtn') }}
         </ion-button>
       </div>
 
       <!-- State B: Folder selected, but library is empty -->
       <div v-else-if="library.state.loaded && library.state.entries.length === 0" class="state-container">
         <ion-icon :icon="cubeOutline" class="state-icon" />
-        <h2>No models found</h2>
-        <p>We couldn't find any STL or 3MF files in the selected folder: <strong>{{ settings.state.draft.libraryFolder }}</strong></p>
+        <h2>{{ $t('library.noModelsTitle') }}</h2>
+        <p>{{ $t('library.noModelsDesc', { folder: settings.state.draft.libraryFolder }) }}</p>
         <div style="display: flex; gap: 8px; margin-top: 8px;">
           <ion-button :disabled="indexing.state.running" fill="outline" @click="rescanCurrentFolder">
             <ion-icon slot="start" :icon="refreshOutline" />
-            Re-scan
+            {{ $t('library.rescan') }}
           </ion-button>
           <ion-button router-link="/settings" fill="clear">
-            Change folder
+            {{ $t('library.changeFolder') }}
           </ion-button>
         </div>
       </div>
@@ -109,8 +109,8 @@
       <div v-else>
         <div class="hero-section">
           <div class="hero-content">
-            <h1 class="hero-title">MeshNest</h1>
-            <p class="hero-subtitle">Search your library using natural language descriptions</p>
+            <h1 class="hero-title">{{ $t('common.meshNest') }}</h1>
+            <p class="hero-subtitle">{{ $t('library.heroSubtitle') }}</p>
             <div class="hero-search-container">
               <model-search-bar v-model="searchQuery" @search="handleSearch" class="hero-search-bar" />
             </div>
@@ -135,8 +135,8 @@
           <!-- No search results -->
           <div v-else-if="displayedEntries.length === 0 && !search.state.loading" class="state-container">
             <ion-icon :icon="searchOutline" class="state-icon" />
-            <h2>No matches</h2>
-            <p>Nothing matched "{{ searchQuery }}". Try different words or fewer details.</p>
+            <h2>{{ $t('library.noMatchesTitle') }}</h2>
+            <p>{{ $t('library.noMatchesDesc', { query: searchQuery }) }}</p>
           </div>
 
           <!-- Render search results grid -->
@@ -176,6 +176,7 @@ import {
 } from 'ionicons/icons'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import ModelGrid from '@/components/library/ModelGrid.vue'
 import ModelSearchBar from '@/components/search/ModelSearchBar.vue'
 import { useIndexingStore } from '@/stores/indexingStore'
@@ -184,6 +185,7 @@ import { useSearchStore } from '@/stores/searchStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { LibraryEntry } from '@/types/library'
 
+const { t } = useI18n()
 const router = useRouter()
 const library = useLibraryStore()
 const indexing = useIndexingStore()
@@ -194,7 +196,7 @@ const searchQuery = ref(search.state.query)
 
 const searchEntries = computed<LibraryEntry[]>(() => {
   return search.state.results
-    .filter((r) => r.score > 0.6)
+    .filter((r) => r.score > 0.55)
     .map((r) => {
       const original = library.state.entries.find((e) => e.id === r.modelFileId)
       return {
@@ -247,11 +249,18 @@ const runMessage = computed(() => {
   if (!summary || indexing.state.running) {
     return null
   }
-  const parts = [`${summary.indexed} indexed`]
-  if (summary.skipped > 0) parts.push(`${summary.skipped} skipped`)
-  if (summary.failed > 0) parts.push(`${summary.failed} failed`)
-  if (summary.pending > 0) parts.push(`${summary.pending} not processed`)
-  return `${summary.cancelled ? 'Indexing cancelled: ' : 'Indexing finished: '}${parts.join(', ')}`
+  const parts = [t('library.parts.indexed', { count: summary.indexed })]
+  if (summary.skipped > 0) {
+    parts.push(t('library.parts.skipped', { count: summary.skipped }))
+  }
+  if (summary.failed > 0) {
+    parts.push(t('library.parts.failed', { count: summary.failed }))
+  }
+  if (summary.pending > 0) {
+    parts.push(t('library.parts.pending', { count: summary.pending }))
+  }
+  const key = summary.cancelled ? 'library.runCancelled' : 'library.runFinished'
+  return t(key, { parts: parts.join(', ') })
 })
 
 async function selectAndIndex(): Promise<void> {

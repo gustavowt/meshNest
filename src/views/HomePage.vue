@@ -2,17 +2,17 @@
   <ion-page>
     <ion-header :translucent="true">
       <ion-toolbar>
-        <ion-title>meshNest</ion-title>
+        <ion-title>{{ $t('common.meshNest') }}</ion-title>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
       <div class="scan-container">
         <ion-button :disabled="scanning" @click="selectAndScan">
-          Select directory to scan
+          {{ $t('home.selectDir') }}
         </ion-button>
         <ion-button v-if="scanning" fill="outline" color="medium" @click="cancelScan">
-          Cancel
+          {{ $t('common.cancel') }}
         </ion-button>
 
         <ion-text v-if="error" color="danger">
@@ -24,13 +24,13 @@
         </ion-text>
 
         <ion-text v-if="scanning">
-          <p>Scanning... {{ progressCount }} model file(s) found</p>
+          <p>{{ $t('home.scanning', { count: progressCount }) }}</p>
           <p class="current-path">{{ progressPath }}</p>
         </ion-text>
 
         <template v-if="!scanning && files.length > 0">
           <ion-text>
-            <p>{{ files.length }} model file(s) found</p>
+            <p>{{ $t('home.filesFound', { count: files.length }) }}</p>
           </ion-text>
           <ion-list>
             <ion-item v-for="file in files" :key="file.absolutePath" button @click="previewFile = file">
@@ -43,7 +43,7 @@
         </template>
 
         <ion-text v-if="!scanning && scanned && files.length === 0">
-          <p>No STL or 3MF files found in this directory.</p>
+          <p>{{ $t('home.noFiles') }}</p>
         </ion-text>
       </div>
 
@@ -52,7 +52,7 @@
           <ion-toolbar>
             <ion-title>{{ previewFile?.filename }}</ion-title>
             <ion-buttons slot="end">
-              <ion-button @click="previewFile = null">Close</ion-button>
+              <ion-button @click="previewFile = null">{{ $t('common.close') }}</ion-button>
             </ion-buttons>
           </ion-toolbar>
         </ion-header>
@@ -85,8 +85,11 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import ModelPreview3D from '@/components/model/ModelPreview3D.vue'
 import type { ScannedFile } from '@/types/modelFile'
+
+const { t } = useI18n()
 
 const selectedDirectory = ref<string | null>(null)
 const scanning = ref(false)
@@ -104,7 +107,7 @@ async function selectAndScan(): Promise<void> {
   error.value = null
 
   if (!window.meshNest) {
-    error.value = 'Desktop features are only available in the Electron app.'
+    error.value = t('common.desktopOnly')
     return
   }
 

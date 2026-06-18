@@ -5,7 +5,7 @@
         <ion-buttons slot="start">
           <ion-back-button default-href="/library" />
         </ion-buttons>
-        <ion-title>Search</ion-title>
+        <ion-title>{{ $t('common.search') }}</ion-title>
       </ion-toolbar>
       <ion-toolbar>
         <model-search-bar v-model="query" @search="submit" />
@@ -16,15 +16,15 @@
       <!-- Loading -->
       <div v-if="search.state.loading" class="state-container">
         <ion-spinner name="crescent" />
-        <p>Searching…</p>
+        <p>{{ $t('search.searching') }}</p>
       </div>
 
       <!-- Nothing indexed yet -->
       <div v-else-if="search.state.embeddingCount === 0" class="state-container">
         <ion-icon :icon="cubeOutline" class="state-icon" />
-        <h2>Nothing indexed yet</h2>
-        <p>Search works on indexed models. Index a folder from the library first.</p>
-        <ion-button fill="outline" router-link="/library">Go to library</ion-button>
+        <h2>{{ $t('search.nothingIndexedTitle') }}</h2>
+        <p>{{ $t('search.nothingIndexedDesc') }}</p>
+        <ion-button fill="outline" router-link="/library">{{ $t('search.goToLibrary') }}</ion-button>
       </div>
 
       <!-- Search error -->
@@ -36,8 +36,8 @@
       <!-- No results -->
       <div v-else-if="search.state.searched && search.state.results.length === 0" class="state-container">
         <ion-icon :icon="searchOutline" class="state-icon" />
-        <h2>No matches</h2>
-        <p>Nothing matched "{{ search.state.query }}". Try different words or fewer details.</p>
+        <h2>{{ $t('search.noMatchesTitle') }}</h2>
+        <p>{{ $t('search.noMatchesDesc', { query: search.state.query }) }}</p>
       </div>
 
       <!-- Results -->
@@ -53,8 +53,8 @@
       <!-- Empty / initial state with example queries -->
       <div v-else class="state-container">
         <ion-icon :icon="searchOutline" class="state-icon" />
-        <h2>Search your models</h2>
-        <p>Describe a model in plain language. For example:</p>
+        <h2>{{ $t('search.searchModelsTitle') }}</h2>
+        <p>{{ $t('search.searchModelsDesc') }}</p>
         <div class="examples">
           <ion-chip v-for="example in EXAMPLE_QUERIES" :key="example" outline @click="useExample(example)">
             {{ example }}
