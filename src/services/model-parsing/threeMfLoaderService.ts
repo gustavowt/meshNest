@@ -1,8 +1,8 @@
-import { Mesh } from 'three'
-import type { Group } from 'three'
+import { Mesh, Group, ObjectLoader } from 'three'
 import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js'
 import { ModelParseError } from './modelScene'
 import type { ModelScene } from './modelScene'
+import ParseWorker from './threeMfParser.worker?worker'
 
 /**
  * Loads 3MF content into the normalized ModelScene representation using
@@ -35,6 +35,41 @@ export function loadThreeMfScene(content: ArrayBuffer | Uint8Array): ModelScene 
 
   root.name = root.name || '3mf-model'
   return { root, source: '3mf' }
+}
+
+/**
+ * Parses 3MF content asynchronously in a background Web Worker.
+ *
+ * @throws ModelParseError when the content cannot be loaded as 3MF.
+ */
+export function loadThreeMfSceneAsync(content: ArrayBuffer | Uint8Array): Promise<ModelScene> {
+  return new Promise((resolve, reject) => {
+    const worker = new ParseWorker()
+    const arrayBuffer = toArrayBuffer(content)
+
+    worker.onmessage = (event) => {
+      const data = event.data
+      worker.terminate()
+      if (data.success) {
+        try {
+          const root = new ObjectLoader().parse(data.json) as Group
+          root.name = root.name || '3mf-model'
+          resolve({ root, source: '3mf' })
+        } catch (error) {
+          reject(new ModelParseError('Failed to reconstruct 3D scene from worker data', error))
+        }
+      } else {
+        reject(new ModelParseError(data.error || 'Failed to parse 3MF in worker'))
+      }
+    }
+
+    worker.onerror = (error) => {
+      worker.terminate()
+      reject(new ModelParseError('Worker error during 3MF parsing', error))
+    }
+
+    worker.postMessage({ content: arrayBuffer }, [arrayBuffer])
+  })
 }
 
 function toArrayBuffer(content: ArrayBuffer | Uint8Array): ArrayBuffer {
