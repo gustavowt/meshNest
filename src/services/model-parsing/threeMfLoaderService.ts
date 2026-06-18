@@ -1,8 +1,58 @@
-import { Mesh, Group, ObjectLoader } from 'three'
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Group,
+  Matrix4,
+  Mesh,
+  MeshStandardMaterial,
+} from 'three'
+import type { Object3D } from 'three'
 import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js'
 import { ModelParseError } from './modelScene'
 import type { ModelScene } from './modelScene'
 import ParseWorker from './threeMfParser.worker?worker'
+
+const DEFAULT_MATERIAL_COLOR = 0x8899aa
+
+type WorkerComponent = { objectId: string; transform?: number[] }
+type WorkerObject = {
+  id: string
+  name?: string
+  mesh?: { positions: Float32Array; indices: Uint32Array }
+  components?: WorkerComponent[]
+}
+
+/**
+ * Rebuilds a single parsed 3MF object (mesh leaf or a group of transformed
+ * component references) into a Three.js node. Components are resolved
+ * recursively against the full object map.
+ */
+function buildWorkerObject(obj: WorkerObject, objects: Record<string, WorkerObject>): Object3D {
+  if (obj.mesh) {
+    const geometry = new BufferGeometry()
+    geometry.setAttribute('position', new BufferAttribute(obj.mesh.positions, 3))
+    if (obj.mesh.indices && obj.mesh.indices.length > 0) {
+      geometry.setIndex(new BufferAttribute(obj.mesh.indices, 1))
+    }
+    geometry.computeVertexNormals()
+    const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: DEFAULT_MATERIAL_COLOR }))
+    mesh.name = obj.name || `object-${obj.id}`
+    return mesh
+  }
+
+  const group = new Group()
+  group.name = obj.name || `object-${obj.id}`
+  for (const component of obj.components ?? []) {
+    const child = objects[component.objectId]
+    if (!child) continue
+    const node = buildWorkerObject(child, objects)
+    if (component.transform && component.transform.length === 16) {
+      node.applyMatrix4(new Matrix4().fromArray(component.transform))
+    }
+    group.add(node)
+  }
+  return group
+}
 
 /**
  * Loads 3MF content into the normalized ModelScene representation using
@@ -50,16 +100,48 @@ export function loadThreeMfSceneAsync(content: ArrayBuffer | Uint8Array): Promis
     worker.onmessage = (event) => {
       const data = event.data
       worker.terminate()
-      if (data.success) {
-        try {
-          const root = new ObjectLoader().parse(data.json) as Group
-          root.name = root.name || '3mf-model'
-          resolve({ root, source: '3mf' })
-        } catch (error) {
-          reject(new ModelParseError('Failed to reconstruct 3D scene from worker data', error))
-        }
-      } else {
+      if (!data.success) {
         reject(new ModelParseError(data.error || 'Failed to parse 3MF in worker'))
+        return
+      }
+
+      try {
+        const objects = (data.objects ?? {}) as Record<string, WorkerObject>
+        const buildItems = (data.buildItems ?? []) as WorkerComponent[]
+
+        const root = new Group()
+        root.name = '3mf-model'
+
+        // Prefer the build plate items; fall back to every renderable object
+        // when a package omits the <build> section.
+        const items: WorkerComponent[] = buildItems.length > 0
+          ? buildItems
+          : Object.values(objects)
+              .filter((obj) => obj.mesh || (obj.components && obj.components.length > 0))
+              .map((obj) => ({ objectId: obj.id }))
+
+        for (const item of items) {
+          const obj = objects[item.objectId]
+          if (!obj) continue
+          const node = buildWorkerObject(obj, objects)
+          if (item.transform && item.transform.length === 16) {
+            node.applyMatrix4(new Matrix4().fromArray(item.transform))
+          }
+          root.add(node)
+        }
+
+        let meshCount = 0
+        root.traverse((object) => {
+          if (object instanceof Mesh) meshCount += 1
+        })
+        if (meshCount === 0) {
+          reject(new ModelParseError('3MF file contains no mesh geometry'))
+          return
+        }
+
+        resolve({ root, source: '3mf' })
+      } catch (error) {
+        reject(new ModelParseError('Failed to reconstruct 3D scene from worker data', error))
       }
     }
 

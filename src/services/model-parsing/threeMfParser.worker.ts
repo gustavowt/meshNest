@@ -65,6 +65,33 @@ function parseTriangles(trianglesXml: string): Uint32Array {
   return indices
 }
 
+/** Normalizes a package-internal path so zip keys and `p:path` references compare equal. */
+function normalizePath(p: string): string {
+  let s = p.trim()
+  if (s.startsWith('./')) s = s.slice(2)
+  if (s.startsWith('/')) s = s.slice(1)
+  return s.toLowerCase()
+}
+
+/** Finds the 3D model relationship target declared in `_rels/.rels`. */
+function findRootModelTarget(relsXml: string): string | null {
+  let pos = 0
+  while (true) {
+    const start = relsXml.indexOf('<Relationship', pos)
+    if (start === -1) break
+    const end = relsXml.indexOf('>', start)
+    if (end === -1) break
+    const tag = relsXml.slice(start, end + 1)
+    const type = getAttributeValue(tag, 'Type')
+    const target = getAttributeValue(tag, 'Target')
+    if (type && target && /3dmodel$/i.test(type)) {
+      return target
+    }
+    pos = end + 1
+  }
+  return null
+}
+
 function parseModelXml(xmlText: string) {
   const objects: Record<string, any> = {}
   const buildItems: any[] = []
@@ -114,6 +141,7 @@ function parseModelXml(xmlText: string) {
         if (objectid) {
           components.push({
             objectId: objectid,
+            path: getAttributeValue(compTag, 'p:path') || undefined,
             transform: parseTransform(getAttributeValue(compTag, 'transform'))
           })
         }
@@ -144,6 +172,7 @@ function parseModelXml(xmlText: string) {
       if (objectid) {
         buildItems.push({
           objectId: objectid,
+          path: getAttributeValue(itemTag, 'p:path') || undefined,
           transform: parseTransform(getAttributeValue(itemTag, 'transform'))
         })
       }
@@ -159,13 +188,80 @@ addEventListener('message', (event: MessageEvent<{ content: ArrayBuffer }>) => {
   const globalSelf = self as any
   try {
     const files = unzipSync(new Uint8Array(content))
-    const modelPath = Object.keys(files).find(f => f.toLowerCase().endsWith('.model'))
-    if (!modelPath) {
+
+    // Map normalized package paths to their actual zip entry keys so
+    // production-extension `p:path` references can be resolved.
+    const pathIndex = new Map<string, string>()
+    for (const key of Object.keys(files)) {
+      pathIndex.set(normalizePath(key), key)
+    }
+    const resolveZipKey = (p: string): string | undefined => pathIndex.get(normalizePath(p))
+
+    // Resolve the root model part: prefer the _rels declaration, then the
+    // conventional path, then any .model entry.
+    let rootKey: string | undefined
+    const relsKey = pathIndex.get('_rels/.rels')
+    if (relsKey) {
+      const target = findRootModelTarget(new TextDecoder().decode(files[relsKey]))
+      if (target) rootKey = resolveZipKey(target)
+    }
+    if (!rootKey) rootKey = pathIndex.get('3d/3dmodel.model')
+    if (!rootKey) rootKey = Object.keys(files).find((f) => f.toLowerCase().endsWith('.model'))
+    if (!rootKey) {
       throw new Error('3MF package does not contain a 3D model part')
     }
 
-    const xmlText = new TextDecoder().decode(files[modelPath])
-    const { objects, buildItems } = parseModelXml(xmlText)
+    // Object ids are only unique within a single model part, so key every
+    // object globally as `<zip path>#<local id>` and rewrite all references.
+    const makeKey = (zipKey: string, id: string): string => `${zipKey}#${id}`
+
+    const objects: Record<string, any> = {}
+    let buildItems: any[] = []
+    const parsedFiles = new Set<string>()
+
+    const parseFile = (zipKey: string): void => {
+      if (parsedFiles.has(zipKey) || !files[zipKey]) return
+      parsedFiles.add(zipKey)
+
+      const xmlText = new TextDecoder().decode(files[zipKey])
+      const { objects: localObjects, buildItems: localBuild } = parseModelXml(xmlText)
+      const referenced = new Set<string>()
+
+      for (const obj of Object.values(localObjects)) {
+        const components = obj.components
+          ? obj.components.map((comp: any) => {
+              const targetKey = comp.path ? resolveZipKey(comp.path) : zipKey
+              if (targetKey) referenced.add(targetKey)
+              return {
+                objectId: makeKey(targetKey || zipKey, comp.objectId),
+                transform: comp.transform,
+              }
+            })
+          : undefined
+        objects[makeKey(zipKey, obj.id)] = {
+          id: makeKey(zipKey, obj.id),
+          name: obj.name,
+          mesh: obj.mesh,
+          components,
+        }
+      }
+
+      // Build items live in the root model and place objects on the plate.
+      if (zipKey === rootKey) {
+        buildItems = localBuild.map((item: any) => {
+          const targetKey = item.path ? resolveZipKey(item.path) : rootKey
+          if (targetKey) referenced.add(targetKey)
+          return {
+            objectId: makeKey(targetKey || (rootKey as string), item.objectId),
+            transform: item.transform,
+          }
+        })
+      }
+
+      for (const ref of referenced) parseFile(ref)
+    }
+
+    parseFile(rootKey)
 
     // Gather transferables
     const transferables: ArrayBuffer[] = []
