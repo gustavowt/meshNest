@@ -50,8 +50,24 @@ let camera: PerspectiveCamera | null = null
 let controls: OrbitControls | null = null
 let resizeObserver: ResizeObserver | null = null
 let animationFrame = 0
+let loadGeneration = 0
 
 const PREVIEW_VIEW_DIRECTION = new Vector3(1, 0.8, 1)
+
+/**
+ * Yields control back to the browser for one frame so the loading overlay
+ * can paint before the synchronous WebGL setup + first render (the GPU
+ * upload) runs on the main thread.
+ */
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve())
+    } else {
+      setTimeout(resolve, 0)
+    }
+  })
+}
 
 function disposeObject(object: Object3D): void {
   object.traverse((child) => {
@@ -102,6 +118,7 @@ function animate(): void {
 }
 
 async function loadModel(): Promise<void> {
+  const generation = ++loadGeneration
   disposeThree()
   state.value = 'loading'
   errorMessage.value = ''
@@ -113,31 +130,25 @@ async function loadModel(): Promise<void> {
   }
 
   try {
-    const t0 = performance.now()
-    console.log(`[ModelPreview3D] Starting to read model file: ${props.filePath}`)
-
     const bytes = await window.meshNest.readModelFile(props.filePath)
-    const t1 = performance.now()
-    console.log(`[ModelPreview3D] Read model file from disk. Size: ${(bytes.length / (1024 * 1024)).toFixed(2)} MB. Time taken: ${(t1 - t0).toFixed(2)} ms`)
+    if (generation !== loadGeneration) return
 
-    const t2 = performance.now()
-    console.log(`[ModelPreview3D] Starting parsing. Extension: ${props.extension}`)
-    const modelScene = props.extension === 'stl' ? await loadStlSceneAsync(bytes) : await loadThreeMfSceneAsync(bytes)
-    const t3 = performance.now()
-    console.log(`[ModelPreview3D] Parsing completed. Time taken: ${(t3 - t2).toFixed(2)} ms`)
+    const modelScene = props.extension === 'stl'
+      ? await loadStlSceneAsync(bytes)
+      : await loadThreeMfSceneAsync(bytes)
+    if (generation !== loadGeneration) return
 
-    const t4 = performance.now()
-    console.log(`[ModelPreview3D] Starting normalization...`)
     const normalized = normalizeModelScene(modelScene)
-    const t5 = performance.now()
-    console.log(`[ModelPreview3D] Normalization completed. Time taken: ${(t5 - t4).toFixed(2)} ms`)
-
-    if (!container.value) {
+    if (generation !== loadGeneration || !container.value) {
       return
     }
 
-    const t6 = performance.now()
-    console.log(`[ModelPreview3D] Setting up Three.js scene, camera, and controls...`)
+    // Let the loading overlay paint before the GPU upload on first render,
+    // which is the main-thread cost that otherwise makes the page freeze.
+    await yieldToBrowser()
+    if (generation !== loadGeneration || !container.value) {
+      return
+    }
 
     renderer = new WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(window.devicePixelRatio)
@@ -170,13 +181,10 @@ async function loadModel(): Promise<void> {
     resizeObserver.observe(container.value)
     updateSize()
 
-    const t7 = performance.now()
-    console.log(`[ModelPreview3D] Three.js setup completed. Time taken: ${(t7 - t6).toFixed(2)} ms`)
-    console.log(`[ModelPreview3D] Total display time: ${(t7 - t0).toFixed(2)} ms`)
-
     state.value = 'ready'
     animate()
   } catch (error) {
+    if (generation !== loadGeneration) return
     disposeThree()
     state.value = 'error'
     errorMessage.value = error instanceof Error ? error.message : 'Failed to load model preview.'
