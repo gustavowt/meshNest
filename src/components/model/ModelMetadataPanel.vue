@@ -2,7 +2,7 @@
   <div class="metadata-panel">
     <!-- AI description -->
     <section v-if="detail.description" class="panel-section">
-      <h2>AI description</h2>
+      <h2>{{ $t('detail.aiDescription') }}</h2>
       <p class="description">{{ detail.description.description }}</p>
 
       <div class="chips">
@@ -14,18 +14,18 @@
 
       <dl class="facts">
         <template v-if="detail.description.printUse">
-          <dt>Print use</dt>
+          <dt>{{ $t('detail.printUse') }}</dt>
           <dd>{{ detail.description.printUse }}</dd>
         </template>
         <template v-if="detail.description.style">
-          <dt>Style</dt>
+          <dt>{{ $t('detail.style') }}</dt>
           <dd>{{ detail.description.style }}</dd>
         </template>
-        <dt>Confidence</dt>
+        <dt>{{ $t('detail.confidence') }}</dt>
         <dd>{{ Math.round(detail.description.confidence * 100) }}%</dd>
       </dl>
 
-      <h3>Search phrases</h3>
+      <h3>{{ $t('detail.searchPhrases') }}</h3>
       <ul class="search-phrases">
         <li v-for="phrase in detail.description.searchPhrases" :key="phrase">{{ phrase }}</li>
       </ul>
@@ -33,32 +33,32 @@
 
     <!-- Indexing error -->
     <section v-if="detail.file.status === 'failed' && detail.file.errorMessage" class="panel-section">
-      <h2>Indexing error</h2>
+      <h2>{{ $t('detail.indexingError') }}</h2>
       <pre class="error-output">{{ detail.file.errorMessage }}</pre>
     </section>
 
     <!-- Geometry -->
     <section v-if="detail.geometry" class="panel-section">
-      <h2>Geometry</h2>
+      <h2>{{ $t('detail.geometry') }}</h2>
       <dl class="facts">
         <template v-if="dimensions">
-          <dt>Dimensions</dt>
+          <dt>{{ $t('detail.dimensions') }}</dt>
           <dd>{{ dimensions }}</dd>
         </template>
         <template v-if="detail.geometry.triangleCount !== undefined">
-          <dt>Triangles</dt>
+          <dt>{{ $t('detail.triangles') }}</dt>
           <dd>{{ detail.geometry.triangleCount.toLocaleString() }}</dd>
         </template>
         <template v-if="detail.geometry.vertexCount !== undefined">
-          <dt>Vertices</dt>
+          <dt>{{ $t('detail.vertices') }}</dt>
           <dd>{{ detail.geometry.vertexCount.toLocaleString() }}</dd>
         </template>
         <template v-if="detail.geometry.meshCount !== undefined">
-          <dt>Meshes</dt>
+          <dt>{{ $t('detail.meshes') }}</dt>
           <dd>{{ detail.geometry.meshCount }}</dd>
         </template>
         <template v-if="detail.geometry.objectCount !== undefined">
-          <dt>Objects</dt>
+          <dt>{{ $t('detail.objects') }}</dt>
           <dd>{{ detail.geometry.objectCount }}</dd>
         </template>
       </dl>
@@ -66,41 +66,41 @@
 
     <!-- 3MF package metadata -->
     <section v-if="hasThreeMfContent" class="panel-section">
-      <h2>3MF package</h2>
+      <h2>{{ $t('detail.threeMfPackage') }}</h2>
       <dl class="facts">
         <template v-if="detail.threeMf!.objectNames.length > 0">
-          <dt>Objects</dt>
+          <dt>{{ $t('detail.objects') }}</dt>
           <dd>{{ detail.threeMf!.objectNames.join(', ') }}</dd>
         </template>
         <template v-if="detail.threeMf!.materialNames.length > 0">
-          <dt>Materials</dt>
+          <dt>{{ $t('detail.materials') }}</dt>
           <dd>{{ detail.threeMf!.materialNames.join(', ') }}</dd>
         </template>
         <template v-if="detail.threeMf!.colorValues.length > 0">
-          <dt>Colors</dt>
+          <dt>{{ $t('detail.colors') }}</dt>
           <dd>{{ detail.threeMf!.colorValues.join(', ') }}</dd>
         </template>
-        <dt>Embedded thumbnail</dt>
-        <dd>{{ detail.threeMf!.hasThumbnail ? 'Yes' : 'No' }}</dd>
+        <dt>{{ $t('detail.embeddedThumbnail') }}</dt>
+        <dd>{{ detail.threeMf!.hasThumbnail ? $t('common.yes') : $t('common.no') }}</dd>
       </dl>
     </section>
 
     <!-- File info -->
     <section class="panel-section">
-      <h2>File</h2>
+      <h2>{{ $t('detail.file') }}</h2>
       <dl class="facts">
-        <dt>Filename</dt>
+        <dt>{{ $t('detail.filename') }}</dt>
         <dd>{{ detail.file.filename }}</dd>
-        <dt>Path</dt>
+        <dt>{{ $t('detail.path') }}</dt>
         <dd class="path">{{ detail.file.absolutePath }}</dd>
-        <dt>Size</dt>
+        <dt>{{ $t('detail.size') }}</dt>
         <dd>{{ formatSize(detail.file.sizeBytes) }}</dd>
-        <dt>Format</dt>
+        <dt>{{ $t('detail.format') }}</dt>
         <dd>{{ detail.file.extension.toUpperCase() }}</dd>
-        <dt>Modified</dt>
+        <dt>{{ $t('detail.modified') }}</dt>
         <dd>{{ formatDate(detail.file.modifiedAt) }}</dd>
         <template v-if="detail.file.indexedAt">
-          <dt>Indexed</dt>
+          <dt>{{ $t('detail.indexed') }}</dt>
           <dd>{{ formatDate(detail.file.indexedAt) }}</dd>
         </template>
       </dl>

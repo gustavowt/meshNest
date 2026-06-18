@@ -1,7 +1,7 @@
 <template>
   <ion-searchbar
     :value="modelValue"
-    placeholder="Describe what you're looking for…"
+    :placeholder="$t('search.placeholder')"
     inputmode="search"
     :debounce="0"
     show-clear-button="focus"
