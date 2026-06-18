@@ -5,11 +5,11 @@
         <ion-buttons slot="start">
           <ion-back-button default-href="/library" />
         </ion-buttons>
-        <ion-title>Settings</ion-title>
+        <ion-title>{{ $t('common.settings') }}</ion-title>
         <ion-buttons slot="end">
           <ion-button :disabled="settings.state.saving || !settings.state.draft" @click="save">
             <ion-spinner v-if="settings.state.saving" name="crescent" class="save-spinner" />
-            Save
+            {{ $t('common.save') }}
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -18,7 +18,7 @@
     <ion-content :fullscreen="true">
       <div v-if="settings.state.loading" class="state-container">
         <ion-spinner name="crescent" />
-        <p>Loading settings…</p>
+        <p>{{ $t('common.loading') }}</p>
       </div>
 
       <div v-else-if="settings.state.error && !settings.state.draft" class="state-container">
@@ -31,19 +31,27 @@
           <ion-segment v-model="activeSection" mode="ios">
             <ion-segment-button value="library">
               <ion-icon :icon="folderOutline" />
-              <ion-label>Library</ion-label>
+              <ion-label>{{ $t('settings.tabs.library') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="vision">
               <ion-icon :icon="imageOutline" />
-              <ion-label>Vision AI</ion-label>
+              <ion-label>{{ $t('settings.tabs.vision') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="embedding">
               <ion-icon :icon="searchOutline" />
-              <ion-label>Embeddings</ion-label>
+              <ion-label>{{ $t('settings.tabs.embedding') }}</ion-label>
             </ion-segment-button>
             <ion-segment-button value="appearance">
               <ion-icon :icon="colorPaletteOutline" />
-              <ion-label>Appearance</ion-label>
+              <ion-label>{{ $t('settings.tabs.appearance') }}</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="language">
+              <ion-icon :icon="languageOutline" />
+              <ion-label>{{ $t('settings.tabs.language') }}</ion-label>
+            </ion-segment-button>
+            <ion-segment-button value="slicer">
+              <ion-icon :icon="buildOutline" />
+              <ion-label>{{ $t('settings.tabs.slicer') }}</ion-label>
             </ion-segment-button>
           </ion-segment>
         </div>
@@ -58,7 +66,7 @@
                 @click="activeSection = 'library'"
               >
                 <ion-icon :icon="folderOutline" />
-                <span>Library</span>
+                <span>{{ $t('settings.tabs.library') }}</span>
               </button>
               <button
                 class="nav-item"
@@ -66,7 +74,7 @@
                 @click="activeSection = 'vision'"
               >
                 <ion-icon :icon="imageOutline" />
-                <span>Vision AI</span>
+                <span>{{ $t('settings.tabs.vision') }}</span>
               </button>
               <button
                 class="nav-item"
@@ -74,7 +82,7 @@
                 @click="activeSection = 'embedding'"
               >
                 <ion-icon :icon="searchOutline" />
-                <span>Embeddings</span>
+                <span>{{ $t('settings.tabs.embedding') }}</span>
               </button>
               <button
                 class="nav-item"
@@ -82,7 +90,23 @@
                 @click="activeSection = 'appearance'"
               >
                 <ion-icon :icon="colorPaletteOutline" />
-                <span>Appearance</span>
+                <span>{{ $t('settings.tabs.appearance') }}</span>
+              </button>
+              <button
+                class="nav-item"
+                :class="{ active: activeSection === 'language' }"
+                @click="activeSection = 'language'"
+              >
+                <ion-icon :icon="languageOutline" />
+                <span>{{ $t('settings.tabs.language') }}</span>
+              </button>
+              <button
+                class="nav-item"
+                :class="{ active: activeSection === 'slicer' }"
+                @click="activeSection = 'slicer'"
+              >
+                <ion-icon :icon="buildOutline" />
+                <span>{{ $t('settings.tabs.slicer') }}</span>
               </button>
             </nav>
           </aside>
@@ -100,30 +124,30 @@
                 <p class="save-error">{{ settings.state.error }}</p>
               </ion-text>
               <ion-text v-if="settings.state.saved" color="success">
-                <p class="save-ok">Settings saved.</p>
+                <p class="save-ok">{{ $t('settings.saved') }}</p>
               </ion-text>
             </div>
 
             <!-- Library Location Section -->
             <section v-if="activeSection === 'library'" class="content-section">
-              <h2 class="section-title">Library Location</h2>
+              <h2 class="section-title">{{ $t('settings.librarySection.title') }}</h2>
               <p class="section-description">
-                Choose the local folder where your 3D models (STL, 3MF) are stored.
+                {{ $t('settings.librarySection.desc') }}
               </p>
 
               <ion-list inset>
                 <ion-item>
                   <ion-input
-                    label="Folder path"
+                    :label="$t('settings.librarySection.folderPath')"
                     label-placement="fixed"
                     readonly
-                    :placeholder="draft.libraryFolder || 'No folder selected'"
+                    :placeholder="draft.libraryFolder || $t('settings.librarySection.noFolder')"
                     :value="draft.libraryFolder"
                     @click="pickLibraryFolder"
                     style="cursor: pointer;"
                   />
                   <ion-button slot="end" fill="outline" size="small" @click="pickLibraryFolder">
-                    Browse
+                    {{ $t('settings.librarySection.browse') }}
                   </ion-button>
                 </ion-item>
               </ion-list>
@@ -131,15 +155,15 @@
 
             <!-- Vision AI Section -->
             <section v-if="activeSection === 'vision'" class="content-section">
-              <h2 class="section-title">Visual Enrichment (Vision AI)</h2>
+              <h2 class="section-title">{{ $t('settings.visionSection.title') }}</h2>
               <p class="section-description">
-                Enriches your 3D models by generating descriptive tags and titles using vision AI models.
+                {{ $t('settings.visionSection.desc') }}
               </p>
 
               <ion-list inset>
                 <ion-item>
                   <ion-select
-                    label="Provider"
+                    :label="$t('settings.visionSection.provider')"
                     interface="popover"
                     :value="draft.vision.provider"
                     @ion-change="settings.switchVisionProvider($event.detail.value)"
@@ -155,9 +179,9 @@
                     :checked="!!draft.vision.useCloud"
                     @ion-change="draft.vision.useCloud = $event.detail.checked; settings.markDirty()"
                   >
-                    Use Cloud Models
+                    {{ $t('settings.visionSection.useCloud') }}
                     <ion-note slot="end" style="font-size: 11px; margin-inline-start: 8px; color: var(--ion-color-medium);">
-                      Requires paid Ollama account
+                      {{ $t('settings.visionSection.useCloudNote') }}
                     </ion-note>
                   </ion-toggle>
                 </ion-item>
@@ -165,7 +189,7 @@
                 <!-- Dropdown model selection if Ollama and options are available -->
                 <ion-item v-if="draft.vision.provider === 'ollama' && (draft.vision.useCloud ? true : settings.state.ollamaVisionModels.length > 0)">
                   <ion-select
-                    label="Model Selection"
+                    :label="$t('settings.visionSection.modelSelection')"
                     interface="popover"
                     :value="isVisionModelCustom ? 'custom' : draft.vision.model"
                     @ion-change="handleVisionModelSelect($event.detail.value)"
@@ -173,14 +197,14 @@
                     <ion-select-option v-for="m in visionModelOptions" :key="m" :value="m">
                       {{ m }}
                     </ion-select-option>
-                    <ion-select-option value="custom">Custom model...</ion-select-option>
+                    <ion-select-option value="custom">{{ $t('settings.visionSection.customModelOption') }}</ion-select-option>
                   </ion-select>
                 </ion-item>
 
                 <!-- Input field for model name if provider is not Ollama, or custom is selected, or no options pulled yet -->
                 <ion-item v-if="draft.vision.provider !== 'none' && (draft.vision.provider !== 'ollama' || isVisionModelCustom || (draft.vision.provider === 'ollama' && !draft.vision.useCloud && settings.state.ollamaVisionModels.length === 0))">
                   <ion-input
-                    label="Model"
+                    :label="$t('settings.visionSection.model')"
                     label-placement="fixed"
                     :value="draft.vision.model"
                     @ion-input="draft.vision.model = $event.detail.value ?? ''; settings.markDirty()"
@@ -189,10 +213,10 @@
 
                 <ion-item v-if="visionInfo.needsApiKey">
                   <ion-input
-                    label="API key"
+                    :label="$t('settings.visionSection.apiKey')"
                     label-placement="fixed"
                     type="password"
-                    placeholder="sk-…"
+                    :placeholder="$t('settings.visionSection.apiKeyPlaceholder')"
                     :value="draft.vision.apiKey"
                     @ion-input="draft.vision.apiKey = $event.detail.value ?? ''; settings.markDirty()"
                   />
@@ -200,7 +224,7 @@
 
                 <ion-item v-if="visionInfo.needsBaseUrl || draft.vision.provider === 'openai'">
                   <ion-input
-                    label="Base URL"
+                    :label="$t('settings.visionSection.baseUrl')"
                     label-placement="fixed"
                     :placeholder="visionInfo.defaultBaseUrl"
                     :value="draft.vision.baseUrl"
@@ -218,14 +242,14 @@
                   @click="settings.fetchOllamaVisionModels(draft.vision.baseUrl || 'http://localhost:11434')"
                 >
                   <ion-spinner v-if="settings.state.fetchingOllamaVisionModels" name="crescent" class="test-spinner" />
-                  Pull local models
+                  {{ $t('settings.visionSection.pullLocal') }}
                 </ion-button>
                 <ion-button size="small" fill="outline" :disabled="settings.state.testingVision" @click="settings.testVision()">
                   <ion-spinner v-if="settings.state.testingVision" name="crescent" class="test-spinner" />
-                  Test connection
+                  {{ $t('settings.visionSection.testConnection') }}
                 </ion-button>
                 <ion-text v-if="settings.state.ollamaVisionError" color="danger" style="display: block; font-size: 12px; margin-top: 8px;">
-                  Failed to pull models: {{ settings.state.ollamaVisionError }}
+                  {{ $t('settings.visionSection.pullFailed', { error: settings.state.ollamaVisionError }) }}
                 </ion-text>
               </div>
               <provider-test-banner v-if="draft.vision.provider !== 'none'" :result="settings.state.visionTest" />
@@ -233,16 +257,15 @@
 
             <!-- Embedding Service Section -->
             <section v-if="activeSection === 'embedding'" class="content-section">
-              <h2 class="section-title">Embedding Service</h2>
+              <h2 class="section-title">{{ $t('settings.embeddingSection.title') }}</h2>
               <p class="section-description">
-                Turns AI descriptions and your search queries into vectors. The built-in model
-                runs locally and is downloaded once from Hugging Face.
+                {{ $t('settings.embeddingSection.desc') }}
               </p>
 
               <ion-list inset>
                 <ion-item>
                   <ion-select
-                    label="Provider"
+                    :label="$t('settings.embeddingSection.provider')"
                     interface="popover"
                     :value="draft.embedding.provider"
                     @ion-change="settings.switchEmbeddingProvider($event.detail.value)"
@@ -258,9 +281,9 @@
                     :checked="!!draft.embedding.useCloud"
                     @ion-change="draft.embedding.useCloud = $event.detail.checked; settings.markDirty()"
                   >
-                    Use Cloud Models
+                    {{ $t('settings.embeddingSection.useCloud') }}
                     <ion-note slot="end" style="font-size: 11px; margin-inline-start: 8px; color: var(--ion-color-medium);">
-                      Requires paid Ollama account
+                      {{ $t('settings.embeddingSection.useCloudNote') }}
                     </ion-note>
                   </ion-toggle>
                 </ion-item>
@@ -268,7 +291,7 @@
                 <!-- Dropdown model selection if Ollama and options are available -->
                 <ion-item v-if="draft.embedding.provider === 'ollama' && (draft.embedding.useCloud ? true : settings.state.ollamaEmbeddingModels.length > 0)">
                   <ion-select
-                    label="Model Selection"
+                    :label="$t('settings.embeddingSection.modelSelection')"
                     interface="popover"
                     :value="isEmbeddingModelCustom ? 'custom' : draft.embedding.model"
                     @ion-change="handleEmbeddingModelSelect($event.detail.value)"
@@ -276,14 +299,14 @@
                     <ion-select-option v-for="m in embeddingModelOptions" :key="m" :value="m">
                       {{ m }}
                     </ion-select-option>
-                    <ion-select-option value="custom">Custom model...</ion-select-option>
+                    <ion-select-option value="custom">{{ $t('settings.embeddingSection.customModelOption') }}</ion-select-option>
                   </ion-select>
                 </ion-item>
 
                 <!-- Input field for model name if provider is not Ollama, or custom is selected, or no options pulled yet -->
                 <ion-item v-if="draft.embedding.provider !== 'none' && (draft.embedding.provider !== 'ollama' || isEmbeddingModelCustom || (draft.embedding.provider === 'ollama' && !draft.embedding.useCloud && settings.state.ollamaEmbeddingModels.length === 0))">
                   <ion-input
-                    label="Model"
+                    :label="$t('settings.embeddingSection.model')"
                     label-placement="fixed"
                     :value="draft.embedding.model"
                     @ion-input="draft.embedding.model = $event.detail.value ?? ''; settings.markDirty()"
@@ -292,7 +315,7 @@
 
                 <ion-item v-if="embeddingInfo.needsApiKey">
                   <ion-input
-                    label="API key"
+                    :label="$t('settings.embeddingSection.apiKey')"
                     label-placement="fixed"
                     type="password"
                     :value="draft.embedding.apiKey"
@@ -302,7 +325,7 @@
 
                 <ion-item v-if="embeddingInfo.needsBaseUrl || draft.embedding.provider === 'openai'">
                   <ion-input
-                    label="Base URL"
+                    :label="$t('settings.embeddingSection.baseUrl')"
                     label-placement="fixed"
                     :placeholder="embeddingInfo.defaultBaseUrl"
                     :value="draft.embedding.baseUrl"
@@ -312,7 +335,7 @@
 
                 <ion-item v-if="draft.embedding.provider !== 'none'">
                   <ion-input
-                    label="Dimensions"
+                    :label="$t('settings.embeddingSection.dimensions')"
                     label-placement="fixed"
                     type="number"
                     :value="draft.embedding.dimensions"
@@ -330,11 +353,11 @@
                   @click="settings.fetchOllamaEmbeddingModels(draft.embedding.baseUrl || 'http://localhost:11434')"
                 >
                   <ion-spinner v-if="settings.state.fetchingOllamaEmbeddingModels" name="crescent" class="test-spinner" />
-                  Pull local models
+                  {{ $t('settings.embeddingSection.pullLocal') }}
                 </ion-button>
                 <ion-button size="small" fill="outline" :disabled="settings.state.testingEmbedding" @click="settings.testEmbedding()">
                   <ion-spinner v-if="settings.state.testingEmbedding" name="crescent" class="test-spinner" />
-                  Test connection
+                  {{ $t('settings.embeddingSection.testConnection') }}
                 </ion-button>
                 <ion-button
                   size="small"
@@ -344,18 +367,17 @@
                   @click="settings.reembedLibrary()"
                 >
                   <ion-spinner v-if="settings.state.reembedding" name="crescent" class="test-spinner" />
-                  Re-embed library
+                  {{ $t('settings.embeddingSection.reembedLibrary') }}
                 </ion-button>
                 <ion-text v-if="settings.state.ollamaEmbeddingError" color="danger" style="display: block; font-size: 12px; margin-top: 8px;">
-                  Failed to pull models: {{ settings.state.ollamaEmbeddingError }}
+                  {{ $t('settings.embeddingSection.pullFailed', { error: settings.state.ollamaEmbeddingError }) }}
                 </ion-text>
               </div>
               <provider-test-banner v-if="draft.embedding.provider !== 'none'" :result="settings.state.embeddingTest" />
 
               <ion-text v-if="draft.embedding.provider !== 'none' && settings.state.needsReembed && !settings.state.reembedding" color="warning">
                 <p class="save-error">
-                  The embedding configuration changed, so stored embeddings were cleared. Run
-                  "Re-embed library" to make semantic search work again.
+                  {{ $t('settings.embeddingSection.reembedConfigChanged') }}
                 </p>
               </ion-text>
               <ion-text
@@ -364,13 +386,16 @@
               >
                 <p class="save-error">
                   <template v-if="settings.state.reembedResult.errorMessage && settings.state.reembedResult.embedded === 0">
-                    Re-embedding failed: {{ settings.state.reembedResult.errorMessage }}
+                    {{ $t('settings.embeddingSection.reembedFailed', { error: settings.state.reembedResult.errorMessage }) }}
                   </template>
                   <template v-else>
-                    Re-embedded {{ settings.state.reembedResult.embedded }} model(s){{
-                      settings.state.reembedResult.failed > 0
-                        ? `, ${settings.state.reembedResult.failed} failed: ${settings.state.reembedResult.errorMessage}`
-                        : '.'
+                    {{
+                      $t('settings.embeddingSection.reembedSuccess', {
+                        embedded: settings.state.reembedResult.embedded,
+                        failed: settings.state.reembedResult.failed > 0
+                          ? $t('settings.embeddingSection.reembedFailedCount', { count: settings.state.reembedResult.failed, error: settings.state.reembedResult.errorMessage })
+                          : '.'
+                      })
                     }}
                   </template>
                 </p>
@@ -378,19 +403,16 @@
 
               <ion-text color="medium">
                 <p class="footnote">
-                  Changing the embedding provider or model changes the vector space: existing
-                  embeddings are cleared and the library needs to be re-embedded before search works.
-                  The built-in model (~25 MB) is downloaded from Hugging Face on first use and then
-                  works fully offline.
+                  {{ $t('settings.embeddingSection.footnote') }}
                 </p>
               </ion-text>
             </section>
 
             <!-- Appearance Section -->
             <section v-if="activeSection === 'appearance'" class="content-section">
-              <h2 class="section-title">Appearance</h2>
+              <h2 class="section-title">{{ $t('settings.appearanceSection.title') }}</h2>
               <p class="section-description">
-                Customize the look and feel of meshNest. Choose between a light interface, the Deep Nebula dark mode, or follow your operating system's theme.
+                {{ $t('settings.appearanceSection.desc') }}
               </p>
 
               <div class="theme-cards-grid">
@@ -407,8 +429,8 @@
                     </div>
                   </div>
                   <div class="theme-info">
-                    <span class="theme-name">Clear (Light)</span>
-                    <span class="theme-desc">Aurora Frost theme</span>
+                    <span class="theme-name">{{ $t('settings.appearanceSection.clearTitle') }}</span>
+                    <span class="theme-desc">{{ $t('settings.appearanceSection.clearDesc') }}</span>
                   </div>
                 </button>
 
@@ -425,8 +447,8 @@
                     </div>
                   </div>
                   <div class="theme-info">
-                    <span class="theme-name">Deep Nebula</span>
-                    <span class="theme-desc">Cozy dark space theme</span>
+                    <span class="theme-name">{{ $t('settings.appearanceSection.darkTitle') }}</span>
+                    <span class="theme-desc">{{ $t('settings.appearanceSection.darkDesc') }}</span>
                   </div>
                 </button>
 
@@ -441,11 +463,93 @@
                     <div class="preview-half dark-half"></div>
                   </div>
                   <div class="theme-info">
-                    <span class="theme-name">System Default</span>
-                    <span class="theme-desc">Matches your OS theme</span>
+                    <span class="theme-name">{{ $t('settings.appearanceSection.systemTitle') }}</span>
+                    <span class="theme-desc">{{ $t('settings.appearanceSection.systemDesc') }}</span>
                   </div>
                 </button>
               </div>
+            </section>
+
+            <!-- Language Section -->
+            <section v-if="activeSection === 'language'" class="content-section">
+              <h2 class="section-title">{{ $t('settings.languageSection.title') }}</h2>
+              <p class="section-description">
+                {{ $t('settings.languageSection.desc') }}
+              </p>
+
+              <div class="theme-cards-grid">
+                <button
+                  type="button"
+                  class="theme-card"
+                  :class="{ active: (draft.language || 'en') === 'en' }"
+                  @click="draft.language = 'en'; settings.markDirty()"
+                >
+                  <div class="theme-preview clear-preview" style="justify-content: center; align-items: center; font-size: 24px; font-weight: 700; color: var(--ion-color-primary);">
+                    EN
+                  </div>
+                  <div class="theme-info">
+                    <span class="theme-name">{{ $t('settings.languageSection.enTitle') }}</span>
+                    <span class="theme-desc">{{ $t('settings.languageSection.enDesc') }}</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  class="theme-card"
+                  :class="{ active: (draft.language || 'en') === 'pt' }"
+                  @click="draft.language = 'pt'; settings.markDirty()"
+                >
+                  <div class="theme-preview clear-preview" style="justify-content: center; align-items: center; font-size: 24px; font-weight: 700; color: var(--ion-color-primary); background: linear-gradient(135deg, #eefaf0 0%, #daf0dd 100%);">
+                    PT
+                  </div>
+                  <div class="theme-info">
+                    <span class="theme-name">{{ $t('settings.languageSection.ptTitle') }}</span>
+                    <span class="theme-desc">{{ $t('settings.languageSection.ptDesc') }}</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  class="theme-card"
+                  :class="{ active: (draft.language || 'en') === 'es' }"
+                  @click="draft.language = 'es'; settings.markDirty()"
+                >
+                  <div class="theme-preview clear-preview" style="justify-content: center; align-items: center; font-size: 24px; font-weight: 700; color: var(--ion-color-primary); background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);">
+                    ES
+                  </div>
+                  <div class="theme-info">
+                    <span class="theme-name">{{ $t('settings.languageSection.esTitle') }}</span>
+                    <span class="theme-desc">{{ $t('settings.languageSection.esDesc') }}</span>
+                  </div>
+                </button>
+              </div>
+            </section>
+
+            <!-- Slicer Section -->
+            <section v-if="activeSection === 'slicer'" class="content-section">
+              <h2 class="section-title">{{ $t('settings.slicerSection.title') }}</h2>
+              <p class="section-description">
+                {{ $t('settings.slicerSection.desc') }}
+              </p>
+
+              <ion-list inset>
+                <ion-item>
+                  <ion-select
+                    :label="$t('settings.slicerSection.defaultSlicer')"
+                    interface="popover"
+                    :value="draft.defaultSlicer || 'system'"
+                    @ion-change="draft.defaultSlicer = $event.detail.value; settings.markDirty()"
+                  >
+                    <ion-select-option value="system">{{ $t('settings.slicerSection.systemDefault') }}</ion-select-option>
+                    <ion-select-option value="bambu">Bambu Studio</ion-select-option>
+                    <ion-select-option value="creality">Creality Print</ion-select-option>
+                    <ion-select-option value="prusa">PrusaSlicer</ion-select-option>
+                    <ion-select-option value="orca">OrcaSlicer</ion-select-option>
+                    <ion-select-option value="cura">UltiMaker Cura</ion-select-option>
+                  </ion-select>
+                </ion-item>
+              </ion-list>
+
             </section>
           </main>
         </div>
@@ -479,7 +583,7 @@ import {
   IonToolbar,
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
-import { folderOutline, imageOutline, searchOutline, colorPaletteOutline } from 'ionicons/icons'
+import { folderOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline, buildOutline } from 'ionicons/icons'
 import ProviderTestBanner from '@/components/settings/ProviderTestBanner.vue'
 import type { VisionProviderId, EmbeddingProviderId } from '@/types/providerSettings'
 import {
@@ -493,7 +597,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 const settings = useSettingsStore()
 const draft = computed(() => settings.state.draft)
  
-const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance'>('library')
+const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language' | 'slicer'>('library')
 
 const visionInfo = computed(() => VISION_PROVIDERS[draft.value!.vision.provider as Exclude<VisionProviderId, 'mock'>])
 const embeddingInfo = computed(() => EMBEDDING_PROVIDERS[draft.value!.embedding.provider as Exclude<EmbeddingProviderId, 'mock'>])
