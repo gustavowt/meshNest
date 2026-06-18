@@ -29,8 +29,8 @@ import {
   getCameraPlacement,
   normalizeModelScene,
 } from '@/services/model-parsing/modelNormalizer'
-import { loadStlScene } from '@/services/model-parsing/stlLoaderService'
-import { loadThreeMfScene } from '@/services/model-parsing/threeMfLoaderService'
+import { loadStlSceneAsync } from '@/services/model-parsing/stlLoaderService'
+import { loadThreeMfSceneAsync } from '@/services/model-parsing/threeMfLoaderService'
 import type { SupportedModelExtension } from '@/types/modelFile'
 
 const props = defineProps<{
@@ -113,13 +113,31 @@ async function loadModel(): Promise<void> {
   }
 
   try {
+    const t0 = performance.now()
+    console.log(`[ModelPreview3D] Starting to read model file: ${props.filePath}`)
+
     const bytes = await window.meshNest.readModelFile(props.filePath)
-    const modelScene = props.extension === 'stl' ? loadStlScene(bytes) : loadThreeMfScene(bytes)
+    const t1 = performance.now()
+    console.log(`[ModelPreview3D] Read model file from disk. Size: ${(bytes.length / (1024 * 1024)).toFixed(2)} MB. Time taken: ${(t1 - t0).toFixed(2)} ms`)
+
+    const t2 = performance.now()
+    console.log(`[ModelPreview3D] Starting parsing. Extension: ${props.extension}`)
+    const modelScene = props.extension === 'stl' ? await loadStlSceneAsync(bytes) : await loadThreeMfSceneAsync(bytes)
+    const t3 = performance.now()
+    console.log(`[ModelPreview3D] Parsing completed. Time taken: ${(t3 - t2).toFixed(2)} ms`)
+
+    const t4 = performance.now()
+    console.log(`[ModelPreview3D] Starting normalization...`)
     const normalized = normalizeModelScene(modelScene)
+    const t5 = performance.now()
+    console.log(`[ModelPreview3D] Normalization completed. Time taken: ${(t5 - t4).toFixed(2)} ms`)
 
     if (!container.value) {
       return
     }
+
+    const t6 = performance.now()
+    console.log(`[ModelPreview3D] Setting up Three.js scene, camera, and controls...`)
 
     renderer = new WebGLRenderer({ antialias: true, alpha: true })
     renderer.setPixelRatio(window.devicePixelRatio)
@@ -151,6 +169,10 @@ async function loadModel(): Promise<void> {
     resizeObserver = new ResizeObserver(updateSize)
     resizeObserver.observe(container.value)
     updateSize()
+
+    const t7 = performance.now()
+    console.log(`[ModelPreview3D] Three.js setup completed. Time taken: ${(t7 - t6).toFixed(2)} ms`)
+    console.log(`[ModelPreview3D] Total display time: ${(t7 - t0).toFixed(2)} ms`)
 
     state.value = 'ready'
     animate()
