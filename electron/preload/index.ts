@@ -4,6 +4,8 @@ import type { MeshNestApi, ScanProgressEvent } from '../../src/types/electronApi
 
 const api: MeshNestApi = {
   pickDirectory: () => ipcRenderer.invoke('filesystem:pickDirectory'),
+  openWithSlicer: (absolutePath, slicerId) =>
+    ipcRenderer.invoke('filesystem:openWithSlicer', absolutePath, slicerId),
 
   scanDirectory: (directory, scanId) =>
     ipcRenderer.invoke('filesystem:scanDirectory', directory, scanId),

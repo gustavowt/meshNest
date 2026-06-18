@@ -5,34 +5,81 @@
         <ion-buttons slot="start">
           <ion-back-button default-href="/library" />
         </ion-buttons>
-        <ion-title>{{ detail?.description?.shortName ?? detail?.file.filename ?? 'Model' }}</ion-title>
+        <ion-title>{{ detail?.description?.shortName ?? detail?.file.filename ?? $t('detail.model') }}</ion-title>
         <ion-buttons slot="end">
           <indexing-status-badge v-if="detail" :status="detail.file.status" class="header-badge" />
+          <ion-button :disabled="reindexing || !detail" @click="openDefaultSlicer">
+            <ion-icon slot="start" :icon="openOutline" />
+            {{ $t('detail.openSlicer') }}
+          </ion-button>
+          <ion-button :disabled="reindexing || !detail" id="open-with-trigger" style="margin-inline-start: -6px;">
+            <ion-icon slot="icon-only" :icon="chevronDownOutline" />
+          </ion-button>
           <ion-button :disabled="reindexing || !detail" @click="revealInFolder">
             <ion-icon slot="start" :icon="folderOutline" />
-            Reveal
+            {{ $t('detail.reveal') }}
           </ion-button>
           <ion-button :disabled="reindexing || !detail" @click="reindex">
             <ion-spinner v-if="reindexing" slot="start" name="crescent" class="reindex-spinner" />
             <ion-icon v-else slot="start" :icon="refreshOutline" />
-            Reindex
+            {{ $t('detail.reindex') }}
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-popover v-if="detail" trigger="open-with-trigger" dismiss-on-select="true">
+        <ion-list>
+          <ion-item button @click="openSlicer('system')">
+            <ion-label>
+              {{ $t('settings.slicerSection.systemDefault') }}
+              <span v-if="(providerSettings?.defaultSlicer || 'system') === 'system'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
+            </ion-label>
+          </ion-item>
+          <ion-item button @click="openSlicer('bambu')">
+            <ion-label>
+              Bambu Studio
+              <span v-if="providerSettings?.defaultSlicer === 'bambu'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
+            </ion-label>
+          </ion-item>
+          <ion-item button @click="openSlicer('creality')">
+            <ion-label>
+              Creality Print
+              <span v-if="providerSettings?.defaultSlicer === 'creality'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
+            </ion-label>
+          </ion-item>
+          <ion-item button @click="openSlicer('prusa')">
+            <ion-label>
+              PrusaSlicer
+              <span v-if="providerSettings?.defaultSlicer === 'prusa'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
+            </ion-label>
+          </ion-item>
+          <ion-item button @click="openSlicer('orca')">
+            <ion-label>
+              OrcaSlicer
+              <span v-if="providerSettings?.defaultSlicer === 'orca'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
+            </ion-label>
+          </ion-item>
+          <ion-item button @click="openSlicer('cura')">
+            <ion-label>
+              UltiMaker Cura
+              <span v-if="providerSettings?.defaultSlicer === 'cura'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
+            </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-popover>
       <!-- Loading state -->
       <div v-if="loading" class="state-container">
         <ion-spinner name="crescent" />
-        <p>Loading model…</p>
+        <p>{{ $t('detail.loadingModel') }}</p>
       </div>
 
       <!-- Error / not found state -->
       <div v-else-if="error || !detail" class="state-container">
         <ion-icon :icon="alertCircleOutline" class="state-icon" />
-        <p>{{ error ?? 'Model not found.' }}</p>
-        <ion-button fill="outline" router-link="/library">Back to library</ion-button>
+        <p>{{ error ?? $t('common.modelNotFound') }}</p>
+        <ion-button fill="outline" router-link="/library">{{ $t('common.backToLibrary') }}</ion-button>
       </div>
 
       <div v-else class="detail-layout">
@@ -44,7 +91,7 @@
           />
 
           <section v-if="detail.renderAssets.length > 0" class="gallery-section">
-            <h2>Render views</h2>
+            <h2>{{ $t('detail.renderViews') }}</h2>
             <model-render-gallery :assets="detail.renderAssets" />
           </section>
         </div>
@@ -67,10 +114,22 @@ import {
   IonSpinner,
   IonTitle,
   IonToolbar,
+  IonPopover,
+  IonList,
+  IonItem,
+  IonLabel,
+  toastController,
 } from '@ionic/vue'
-import { alertCircleOutline, folderOutline, refreshOutline } from 'ionicons/icons'
+import {
+  alertCircleOutline,
+  folderOutline,
+  refreshOutline,
+  openOutline,
+  chevronDownOutline,
+} from 'ionicons/icons'
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import IndexingStatusBadge from '@/components/library/IndexingStatusBadge.vue'
 import ModelMetadataPanel from '@/components/model/ModelMetadataPanel.vue'
 import ModelPreview3D from '@/components/model/ModelPreview3D.vue'
@@ -80,28 +139,62 @@ import { createDesktopIndexingDeps } from '@/services/indexing/desktopIndexingDe
 import { useLibraryStore } from '@/stores/libraryStore'
 import type { ModelDetail } from '@/types/modelDetail'
 
+const { t } = useI18n()
 const route = useRoute()
 const library = useLibraryStore()
 
 const detail = ref<ModelDetail | null>(null)
+const providerSettings = ref<any>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const reindexing = ref(false)
 
 async function loadDetail(modelFileId: string): Promise<void> {
   if (!window.meshNest) {
-    error.value = 'Model details are only available in the desktop app.'
+    error.value = t('common.desktopOnly')
     return
   }
   loading.value = true
   error.value = null
   try {
     detail.value = await window.meshNest.getModelDetail(modelFileId)
+    providerSettings.value = await window.meshNest.getProviderSettings()
   } catch (loadError) {
     error.value = loadError instanceof Error ? loadError.message : String(loadError)
   } finally {
     loading.value = false
   }
+}
+
+async function openDefaultSlicer(): Promise<void> {
+  if (!detail.value || !window.meshNest) return
+  const slicerId = providerSettings.value?.defaultSlicer || 'system'
+  await openSlicer(slicerId)
+}
+
+async function openSlicer(slicerId: string): Promise<void> {
+  if (!detail.value || !window.meshNest) return
+  try {
+    await window.meshNest.openWithSlicer(detail.value.file.absolutePath, slicerId)
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    await showToast(msg)
+  }
+}
+
+async function showToast(message: string): Promise<void> {
+  const toast = await toastController.create({
+    message,
+    duration: 5000,
+    color: 'danger',
+    buttons: [
+      {
+        text: t('common.close'),
+        role: 'cancel',
+      },
+    ],
+  })
+  await toast.present()
 }
 
 async function reindex(): Promise<void> {

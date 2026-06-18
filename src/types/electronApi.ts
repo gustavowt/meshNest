@@ -40,6 +40,8 @@ export type ScanProgressEvent = {
 export type MeshNestApi = {
   /** Opens the OS directory picker. Resolves to null when cancelled. */
   pickDirectory(): Promise<string | null>
+  /** Opens the specified 3D model file with the given slicer. */
+  openWithSlicer(absolutePath: string, slicerId: string): Promise<void>
   /** Recursively scans a directory and returns hashed model files. */
   scanDirectory(directory: string, scanId: string): Promise<ScannedFile[]>
   /** Cancels a running scan by id. */

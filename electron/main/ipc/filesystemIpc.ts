@@ -1,4 +1,5 @@
 import { readFile, stat } from 'node:fs/promises'
+import { spawn, exec } from 'node:child_process'
 import { basename } from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { ScanProgressEvent } from '../../../src/types/electronApi'
@@ -84,4 +85,116 @@ export function registerFilesystemIpc(): void {
   ipcMain.handle('filesystem:revealInFolder', async (_event, absolutePath: string) => {
     shell.showItemInFolder(absolutePath)
   })
+
+  const SLICER_MAP: Record<string, { darwin: string; win32: string[]; linux: string[] }> = {
+    bambu: {
+      darwin: 'BambuStudio',
+      win32: ['BambuStudio.exe'],
+      linux: ['bambu-studio', 'BambuStudio'],
+    },
+    creality: {
+      darwin: 'Creality Print',
+      win32: ['CrealityPrint.exe', 'Creality Print.exe'],
+      linux: ['creality-print', 'CrealityPrint'],
+    },
+    prusa: {
+      darwin: 'PrusaSlicer',
+      win32: ['prusa-slicer.exe'],
+      linux: ['prusa-slicer', 'PrusaSlicer'],
+    },
+    orca: {
+      darwin: 'OrcaSlicer',
+      win32: ['OrcaSlicer.exe'],
+      linux: ['orca-slicer', 'OrcaSlicer'],
+    },
+    cura: {
+      darwin: 'UltiMaker Cura',
+      win32: ['Cura.exe', 'UltiMaker Cura.exe'],
+      linux: ['cura', 'Cura'],
+    },
+  }
+
+  ipcMain.handle(
+    'filesystem:openWithSlicer',
+    async (_event, absolutePath: string, slicerId: string): Promise<void> => {
+      if (slicerId === 'system') {
+        const error = await shell.openPath(absolutePath)
+        if (error) {
+          throw new Error(`Failed to open path: ${error}`)
+        }
+        return
+      }
+
+      const nameMap: Record<string, string> = {
+        bambu: 'Bambu Studio',
+        creality: 'Creality Print',
+        prusa: 'PrusaSlicer',
+        orca: 'OrcaSlicer',
+        cura: 'UltiMaker Cura',
+      }
+      const slicerName = nameMap[slicerId] || slicerId
+
+      const config = SLICER_MAP[slicerId]
+      if (!config) {
+        throw new Error(`Unknown slicer identifier: ${slicerId}`)
+      }
+
+      const platform = process.platform
+
+      if (platform === 'darwin') {
+        const child = spawn('open', ['-a', config.darwin, absolutePath], {
+          detached: true,
+          stdio: 'ignore',
+        })
+        child.unref()
+      } else if (platform === 'win32') {
+        const execPromise = (cmd: string) =>
+          new Promise<void>((resolve, reject) => {
+            exec(cmd, (error) => {
+              if (error) reject(error)
+              else resolve()
+            })
+          })
+
+        let launched = false
+        for (const exe of config.win32) {
+          try {
+            const cmd = `start "" "${exe}" "${absolutePath}"`
+            await execPromise(cmd)
+            launched = true
+            break
+          } catch {
+            // Try next variant
+          }
+        }
+
+        if (!launched) {
+          throw new Error(
+            `Failed to open with ${slicerName}. Please ensure it is installed on your system.`
+          )
+        }
+      } else {
+        let launched = false
+        for (const binary of config.linux) {
+          try {
+            const child = spawn(binary, [absolutePath], {
+              detached: true,
+              stdio: 'ignore',
+            })
+            child.unref()
+            launched = true
+            break
+          } catch {
+            // Try next binary
+          }
+        }
+
+        if (!launched) {
+          throw new Error(
+            `Failed to open with ${slicerName}. Please ensure it is installed on your system.`
+          )
+        }
+      }
+    },
+  )
 }
