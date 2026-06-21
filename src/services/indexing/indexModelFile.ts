@@ -1,5 +1,6 @@
 import { normalizeModelScene } from '@/services/model-parsing/modelNormalizer'
 import type { NormalizedModel } from '@/services/model-parsing/modelNormalizer'
+import type { ModelScene } from '@/services/model-parsing/modelScene'
 import { loadStlScene } from '@/services/model-parsing/stlLoaderService'
 import { loadThreeMfScene } from '@/services/model-parsing/threeMfLoaderService'
 import { parseThreeMfPackage } from '@/services/model-parsing/threeMfPackageParser'
@@ -11,7 +12,7 @@ import type { EmbeddingProvider } from '@/services/llm/embeddingProvider'
 import type { VisionProvider } from '@/services/llm/visionProvider'
 import type { IndexingResult } from '@/types/indexing'
 import type { VisionImageInput, AIModelDescription } from '@/types/llm'
-import type { ScannedFile } from '@/types/modelFile'
+import type { ScannedFile, SupportedModelExtension } from '@/types/modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from '@/types/modelMetadata'
 import type { IndexingBackend } from './indexingBackend'
 
@@ -19,8 +20,26 @@ export type IndexModelFileDeps = {
   backend: IndexingBackend
   visionProvider: VisionProvider
   embeddingProvider: EmbeddingProvider
-  /** Render implementation; defaults to the WebGL renderer. Injectable for tests. */
-  renderViews?: (model: NormalizedModel) => RenderedView[]
+  /**
+   * Render implementation; defaults to the synchronous WebGL renderer.
+   * Injectable for tests and for the non-blocking async renderer.
+   */
+  renderViews?: (model: NormalizedModel) => RenderedView[] | Promise<RenderedView[]>
+  /**
+   * Parses model bytes into a scene. Defaults to the synchronous
+   * main-thread loaders; inject an off-thread (Web Worker) loader to keep
+   * the UI responsive while large models are indexed/reindexed.
+   */
+  loadScene?: (
+    bytes: Uint8Array,
+    extension: SupportedModelExtension,
+  ) => ModelScene | Promise<ModelScene>
+  /**
+   * Invoked after parsing/normalization and before the synchronous WebGL
+   * render. Inject a "yield to browser" step so the UI can paint before
+   * the unavoidable main-thread render.
+   */
+  beforeRender?: () => void | Promise<void>
 }
 
 /**
@@ -38,6 +57,7 @@ export async function indexModelFile(
 ): Promise<IndexingResult> {
   const { backend, visionProvider, embeddingProvider } = deps
   const render = deps.renderViews ?? renderModelViews
+  const loadScene = deps.loadScene ?? defaultLoadScene
 
   const record = await backend.upsertModelFile(file, projectId)
   if (record.status === 'indexed') {
@@ -48,10 +68,10 @@ export async function indexModelFile(
     const bytes = await backend.readModelFile(file.absolutePath)
 
     let packageMetadata: ThreeMfPackageMetadata | undefined
-    const scene =
-      file.extension === 'stl'
-        ? loadStlScene(bytes)
-        : ((packageMetadata = parseThreeMfPackage(bytes)), loadThreeMfScene(bytes))
+    if (file.extension === '3mf') {
+      packageMetadata = parseThreeMfPackage(bytes)
+    }
+    const scene = await loadScene(bytes, file.extension)
 
     const geometry = extractGeometryMetadata(scene)
     await backend.storeGeometryMetadata(record.id, geometry)
@@ -60,7 +80,8 @@ export async function indexModelFile(
     }
 
     const normalized = normalizeModelScene(scene)
-    const views = render(normalized)
+    await deps.beforeRender?.()
+    const views = await render(normalized)
     await backend.saveRenderAssets(record.id, views)
 
     const images: VisionImageInput[] = views
@@ -111,6 +132,13 @@ export async function indexModelFile(
     await backend.markFailed(record.id, errorMessage)
     return { modelFileId: record.id, status: 'failed', errorMessage }
   }
+}
+
+function defaultLoadScene(
+  bytes: Uint8Array,
+  extension: SupportedModelExtension,
+): ModelScene {
+  return extension === 'stl' ? loadStlScene(bytes) : loadThreeMfScene(bytes)
 }
 
 function bytesToBase64(bytes: Uint8Array): string {

@@ -32,6 +32,7 @@ src/
 electron/
   main/             Electron main process entry + IPC handlers
   preload/          contextBridge preload exposing window.meshNest
+public/             Static assets served at the web root (brand logos, favicon)
 tests/
   unit/             Vitest specs
   e2e/              Cypress specs
@@ -146,7 +147,7 @@ The target structure for services, types, Electron main/preload, and components 
 ### Phase 12 - Thumbnail and Multi-View Rendering
 
 - `src/services/rendering/renderViews.ts`: deterministic `RENDER_VIEW_DEFINITIONS` (thumbnail 256px + front/back/left/right/top/perspective 512px) with per-view direction and up vectors.
-- `src/services/rendering/modelRenderer.ts`: `renderModelViews(normalizedModel, options)` renders all views offscreen with `WebGLRenderer` (pixelRatio 1, antialias, preserveDrawingBuffer), neutral `#f1f2f4` background (configurable, `'transparent'` supported), ambient + camera-following key light, returns PNG bytes per view. Renders are byte-deterministic across app restarts (verified). Runs only in a WebGL context (Electron renderer); isolated so the host can change later.
+- `src/services/rendering/modelRenderer.ts`: `renderModelViews(normalizedModel, options)` renders all views offscreen with `WebGLRenderer` (pixelRatio 1, antialias, preserveDrawingBuffer), neutral `#f1f2f4` background (configurable, `'transparent'` supported), ambient + camera-following key light, returns PNG bytes per view. `renderModelViewsAsync(...)` is the non-blocking variant (identical output) used by the indexing pipeline: it yields a frame before each view render and encodes PNGs via async `canvas.toBlob`. Renders are byte-deterministic across app restarts (verified). Runs only in a WebGL context (Electron renderer); isolated so the host can change later.
 - `src/services/rendering/thumbnailService.ts`: `renderAndStoreModelViews(modelFileId, filePath, extension)` — renderer-process orchestrator (read via bridge -> load -> normalize -> render -> persist via IPC).
 - `electron/main/ipc/renderingIpc.ts`: `rendering:saveRenderAssets` clears stale renders, writes PNGs through `RenderAssetStorage`, replaces DB records. Exposed as `window.meshNest.saveRenderAssets`.
 - `electron/main/services/database.ts`: lazy singleton app DB (userData/meshnest.duckdb) with migrations on first use.
@@ -174,7 +175,7 @@ The target structure for services, types, Electron main/preload, and components 
 ### Phase 15 - Indexing Pipeline
 
 - `src/services/indexing/indexingBackend.ts`: `IndexingBackend` — the persistence contract the pipeline needs (upsert, read bytes, store geometry/3MF metadata/renders/description/embedding, mark indexed/failed).
-- `src/services/indexing/indexModelFile.ts`: `indexModelFile(file, projectId, deps)` runs the full per-file pipeline. Skips when the upserted record is already `indexed` (unchanged); any step failure marks the file `failed` with a persisted reason and returns a result instead of throwing. The render function is injectable (tests use a fake; production defaults to the WebGL renderer).
+- `src/services/indexing/indexModelFile.ts`: `indexModelFile(file, projectId, deps)` runs the full per-file pipeline. Skips when the upserted record is already `indexed` (unchanged); any step failure marks the file `failed` with a persisted reason and returns a result instead of throwing. The render function is injectable (tests use a fake; production defaults to the WebGL renderer). Parsing is also injectable: `deps.loadScene` defaults to the synchronous main-thread loaders, and `deps.beforeRender` is an optional hook run before the WebGL render. Production (`createDesktopIndexingDeps`) injects the **off-thread Web Worker loaders** (`loadStlSceneAsync` / `loadThreeMfSceneAsync`), a `yieldToBrowser` step, and the **async renderer** (`renderModelViewsAsync`), so large models no longer freeze the UI during indexing/reindexing. The async renderer yields a frame before each per-view render and PNG-encodes via async `canvas.toBlob` (instead of synchronous `toDataURL`), breaking the previously monolithic 7-view render into UI-paintable chunks. Trade-off: the worker 3MF path is geometry-only, so 3MF renders/thumbnails produced this way have no material colors (matches the 3D preview).
 - `src/services/indexing/bridgeBackend.ts`: `createBridgeIndexingBackend()` — production backend forwarding everything to main over IPC.
 - `electron/main/ipc/databaseIpc.ts`: `database:*` handlers (upsertModelFile, listModelFiles, storeGeometryMetadata, storeThreeMfMetadata, storeAiDescription, storeEmbedding, markIndexed, markFailed) over the shared DB client; all exposed on `window.meshNest`.
 - Diagnostics hook gained `indexScannedFile(file, projectId)` (mock providers + bridge backend).
@@ -214,7 +215,7 @@ The target structure for services, types, Electron main/preload, and components 
 - `ModelFileRepository.resetToPending(id)` — forces a file back to `pending` so reindex bypasses the unchanged-file skip.
 - IPC additions: `database:getModelDetail`, `database:resetToPending`, `filesystem:scanFile` (stat + hash one supported file, for single-file reindex), `filesystem:revealInFolder` (Electron `shell.showItemInFolder`).
 - Components (`src/components/model/`): `ModelMetadataPanel.vue` (AI description with tags/print-use/style/confidence/search phrases, raw indexing error block for failed files, geometry facts with mm dimensions and counts, 3MF package section, file facts incl. absolute path), `ModelRenderGallery.vue` (all non-thumbnail views with captions), `GalleryImage.vue` (blob-URL image with placeholder).
-- `src/views/ModelDetailPage.vue`: route `/models/:id`. Header has back button, status badge, "Reveal" (OS file manager), and "Reindex" (resetToPending -> scanFile -> indexModelFile -> reload detail + library). Two-column layout (interactive `ModelPreview3D` + render gallery | metadata panel) collapsing to one column under 860px; loading and not-found states.
+- `src/views/ModelDetailPage.vue`: route `/models/:id`. Header has back button, status badge, "Reveal" (OS file manager), and "Reindex" (resetToPending -> scanFile -> indexModelFile -> reload detail + library). Reindex runs through `createDesktopIndexingDeps`, so parsing happens off the main thread (Web Worker) and the reindex spinner animates instead of freezing on large models. Two-column layout (interactive `ModelPreview3D` + render gallery | metadata panel) collapsing to one column under 860px; loading and not-found states.
 - Library cards now navigate to the detail page (replacing the preview modal — the interactive preview lives on the detail page).
 - Tests: `tests/unit/modelDetailService.spec.ts` (aggregation for STL/3MF/failed/unknown, resetToPending), `tests/unit/modelMetadataPanel.spec.ts` (file facts, geometry formatting, AI section with chips/phrases, 3MF section, hidden sections, error block). Verified in Electron: detail page shows live 3D canvas, 6 gallery images, AI + geometry + path sections; failed file shows error and reindex button re-runs the pipeline.
 
@@ -262,6 +263,12 @@ The target structure for services, types, Electron main/preload, and components 
 - **Provider-switch flow**: `saveProviderSettings` (main) compares old/new embedding config; when provider/model/dimensions change it resizes the table or clears embeddings and returns `{ embeddingsCleared: true }`. The Settings page then shows a warning and a "Re-embed library" button. `reembedAllModels` (`electron/main/services/embeddingService.ts`) regenerates embeddings for every stored AI description with the active provider — no re-render or vision calls needed (`AiDescriptionRepository.listAll`).
 - IPC: `llm:embedText`, `llm:getActiveEmbeddingProvider`, `llm:reembedAll`. Renderer uses `BridgeEmbeddingProvider` (`src/services/llm/bridgeEmbeddingProvider.ts`); both `createDesktopIndexingDeps()` and the search store now embed through the bridge, so indexing and search always use the configured service.
 - Tests: `tests/unit/embeddingTable.spec.ts` (default width, keep/rebuild semantics, 384-dim round-trip + search, mismatch rejections), `tests/unit/embeddingProviders.spec.ts` (payload shapes per API with fake fetch, dimension validation, 401 mapping, factory selection incl. builtin injection). Verified in Electron with the real model: first `reembedAll` downloaded MiniLM and embedded 7 models in ~13 s; "weekly pill organizer with compartments" ranked the Pill Organizer first at 0.84 and "toy to fidget with" ranked the fidget toy first at 0.74.
+
+## Branding assets
+
+- Brand images live in `public/` (served at the web root), all transparent-background PNGs: `meshNest_logo.png` (hexagon icon, square — outer white removed via edge flood-fill so the internal grout lines are preserved), `meshNest_logo_name.png` (logo + wordmark lockup, recolored to a dark-mode variant: white "mesh" + blue "Nest" so it reads on the dark hero), and `favicon.png` (a copy of the icon). Source assets were flat white-background JPEGs; transparency was added with a pure-Python PNG pipeline (no ImageMagick/Pillow on the machine).
+- App icon: `index.html` points its favicon at `./favicon.png`; `electron/main/index.ts` sets the `BrowserWindow` `icon` and calls `app.dock.setIcon(...)` on macOS (dev uses `public/`, packaged uses `dist/`). No `.icns`/`.ico` packaging config exists yet, so the runtime PNG is used directly.
+- Dashboard hero (`src/views/LibraryPage.vue`) shows the transparent `meshNest_logo_name.png` lockup above the search bar instead of a text title.
 
 ## Conventions
 
