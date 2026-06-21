@@ -100,3 +100,94 @@ function dataUrlToBytes(dataUrl: string): Uint8Array {
   }
   return bytes
 }
+
+/**
+ * Non-blocking variant of {@link renderModelViews}: yields to the browser
+ * before each per-view render and encodes PNGs asynchronously via
+ * `canvas.toBlob`, so rendering a heavy model no longer freezes the UI.
+ * Output is identical (same camera/lighting/views) to the synchronous
+ * version.
+ */
+export async function renderModelViewsAsync(
+  model: NormalizedModel,
+  options: RenderOptions = {},
+): Promise<RenderedView[]> {
+  const background = options.background ?? DEFAULT_BACKGROUND
+  const canvas = document.createElement('canvas')
+  const renderer = new WebGLRenderer({
+    canvas,
+    antialias: true,
+    alpha: true,
+    preserveDrawingBuffer: true,
+  })
+  renderer.setPixelRatio(1)
+
+  const scene = new Scene()
+  if (background !== 'transparent') {
+    scene.background = new Color(background)
+  }
+  scene.add(new AmbientLight(0xffffff, 0.65))
+  const keyLight = new DirectionalLight(0xffffff, 1.8)
+  scene.add(keyLight)
+  scene.add(model.root)
+
+  const results: RenderedView[] = []
+  try {
+    for (const view of RENDER_VIEW_DEFINITIONS) {
+      // Let the UI paint between the heavy per-view renders.
+      await nextFrame()
+
+      const placement = getCameraPlacement(model, view.direction)
+      const camera = new PerspectiveCamera(
+        DEFAULT_CAMERA_FOV_DEGREES,
+        view.width / view.height,
+        placement.near,
+        placement.far,
+      )
+      camera.up.copy(view.up)
+      camera.position.copy(placement.position)
+      camera.lookAt(placement.target)
+
+      keyLight.position.copy(placement.position)
+
+      renderer.setSize(view.width, view.height, false)
+      renderer.render(scene, camera)
+
+      results.push({
+        viewName: view.viewName,
+        png: await canvasToPngBytes(canvas),
+        width: view.width,
+        height: view.height,
+      })
+    }
+  } finally {
+    scene.remove(model.root)
+    renderer.dispose()
+  }
+  return results
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => resolve())
+    } else {
+      setTimeout(resolve, 0)
+    }
+  })
+}
+
+function canvasToPngBytes(canvas: HTMLCanvasElement): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        reject(new Error('Failed to encode render to PNG'))
+        return
+      }
+      blob
+        .arrayBuffer()
+        .then((buffer) => resolve(new Uint8Array(buffer)))
+        .catch(reject)
+    }, 'image/png')
+  })
+}
