@@ -34,8 +34,9 @@ function validSettings(): ProviderSettings {
 }
 
 describe('provider settings defaults', () => {
-  test('defaults to ollama vision and the built-in local embedding model', () => {
-    expect(DEFAULT_PROVIDER_SETTINGS.vision.provider).toBe('ollama')
+  test('defaults to no vision provider and the built-in local embedding model', () => {
+    expect(DEFAULT_PROVIDER_SETTINGS.vision.provider).toBe('none')
+    expect(DEFAULT_PROVIDER_SETTINGS.vision.model).toBe('')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.provider).toBe('builtin')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.model).toBe('Xenova/paraphrase-multilingual-MiniLM-L12-v2')
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.dimensions).toBe(384)
@@ -50,8 +51,7 @@ describe('provider settings defaults', () => {
     expect(ollama.dimensions).toBe(768)
   })
 
-  test('defaults to useCloud: false and empty libraryFolder', () => {
-    expect(DEFAULT_PROVIDER_SETTINGS.vision.useCloud).toBe(false)
+  test('defaults to embedding useCloud: false and empty libraryFolder', () => {
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.useCloud).toBe(false)
     expect(DEFAULT_PROVIDER_SETTINGS.libraryFolder).toBe('')
   })
@@ -89,6 +89,7 @@ describe('validateProviderSettings', () => {
 
   test('rejects missing model names and bad dimensions', () => {
     const settings = validSettings()
+    settings.vision = { ...defaultVisionSettings('openai'), apiKey: 'sk-test' }
     settings.vision.model = '  '
     settings.embedding.dimensions = -5
 
@@ -97,13 +98,6 @@ describe('validateProviderSettings', () => {
     expect(problems.some((p) => p.includes('dimensions'))).toBe(true)
   })
 
-  test('rejects invalid default slicer', () => {
-    const settings = validSettings()
-    settings.defaultSlicer = 'invalid' as any
-
-    const problems = validateProviderSettings(settings)
-    expect(problems.some((p) => p.includes('Unknown default slicer'))).toBe(true)
-  })
 })
 
 describe('settings persistence', () => {
@@ -120,17 +114,15 @@ describe('settings persistence', () => {
     expect(reloaded?.embedding.provider).toBe('builtin')
   })
 
-  test('stores and reloads useCloud and libraryFolder settings', async () => {
+  test('stores and reloads embedding useCloud and libraryFolder settings', async () => {
     const repository = new SettingsRepository(client)
     const settings = validSettings()
-    settings.vision.useCloud = true
     settings.embedding.useCloud = true
     settings.libraryFolder = '/path/to/models'
 
     await storeProviderSettings(repository, settings)
     const reloaded = await loadStoredProviderSettings<ProviderSettings>(repository)
 
-    expect(reloaded?.vision.useCloud).toBe(true)
     expect(reloaded?.embedding.useCloud).toBe(true)
     expect(reloaded?.libraryFolder).toBe('/path/to/models')
   })
@@ -154,11 +146,22 @@ describe('settings persistence', () => {
 })
 
 describe('provider connection tests', () => {
-  const okFetch = (async () => ({ ok: true, status: 200 })) as unknown as typeof fetch
-  const unauthorizedFetch = (async () => ({ ok: false, status: 401 })) as unknown as typeof fetch
   const downFetch = (async () => {
     throw new Error('ECONNREFUSED')
   }) as unknown as typeof fetch
+
+  const openaiOkFetch = (async () => ({
+    ok: true,
+    status: 200,
+    text: async () =>
+      JSON.stringify({ choices: [{ message: { content: 'Connection Test' } }] }),
+  })) as unknown as typeof fetch
+
+  const unauthorizedPostFetch = (async () => ({
+    ok: false,
+    status: 401,
+    text: async () => 'Unauthorized',
+  })) as unknown as typeof fetch
 
   test('mock, none and builtin providers always pass without network access', async () => {
     expect((await testVisionConnection({ provider: 'mock', model: 'm' }, downFetch)).ok).toBe(true)
@@ -181,24 +184,34 @@ describe('provider connection tests', () => {
     ).toBe(true)
   })
 
-  test('reports success for reachable providers', async () => {
+  test('reports success when the vision model returns a response', async () => {
     const result = await testVisionConnection(
       { provider: 'openai', model: 'gpt-4o-mini', apiKey: 'sk' },
-      okFetch,
+      openaiOkFetch,
     )
     expect(result.ok).toBe(true)
+    expect(result.message).toContain('responded successfully')
   })
 
   test('reports authentication failures clearly', async () => {
     const result = await testVisionConnection(
       { provider: 'gemini', model: 'gemini-2.0-flash', apiKey: 'bad' },
-      unauthorizedFetch,
+      unauthorizedPostFetch,
     )
     expect(result.ok).toBe(false)
-    expect(result.message).toContain('Authentication failed')
+    expect(result.message).toContain('API key')
   })
 
   test('reports unreachable providers clearly', async () => {
+    const result = await testVisionConnection(
+      { provider: 'ollama', model: 'llava', baseUrl: 'http://localhost:11434' },
+      downFetch,
+    )
+    expect(result.ok).toBe(false)
+    expect(result.message).toContain('Could not reach')
+  })
+
+  test('reports unreachable embedding providers clearly', async () => {
     const result = await testEmbeddingConnection(
       {
         provider: 'ollama',

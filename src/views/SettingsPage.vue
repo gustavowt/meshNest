@@ -49,10 +49,6 @@
               <ion-icon :icon="languageOutline" />
               <ion-label>{{ $t('settings.tabs.language') }}</ion-label>
             </ion-segment-button>
-            <ion-segment-button v-if="!isMasBuild" value="slicer">
-              <ion-icon :icon="buildOutline" />
-              <ion-label>{{ $t('settings.tabs.slicer') }}</ion-label>
-            </ion-segment-button>
           </ion-segment>
         </div>
 
@@ -100,15 +96,6 @@
                 <ion-icon :icon="languageOutline" />
                 <span>{{ $t('settings.tabs.language') }}</span>
               </button>
-              <button
-                v-if="!isMasBuild"
-                class="nav-item"
-                :class="{ active: activeSection === 'slicer' }"
-                @click="activeSection = 'slicer'"
-              >
-                <ion-icon :icon="buildOutline" />
-                <span>{{ $t('settings.tabs.slicer') }}</span>
-              </button>
             </nav>
           </aside>
 
@@ -123,6 +110,9 @@
               </ion-text>
               <ion-text v-if="settings.state.error" color="danger">
                 <p class="save-error">{{ settings.state.error }}</p>
+              </ion-text>
+              <ion-text v-if="settings.state.dirty" color="warning">
+                <p class="save-error">{{ $t('settings.unsavedChanges') }}</p>
               </ion-text>
             </div>
 
@@ -172,35 +162,7 @@
                   </ion-select>
                 </ion-item>
 
-                <ion-item v-if="draft.vision.provider === 'ollama'">
-                  <ion-toggle
-                    :checked="!!draft.vision.useCloud"
-                    @ion-change="draft.vision.useCloud = $event.detail.checked; settings.markDirty()"
-                  >
-                    {{ $t('settings.visionSection.useCloud') }}
-                    <ion-note slot="end" style="font-size: 11px; margin-inline-start: 8px; color: var(--ion-color-medium);">
-                      {{ $t('settings.visionSection.useCloudNote') }}
-                    </ion-note>
-                  </ion-toggle>
-                </ion-item>
-
-                <!-- Dropdown model selection if Ollama and options are available -->
-                <ion-item v-if="draft.vision.provider === 'ollama' && (draft.vision.useCloud ? true : settings.state.ollamaVisionModels.length > 0)">
-                  <ion-select
-                    :label="$t('settings.visionSection.modelSelection')"
-                    interface="popover"
-                    :value="isVisionModelCustom ? 'custom' : draft.vision.model"
-                    @ion-change="handleVisionModelSelect($event.detail.value)"
-                  >
-                    <ion-select-option v-for="m in visionModelOptions" :key="m" :value="m">
-                      {{ m }}
-                    </ion-select-option>
-                    <ion-select-option value="custom">{{ $t('settings.visionSection.customModelOption') }}</ion-select-option>
-                  </ion-select>
-                </ion-item>
-
-                <!-- Input field for model name if provider is not Ollama, or custom is selected, or no options pulled yet -->
-                <ion-item v-if="draft.vision.provider !== 'none' && (draft.vision.provider !== 'ollama' || isVisionModelCustom || (draft.vision.provider === 'ollama' && !draft.vision.useCloud && settings.state.ollamaVisionModels.length === 0))">
+                <ion-item v-if="draft.vision.provider !== 'none'">
                   <ion-input
                     :label="$t('settings.visionSection.model')"
                     label-placement="fixed"
@@ -232,23 +194,10 @@
               </ion-list>
 
               <div class="section-actions" v-if="draft.vision.provider !== 'none'">
-                <ion-button
-                  v-if="draft.vision.provider === 'ollama' && !draft.vision.useCloud"
-                  size="small"
-                  fill="outline"
-                  :disabled="settings.state.fetchingOllamaVisionModels"
-                  @click="settings.fetchOllamaVisionModels(draft.vision.baseUrl || 'http://localhost:11434')"
-                >
-                  <ion-spinner v-if="settings.state.fetchingOllamaVisionModels" name="crescent" class="test-spinner" />
-                  {{ $t('settings.visionSection.pullLocal') }}
-                </ion-button>
                 <ion-button size="small" fill="outline" :disabled="settings.state.testingVision" @click="settings.testVision()">
                   <ion-spinner v-if="settings.state.testingVision" name="crescent" class="test-spinner" />
                   {{ $t('settings.visionSection.testConnection') }}
                 </ion-button>
-                <ion-text v-if="settings.state.ollamaVisionError" color="danger" style="display: block; font-size: 12px; margin-top: 8px;">
-                  {{ $t('settings.visionSection.pullFailed', { error: settings.state.ollamaVisionError }) }}
-                </ion-text>
               </div>
               <provider-test-banner v-if="draft.vision.provider !== 'none'" :result="settings.state.visionTest" />
             </section>
@@ -522,33 +471,6 @@
                 </button>
               </div>
             </section>
-
-            <!-- Slicer Section -->
-            <section v-if="activeSection === 'slicer' && !isMasBuild" class="content-section">
-              <h2 class="section-title">{{ $t('settings.slicerSection.title') }}</h2>
-              <p class="section-description">
-                {{ $t('settings.slicerSection.desc') }}
-              </p>
-
-              <ion-list inset>
-                <ion-item>
-                  <ion-select
-                    :label="$t('settings.slicerSection.defaultSlicer')"
-                    interface="popover"
-                    :value="draft.defaultSlicer || 'system'"
-                    @ion-change="draft.defaultSlicer = $event.detail.value; settings.markDirty()"
-                  >
-                    <ion-select-option value="system">{{ $t('settings.slicerSection.systemDefault') }}</ion-select-option>
-                    <ion-select-option value="bambu">Bambu Studio</ion-select-option>
-                    <ion-select-option value="creality">Creality Print</ion-select-option>
-                    <ion-select-option value="prusa">PrusaSlicer</ion-select-option>
-                    <ion-select-option value="orca">OrcaSlicer</ion-select-option>
-                    <ion-select-option value="cura">UltiMaker Cura</ion-select-option>
-                  </ion-select>
-                </ion-item>
-              </ion-list>
-
-            </section>
           </main>
         </div>
       </div>
@@ -583,13 +505,12 @@ import {
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { folderOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline, buildOutline } from 'ionicons/icons'
+import { folderOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline } from 'ionicons/icons'
 import ProviderTestBanner from '@/components/settings/ProviderTestBanner.vue'
 import type { VisionProviderId, EmbeddingProviderId } from '@/types/providerSettings'
 import {
   EMBEDDING_PROVIDERS,
   VISION_PROVIDERS,
-  OLLAMA_CLOUD_MODELS,
   OLLAMA_CLOUD_EMBEDDING_MODELS,
 } from '@/services/settings/providerSettings'
 import { useSettingsStore } from '@/stores/settingsStore'
@@ -598,40 +519,10 @@ const { t } = useI18n()
 const settings = useSettingsStore()
 const draft = computed(() => settings.state.draft)
  
-const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language' | 'slicer'>('library')
-
-/** Sandboxed Mac App Store builds cannot launch external slicer apps. */
-const isMasBuild = window.meshNest?.isMasBuild ?? false
+const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language'>('library')
 
 const visionInfo = computed(() => VISION_PROVIDERS[draft.value!.vision.provider as Exclude<VisionProviderId, 'mock'>])
 const embeddingInfo = computed(() => EMBEDDING_PROVIDERS[draft.value!.embedding.provider as Exclude<EmbeddingProviderId, 'mock'>])
-
-const visionModelOptions = computed(() => {
-  if (!draft.value) return []
-  return draft.value.vision.useCloud
-    ? OLLAMA_CLOUD_MODELS
-    : settings.state.ollamaVisionModels
-})
-
-const isVisionModelCustom = computed(() => {
-  if (!draft.value) return false
-  if (draft.value.vision.provider !== 'ollama') return false
-  return draft.value.vision.model !== '' && !visionModelOptions.value.includes(draft.value.vision.model)
-})
-
-function handleVisionModelSelect(value: string) {
-  if (!draft.value) return
-  if (value === 'custom') {
-    if (!visionModelOptions.value.includes(draft.value.vision.model)) {
-      // already custom
-    } else {
-      draft.value.vision.model = ''
-    }
-  } else {
-    draft.value.vision.model = value
-  }
-  settings.markDirty()
-}
 
 const embeddingModelOptions = computed(() => {
   if (!draft.value) return []

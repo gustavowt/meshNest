@@ -39,7 +39,7 @@ export const VISION_PROVIDERS: Record<Exclude<VisionProviderId, 'mock'>, Provide
     defaultModel: 'gemini-2.0-flash',
   },
   ollama: {
-    label: 'Ollama (local)',
+    label: 'Ollama',
     needsApiKey: false,
     needsBaseUrl: true,
     defaultModel: 'llava',
@@ -78,7 +78,7 @@ export const EMBEDDING_PROVIDERS: Record<Exclude<EmbeddingProviderId, 'mock'>, P
     defaultDimensions: 768,
   },
   ollama: {
-    label: 'Ollama (local)',
+    label: 'Ollama',
     needsApiKey: false,
     needsBaseUrl: true,
     defaultModel: 'nomic-embed-text',
@@ -86,14 +86,6 @@ export const EMBEDDING_PROVIDERS: Record<Exclude<EmbeddingProviderId, 'mock'>, P
     defaultDimensions: 768,
   },
 }
-
-export const OLLAMA_CLOUD_MODELS = [
-  'llama3:70b',
-  'mixtral:8x22b',
-  'command-r-plus',
-  'phi3:medium',
-  'qwen2:72b',
-]
 
 export const OLLAMA_CLOUD_EMBEDDING_MODELS = [
   'nomic-embed-text',
@@ -103,10 +95,8 @@ export const OLLAMA_CLOUD_EMBEDDING_MODELS = [
 
 export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   vision: {
-    provider: 'ollama',
-    model: VISION_PROVIDERS.ollama.defaultModel,
-    baseUrl: VISION_PROVIDERS.ollama.defaultBaseUrl,
-    useCloud: false,
+    provider: 'none',
+    model: VISION_PROVIDERS.none.defaultModel,
   },
   embedding: {
     provider: 'builtin',
@@ -117,7 +107,6 @@ export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
   libraryFolder: '',
   appearance: 'system',
   language: 'en',
-  defaultSlicer: 'system',
 }
 
 /** Returns sensible defaults when the user switches vision provider. */
@@ -127,7 +116,6 @@ export function defaultVisionSettings(provider: VisionProviderId): VisionSetting
     provider,
     model: info?.defaultModel ?? '',
     baseUrl: info?.defaultBaseUrl,
-    useCloud: false,
   }
 }
 
@@ -185,10 +173,6 @@ export function validateProviderSettings(settings: ProviderSettings): string[] {
     if (settings.embedding.provider !== 'none' && (!Number.isInteger(settings.embedding.dimensions) || settings.embedding.dimensions <= 0)) {
       problems.push('Embedding dimensions must be a positive integer.')
     }
-  }
-
-  if (settings.defaultSlicer && !['system', 'bambu', 'creality', 'prusa', 'orca', 'cura'].includes(settings.defaultSlicer)) {
-    problems.push(`Unknown default slicer "${settings.defaultSlicer}".`)
   }
 
   return problems
