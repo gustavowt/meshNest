@@ -13,6 +13,8 @@ import type {
 } from './providerSettings'
 import type { SearchResult } from './search'
 import type {
+  NameNormalizationInput,
+  NameNormalizationResult,
   VisionAnalysisInput,
   VisionProviderResult,
 } from '@/services/llm/visionProvider'
@@ -42,8 +44,8 @@ export type MeshNestApi = {
   readonly isMasBuild: boolean
   /** Opens the OS directory picker. Resolves to null when cancelled. */
   pickDirectory(): Promise<string | null>
-  /** Opens the specified 3D model file with the given slicer. */
-  openWithSlicer(absolutePath: string, slicerId: string): Promise<void>
+  /** Opens the specified 3D model file with the OS default program. */
+  openWithSlicer(absolutePath: string): Promise<void>
   /** Recursively scans a directory and returns hashed model files. */
   scanDirectory(directory: string, scanId: string): Promise<ScannedFile[]>
   /** Cancels a running scan by id. */
@@ -60,12 +62,18 @@ export type MeshNestApi = {
   readRenderAsset(absolutePath: string): Promise<Uint8Array>
 
   // Database operations (executed in the main process).
-  upsertModelFile(file: ScannedFile, projectId: string): Promise<ModelFile>
+  upsertModelFile(
+    file: ScannedFile,
+    projectId: string,
+    options?: { relocateByHash?: boolean },
+  ): Promise<ModelFile>
   listModelFiles(projectId?: string): Promise<ModelFile[]>
   listLibraryEntries(projectId?: string): Promise<LibraryEntry[]>
   getModelDetail(modelFileId: string): Promise<ModelDetail | null>
   /** Forces a file back to 'pending' so the next run reindexes it. */
   resetToPending(modelFileId: string): Promise<void>
+  /** Removes failed database records without deleting source files. */
+  deleteFailedModelFiles(projectId?: string): Promise<number>
   /** Moves the model file to the OS trash and removes all of its records. */
   deleteModel(modelFileId: string): Promise<void>
   /** Renames the model file on disk (same folder) and updates its records. */
@@ -86,11 +94,13 @@ export type MeshNestApi = {
   getOllamaModels(baseUrl: string): Promise<string[]>
 
   // LLM calls (run in main with the configured provider).
-  describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult>
+  describeModel(input: VisionAnalysisInput, settings?: VisionSettings): Promise<VisionProviderResult>
   getActiveVisionProvider(): Promise<{ name: string; model: string }>
   /** Normalizes a raw file name into a clean title via the active vision LLM. */
   normalizeName(rawName: string, context?: string): Promise<string>
-  embedText(text: string): Promise<number[]>
+  /** Normalizes several file names in one active vision LLM call. */
+  normalizeNames(items: NameNormalizationInput[]): Promise<NameNormalizationResult[]>
+  embedText(text: string, settings?: EmbeddingSettings): Promise<number[]>
   getActiveEmbeddingProvider(): Promise<{ name: string; model: string; dimensions: number }>
   reembedAll(): Promise<{ embedded: number; failed: number; errorMessage?: string }>
   storeGeometryMetadata(modelFileId: string, metadata: GeometryMetadata): Promise<void>

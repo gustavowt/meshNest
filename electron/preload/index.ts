@@ -5,8 +5,8 @@ import type { MeshNestApi, ScanProgressEvent } from '../../src/types/electronApi
 const api: MeshNestApi = {
   isMasBuild: process.mas === true,
   pickDirectory: () => ipcRenderer.invoke('filesystem:pickDirectory'),
-  openWithSlicer: (absolutePath, slicerId) =>
-    ipcRenderer.invoke('filesystem:openWithSlicer', absolutePath, slicerId),
+  openWithSlicer: (absolutePath) =>
+    ipcRenderer.invoke('filesystem:openWithSlicer', absolutePath),
 
   scanDirectory: (directory, scanId) =>
     ipcRenderer.invoke('filesystem:scanDirectory', directory, scanId),
@@ -24,11 +24,14 @@ const api: MeshNestApi = {
 
   readRenderAsset: (absolutePath) => ipcRenderer.invoke('rendering:readRenderAsset', absolutePath),
 
-  upsertModelFile: (file, projectId) => ipcRenderer.invoke('database:upsertModelFile', file, projectId),
+  upsertModelFile: (file, projectId, options) =>
+    ipcRenderer.invoke('database:upsertModelFile', file, projectId, options),
   listModelFiles: (projectId) => ipcRenderer.invoke('database:listModelFiles', projectId),
   listLibraryEntries: (projectId) => ipcRenderer.invoke('database:listLibraryEntries', projectId),
   getModelDetail: (modelFileId) => ipcRenderer.invoke('database:getModelDetail', modelFileId),
   resetToPending: (modelFileId) => ipcRenderer.invoke('database:resetToPending', modelFileId),
+  deleteFailedModelFiles: (projectId) =>
+    ipcRenderer.invoke('database:deleteFailedModelFiles', projectId),
   deleteModel: (modelFileId) => ipcRenderer.invoke('model:deleteModel', modelFileId),
   renameModel: (modelFileId, newName) =>
     ipcRenderer.invoke('model:renameModel', modelFileId, newName),
@@ -44,11 +47,12 @@ const api: MeshNestApi = {
     ipcRenderer.invoke('settings:testEmbeddingProvider', settings),
   getOllamaModels: (baseUrl) => ipcRenderer.invoke('settings:getOllamaModels', baseUrl),
 
-  describeModel: (input) => ipcRenderer.invoke('llm:describeModel', input),
+  describeModel: (input, settings) => ipcRenderer.invoke('llm:describeModel', input, settings),
   getActiveVisionProvider: () => ipcRenderer.invoke('llm:getActiveVisionProvider'),
   normalizeName: (rawName, context) =>
     ipcRenderer.invoke('llm:normalizeName', rawName, context),
-  embedText: (text) => ipcRenderer.invoke('llm:embedText', text),
+  normalizeNames: (items) => ipcRenderer.invoke('llm:normalizeNames', items),
+  embedText: (text, settings) => ipcRenderer.invoke('llm:embedText', text, settings),
   getActiveEmbeddingProvider: () => ipcRenderer.invoke('llm:getActiveEmbeddingProvider'),
   reembedAll: () => ipcRenderer.invoke('llm:reembedAll'),
   storeGeometryMetadata: (modelFileId, metadata) =>
