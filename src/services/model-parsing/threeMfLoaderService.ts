@@ -18,7 +18,7 @@ type WorkerComponent = { objectId: string; transform?: number[] }
 type WorkerObject = {
   id: string
   name?: string
-  mesh?: { positions: Float32Array; indices: Uint32Array }
+  mesh?: { positions: Float32Array; indices: Uint32Array; materialColor?: string }
   components?: WorkerComponent[]
 }
 
@@ -35,7 +35,8 @@ function buildWorkerObject(obj: WorkerObject, objects: Record<string, WorkerObje
       geometry.setIndex(new BufferAttribute(obj.mesh.indices, 1))
     }
     geometry.computeVertexNormals()
-    const mesh = new Mesh(geometry, new MeshStandardMaterial({ color: DEFAULT_MATERIAL_COLOR }))
+    const color = obj.mesh.materialColor ?? DEFAULT_MATERIAL_COLOR
+    const mesh = new Mesh(geometry, new MeshStandardMaterial({ color }))
     mesh.name = obj.name || `object-${obj.id}`
     return mesh
   }

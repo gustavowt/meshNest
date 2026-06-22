@@ -1,6 +1,17 @@
 /* eslint-disable no-constant-condition */
 import { unzipSync } from 'fflate'
 
+type ParsedMaterial = {
+  name?: string
+  color?: string
+}
+
+type ParsedMesh = {
+  positions: Float32Array
+  indices: Uint32Array
+  materialColor?: string
+}
+
 function getAttributeValue(tag: string, attrName: string): string | null {
   const regex = new RegExp(`\\b${attrName}\\s*=\\s*["']([^"']*)["']`, 'i')
   const match = regex.exec(tag)
@@ -42,7 +53,108 @@ function parseVertices(verticesXml: string): Float32Array {
   return positions
 }
 
-function parseTriangles(trianglesXml: string): Uint32Array {
+function parseMaterialReference(tag: string): { pid?: string; pindex?: number } | undefined {
+  const pid = getAttributeValue(tag, 'pid')
+  const pindexValue = getAttributeValue(tag, 'pindex') ?? getAttributeValue(tag, 'p1')
+  if (!pid || pindexValue === null) return undefined
+
+  const pindex = parseInt(pindexValue, 10)
+  if (!Number.isFinite(pindex)) return undefined
+
+  return { pid, pindex }
+}
+
+function findMaterialColor(
+  materials: Record<string, ParsedMaterial[]>,
+  reference: { pid?: string; pindex?: number } | undefined,
+): string | undefined {
+  if (!reference?.pid || reference.pindex === undefined) return undefined
+  return materials[reference.pid]?.[reference.pindex]?.color
+}
+
+function normalizeDisplayColor(color: string | null): string | undefined {
+  if (!color) return undefined
+  const match = /^#?([0-9a-f]{6})(?:[0-9a-f]{2})?$/i.exec(color.trim())
+  return match ? `#${match[1]}` : undefined
+}
+
+function parseBaseMaterials(resourcesXml: string): Record<string, ParsedMaterial[]> {
+  const materials: Record<string, ParsedMaterial[]> = {}
+  let pos = 0
+
+  while (true) {
+    const groupStart = resourcesXml.indexOf('<basematerials', pos)
+    if (groupStart === -1) break
+    const groupHeaderEnd = resourcesXml.indexOf('>', groupStart)
+    const groupEnd = resourcesXml.indexOf('</basematerials>', groupStart)
+    if (groupHeaderEnd === -1 || groupEnd === -1) break
+
+    const groupHeader = resourcesXml.slice(groupStart, groupHeaderEnd + 1)
+    const id = getAttributeValue(groupHeader, 'id')
+    if (id) {
+      const groupContent = resourcesXml.slice(groupHeaderEnd + 1, groupEnd)
+      const groupMaterials: ParsedMaterial[] = []
+      let basePos = 0
+      while (true) {
+        const baseStart = groupContent.indexOf('<base', basePos)
+        if (baseStart === -1) break
+        const baseEnd = groupContent.indexOf('>', baseStart)
+        if (baseEnd === -1) break
+        const baseTag = groupContent.slice(baseStart, baseEnd + 1)
+        groupMaterials.push({
+          name: getAttributeValue(baseTag, 'name') || undefined,
+          color: normalizeDisplayColor(getAttributeValue(baseTag, 'displaycolor')),
+        })
+        basePos = baseEnd + 1
+      }
+      materials[id] = groupMaterials
+    }
+
+    pos = groupEnd + 16
+  }
+
+  return materials
+}
+
+function parseColorGroups(resourcesXml: string): Record<string, ParsedMaterial[]> {
+  const materials: Record<string, ParsedMaterial[]> = {}
+  const groupRegex = /<([A-Za-z0-9_.-]+:)?colorgroup\b[^>]*>/gi
+
+  let groupMatch
+  while ((groupMatch = groupRegex.exec(resourcesXml)) !== null) {
+    const groupStart = groupMatch.index
+    const groupHeader = groupMatch[0]
+    const prefix = groupMatch[1] ?? ''
+    const closeTag = `</${prefix}colorgroup>`
+    const groupEnd = resourcesXml.toLowerCase().indexOf(closeTag.toLowerCase(), groupStart)
+    if (groupEnd === -1) break
+
+    const id = getAttributeValue(groupHeader, 'id')
+    if (id) {
+      const groupContent = resourcesXml.slice(groupStart + groupHeader.length, groupEnd)
+      const groupMaterials: ParsedMaterial[] = []
+      const colorRegex = /<([A-Za-z0-9_.-]+:)?color\b[^>]*>/gi
+      let colorMatch
+      while ((colorMatch = colorRegex.exec(groupContent)) !== null) {
+        const colorTag = colorMatch[0]
+        groupMaterials.push({
+          color: normalizeDisplayColor(getAttributeValue(colorTag, 'color')),
+        })
+      }
+      materials[id] = groupMaterials
+    }
+
+    groupRegex.lastIndex = groupEnd + closeTag.length
+  }
+
+  return materials
+}
+
+function parseTriangles(
+  trianglesXml: string,
+  materials: Record<string, ParsedMaterial[]>,
+  objectMaterialReference: { pid?: string; pindex?: number } | undefined,
+): { indices: Uint32Array; materialColor?: string } {
   let count = 0
   let idx = 0
   while (true) {
@@ -53,16 +165,32 @@ function parseTriangles(trianglesXml: string): Uint32Array {
   }
 
   const indices = new Uint32Array(count * 3)
-  const regex = /<triangle\s+v1=["']([^"']+)["']\s+v2=["']([^"']+)["']\s+v3=["']([^"']+)["']/gi
+  const triangleRegex = /<triangle\b[^>]*>/gi
+  const vertexRegex = /\bv([123])\s*=\s*["']([^"']+)["']/gi
   let match
   let pos = 0
-  while ((match = regex.exec(trianglesXml)) !== null) {
+  let firstMaterialColor: string | undefined
+  while ((match = triangleRegex.exec(trianglesXml)) !== null) {
     if (pos >= indices.length) break
-    indices[pos++] = parseInt(match[1], 10)
-    indices[pos++] = parseInt(match[2], 10)
-    indices[pos++] = parseInt(match[3], 10)
+    const tag = match[0]
+    const vertexIndices = [0, 0, 0]
+    let vertexMatch
+    while ((vertexMatch = vertexRegex.exec(tag)) !== null) {
+      vertexIndices[parseInt(vertexMatch[1], 10) - 1] = parseInt(vertexMatch[2], 10)
+    }
+    vertexRegex.lastIndex = 0
+    indices[pos++] = vertexIndices[0]
+    indices[pos++] = vertexIndices[1]
+    indices[pos++] = vertexIndices[2]
+
+    if (!firstMaterialColor) {
+      firstMaterialColor = findMaterialColor(materials, parseMaterialReference(tag))
+    }
   }
-  return indices
+  return {
+    indices,
+    materialColor: firstMaterialColor ?? findMaterialColor(materials, objectMaterialReference),
+  }
 }
 
 /** Normalizes a package-internal path so zip keys and `p:path` references compare equal. */
@@ -92,9 +220,18 @@ function findRootModelTarget(relsXml: string): string | null {
   return null
 }
 
-function parseModelXml(xmlText: string) {
+export function parseModelXml(xmlText: string) {
   const objects: Record<string, any> = {}
   const buildItems: any[] = []
+  const resourcesStart = xmlText.indexOf('<resources')
+  const resourcesEnd = resourcesStart === -1 ? -1 : xmlText.indexOf('</resources>', resourcesStart)
+  const resourcesXml = resourcesStart === -1 || resourcesEnd === -1
+    ? ''
+    : xmlText.slice(resourcesStart, resourcesEnd)
+  const materials = {
+    ...parseBaseMaterials(resourcesXml),
+    ...parseColorGroups(resourcesXml),
+  }
 
   let pos = 0
   while (true) {
@@ -107,11 +244,12 @@ function parseModelXml(xmlText: string) {
     const id = getAttributeValue(objectHeader, 'id')
     if (id) {
       const name = getAttributeValue(objectHeader, 'name')
+      const objectMaterialReference = parseMaterialReference(objectHeader)
       const objectContent = xmlText.slice(objectStart, objectEnd)
 
       // Check for mesh
       const meshStart = objectContent.indexOf('<mesh>')
-      let meshData: any = null
+      let meshData: ParsedMesh | null = null
       if (meshStart !== -1) {
         const verticesStart = objectContent.indexOf('<vertices>', meshStart)
         const verticesEnd = objectContent.indexOf('</vertices>', verticesStart)
@@ -123,8 +261,12 @@ function parseModelXml(xmlText: string) {
           const trianglesXml = objectContent.slice(trianglesStart, trianglesEnd)
 
           const positions = parseVertices(verticesXml)
-          const indices = parseTriangles(trianglesXml)
-          meshData = { positions, indices }
+          const { indices, materialColor } = parseTriangles(
+            trianglesXml,
+            materials,
+            objectMaterialReference,
+          )
+          meshData = { positions, indices, materialColor }
         }
       }
 

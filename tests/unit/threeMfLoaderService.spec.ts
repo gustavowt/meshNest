@@ -5,7 +5,8 @@ import { describe, expect, test } from 'vitest'
 import { extractGeometryMetadata } from '@/services/model-parsing/geometryMetadata'
 import { ModelParseError } from '@/services/model-parsing/modelScene'
 import { loadThreeMfScene } from '@/services/model-parsing/threeMfLoaderService'
-import { buildThreeMfPackage } from './helpers/threeMfFixtures'
+import { parseModelXml } from '@/services/model-parsing/threeMfParser.worker'
+import { buildModelXml, buildThreeMfPackage } from './helpers/threeMfFixtures'
 
 function countMeshes(scene: ReturnType<typeof loadThreeMfScene>): number {
   let count = 0
@@ -60,6 +61,34 @@ describe('threeMfLoaderService', () => {
     // displaycolor #FF0000FF should map to red.
     const expected = new Color(1, 0, 0)
     expect(material!.color.getHex()).toBe(expected.getHex())
+  })
+
+  test('worker parser carries basic material color information', () => {
+    const parsed = parseModelXml(buildModelXml({ includeMaterial: true }))
+    const object = parsed.objects['2']
+
+    expect(object.mesh.materialColor).toBe('#FF0000')
+    expect(new Color(object.mesh.materialColor).getHex()).toBe(new Color(1, 0, 0).getHex())
+  })
+
+  test('worker parser reads triangle material references', () => {
+    const xml = buildModelXml({ includeMaterial: true })
+      .replace(' pid="1" pindex="0"', '')
+      .replace('<triangle v1="0" v2="2" v3="1"/>', '<triangle v1="0" v2="2" v3="1" pid="1" p1="0"/>')
+
+    const parsed = parseModelXml(xml)
+
+    expect(parsed.objects['2'].mesh.materialColor).toBe('#FF0000')
+  })
+
+  test('worker parser reads namespaced color groups', () => {
+    const xml = buildModelXml()
+      .replace('<resources>', '<resources><m:colorgroup id="7"><m:color color="#00FF00FF"/></m:colorgroup>')
+      .replace('<object id="2" type="model">', '<object id="2" type="model" pid="7" pindex="0">')
+
+    const parsed = parseModelXml(xml)
+
+    expect(parsed.objects['2'].mesh.materialColor).toBe('#00FF00')
   })
 
   test('rejects invalid 3MF content with a controlled error', () => {
