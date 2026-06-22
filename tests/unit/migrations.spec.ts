@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test } from 'vitest'
 import { arrayValue } from '@duckdb/node-api'
 import { DuckDbClient } from '@/services/database/duckdbClient'
 import { runMigrations, MIGRATIONS } from '@/services/database/migrations'
-import { EMBEDDING_DIMENSIONS } from '@/services/database/schema'
+import { CREATE_MODEL_FILES, EMBEDDING_DIMENSIONS } from '@/services/database/schema'
 
 const EXPECTED_TABLES = [
   'model_files',
@@ -55,6 +55,65 @@ describe('database migrations', () => {
 
     expect(first).toEqual(MIGRATIONS.map((m) => m.id))
     expect(second).toEqual([])
+  })
+
+  test('model file absolute path index is non-unique', async () => {
+    const client = await openClient()
+    await runMigrations(client)
+
+    const sharedPath = '/models/shared.stl'
+    for (const id of ['file-1', 'file-2']) {
+      await client.run(
+        `INSERT INTO model_files (
+           id, project_id, absolute_path, relative_path, filename, extension,
+           size_bytes, modified_at, content_hash, status
+         ) VALUES (
+           $id, 'project-1', $absolutePath, 'shared.stl', 'shared.stl', 'stl',
+           1, '2026-06-01 12:00:00'::TIMESTAMP, $contentHash, 'pending'
+         )`,
+        { id, absolutePath: sharedPath, contentHash: `hash-${id}` },
+      )
+    }
+
+    const rows = await client.all<{ count: number }>(
+      'SELECT count(*) AS count FROM model_files WHERE absolute_path = $absolutePath',
+      { absolutePath: sharedPath },
+    )
+    expect(Number(rows[0].count)).toBe(2)
+  })
+
+  test('migrates an existing unique model file path index to non-unique', async () => {
+    const client = await openClient()
+    await client.run(CREATE_MODEL_FILES)
+    await client.run(
+      'CREATE UNIQUE INDEX idx_model_files_absolute_path ON model_files (absolute_path);',
+    )
+    await client.run(`
+      CREATE TABLE schema_migrations (
+        id TEXT PRIMARY KEY,
+        applied_at TIMESTAMP DEFAULT now()
+      );
+    `)
+    await client.run("INSERT INTO schema_migrations (id) VALUES ('001_initial_schema')")
+    await client.run("INSERT INTO schema_migrations (id) VALUES ('002_embeddings_hnsw_index')")
+
+    expect(await runMigrations(client)).toEqual(['003_model_files_absolute_path_non_unique'])
+
+    for (const id of ['file-1', 'file-2']) {
+      await client.run(
+        `INSERT INTO model_files (
+           id, project_id, absolute_path, relative_path, filename, extension,
+           size_bytes, modified_at, content_hash, status
+         ) VALUES (
+           $id, 'project-1', '/models/shared.stl', 'shared.stl', 'shared.stl', 'stl',
+           1, '2026-06-01 12:00:00'::TIMESTAMP, $contentHash, 'pending'
+         )`,
+        { id, contentHash: `hash-${id}` },
+      )
+    }
+
+    const rows = await client.all<{ count: number }>('SELECT count(*) AS count FROM model_files')
+    expect(Number(rows[0].count)).toBe(2)
   })
 
   test('embedding table accepts vectors of the configured dimension', async () => {
