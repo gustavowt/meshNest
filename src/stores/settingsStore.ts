@@ -5,6 +5,10 @@ import {
   defaultVisionSettings,
   validateProviderSettings,
 } from '@/services/settings/providerSettings'
+import {
+  loadCachedProviderSettings,
+  saveCachedProviderSettings,
+} from '@/services/settings/providerSettingsCache'
 import type {
   EmbeddingProviderId,
   ProviderSettings,
@@ -30,12 +34,11 @@ type SettingsState = {
   embeddingTest: ProviderTestResult | null
   testingVision: boolean
   testingEmbedding: boolean
-  ollamaVisionModels: string[]
   ollamaEmbeddingModels: string[]
-  fetchingOllamaVisionModels: boolean
   fetchingOllamaEmbeddingModels: boolean
-  ollamaVisionError: string | null
   ollamaEmbeddingError: string | null
+  /** True when the draft differs from the last loaded/saved settings. */
+  dirty: boolean
 }
 
 const state = reactive<SettingsState>({
@@ -52,15 +55,32 @@ const state = reactive<SettingsState>({
   embeddingTest: null,
   testingVision: false,
   testingEmbedding: false,
-  ollamaVisionModels: [],
   ollamaEmbeddingModels: [],
-  fetchingOllamaVisionModels: false,
   fetchingOllamaEmbeddingModels: false,
-  ollamaVisionError: null,
   ollamaEmbeddingError: null,
+  dirty: false,
 })
 
 let systemThemeListener: ((e: MediaQueryListEvent) => void) | null = null
+let persistedSettings: ProviderSettings | null = null
+
+function cloneSettings(settings: ProviderSettings): ProviderSettings {
+  return JSON.parse(JSON.stringify(settings))
+}
+
+function differsFromPersisted<T>(draftValue: T | undefined, persistedValue: T | undefined): boolean {
+  if (!draftValue) return false
+  if (!persistedValue) return state.dirty
+  return JSON.stringify(draftValue) !== JSON.stringify(persistedValue)
+}
+
+function withUnsavedReminder(
+  result: ProviderTestResult,
+  reminder: string,
+): ProviderTestResult {
+  if (!result.ok) return result
+  return { ...result, message: `${result.message} ${reminder}` }
+}
 
 export function applyAppearance(appearance: 'clear' | 'dark' | 'system') {
   if (typeof window === 'undefined') return
@@ -112,7 +132,23 @@ async function loadSettings(): Promise<void> {
   state.loading = true
   state.error = null
   try {
-    state.draft = await window.meshNest.getProviderSettings()
+    const cached = loadCachedProviderSettings()
+    if (cached) {
+      try {
+        const outcome = await window.meshNest.saveProviderSettings(cloneSettings(cached))
+        state.draft = cloneSettings(cached)
+        if (outcome.embeddingsCleared) {
+          state.needsReembed = true
+          state.reembedResult = null
+        }
+      } catch {
+        state.draft = await window.meshNest.getProviderSettings()
+      }
+    } else {
+      state.draft = await window.meshNest.getProviderSettings()
+    }
+    persistedSettings = cloneSettings(state.draft)
+    state.dirty = false
     if (state.draft) {
       if (!state.draft.appearance) {
         state.draft.appearance = 'system'
@@ -136,7 +172,7 @@ function switchVisionProvider(provider: VisionProviderId): void {
   const previousKey = state.draft.vision.apiKey
   state.draft.vision = { ...defaultVisionSettings(provider), apiKey: previousKey }
   state.visionTest = null
-  state.saved = false
+  markDirty()
 }
 
 function switchEmbeddingProvider(provider: EmbeddingProviderId): void {
@@ -144,7 +180,7 @@ function switchEmbeddingProvider(provider: EmbeddingProviderId): void {
   const previousKey = state.draft.embedding.apiKey
   state.draft.embedding = { ...defaultEmbeddingSettings(provider), apiKey: previousKey }
   state.embeddingTest = null
-  state.saved = false
+  markDirty()
 }
 
 async function saveSettings(): Promise<boolean> {
@@ -161,7 +197,10 @@ async function saveSettings(): Promise<boolean> {
     const outcome = await window.meshNest.saveProviderSettings(
       JSON.parse(JSON.stringify(state.draft)),
     )
+    saveCachedProviderSettings(state.draft)
+    persistedSettings = cloneSettings(state.draft)
     state.saved = true
+    state.dirty = false
     if (outcome.embeddingsCleared) {
       state.needsReembed = true
       state.reembedResult = null
@@ -200,9 +239,15 @@ async function testVision(): Promise<void> {
   state.testingVision = true
   state.visionTest = null
   try {
-    state.visionTest = await window.meshNest.testVisionProvider(
+    const result = await window.meshNest.testVisionProvider(
       JSON.parse(JSON.stringify(state.draft.vision)),
     )
+    state.visionTest = differsFromPersisted(state.draft.vision, persistedSettings?.vision)
+      ? withUnsavedReminder(
+          result,
+          'Save settings before scanning or re-scanning to use this vision model.',
+        )
+      : result
   } catch (error) {
     state.visionTest = {
       ok: false,
@@ -218,9 +263,15 @@ async function testEmbedding(): Promise<void> {
   state.testingEmbedding = true
   state.embeddingTest = null
   try {
-    state.embeddingTest = await window.meshNest.testEmbeddingProvider(
+    const result = await window.meshNest.testEmbeddingProvider(
       JSON.parse(JSON.stringify(state.draft.embedding)),
     )
+    state.embeddingTest = differsFromPersisted(state.draft.embedding, persistedSettings?.embedding)
+      ? withUnsavedReminder(
+          result,
+          'Save settings before searching or re-embedding to use this embedding model.',
+        )
+      : result
   } catch (error) {
     state.embeddingTest = {
       ok: false,
@@ -228,19 +279,6 @@ async function testEmbedding(): Promise<void> {
     }
   } finally {
     state.testingEmbedding = false
-  }
-}
-
-async function fetchOllamaVisionModels(baseUrl: string): Promise<void> {
-  if (!window.meshNest) return
-  state.fetchingOllamaVisionModels = true
-  state.ollamaVisionError = null
-  try {
-    state.ollamaVisionModels = await window.meshNest.getOllamaModels(baseUrl)
-  } catch (error) {
-    state.ollamaVisionError = error instanceof Error ? error.message : String(error)
-  } finally {
-    state.fetchingOllamaVisionModels = false
   }
 }
 
@@ -259,6 +297,7 @@ async function fetchOllamaEmbeddingModels(baseUrl: string): Promise<void> {
 
 function markDirty(): void {
   state.saved = false
+  state.dirty = true
 }
 
 /** Test-only helper to restore a pristine store between specs. */
@@ -276,12 +315,11 @@ export function resetSettingsStore(): void {
   state.embeddingTest = null
   state.testingVision = false
   state.testingEmbedding = false
-  state.ollamaVisionModels = []
   state.ollamaEmbeddingModels = []
-  state.fetchingOllamaVisionModels = false
   state.fetchingOllamaEmbeddingModels = false
-  state.ollamaVisionError = null
   state.ollamaEmbeddingError = null
+  state.dirty = false
+  persistedSettings = null
 }
 
 /**
@@ -301,7 +339,6 @@ export function useSettingsStore() {
     testVision,
     testEmbedding,
     markDirty,
-    fetchOllamaVisionModels,
     fetchOllamaEmbeddingModels,
   }
 }
