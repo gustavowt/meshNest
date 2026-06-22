@@ -73,6 +73,18 @@ export class AiDescriptionRepository {
     )
   }
 
+  /**
+   * Updates only the short name (the model's displayed title) when a
+   * description exists. Used by "Rename with AI" so the renamed model
+   * shows its new name everywhere. No-op when there is no description.
+   */
+  async updateShortName(modelFileId: string, shortName: string): Promise<void> {
+    await this.client.run(
+      `UPDATE ai_model_descriptions SET short_name = $shortName WHERE model_file_id = $modelFileId`,
+      { modelFileId, shortName },
+    )
+  }
+
   async getByModelFileId(modelFileId: string): Promise<StoredAIDescription | undefined> {
     const rows = await this.client.all<AiDescriptionRow>(
       `SELECT short_name, description, likely_category, tags, objects_detected,

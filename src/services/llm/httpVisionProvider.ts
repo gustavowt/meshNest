@@ -1,6 +1,6 @@
 import type { VisionAnalysisInput, VisionProvider, VisionProviderResult } from './visionProvider'
 import { validateVisionResponse, VisionValidationError } from './jsonValidation'
-import { VISION_PROMPT } from './prompts'
+import { NAME_NORMALIZATION_PROMPT, VISION_PROMPT } from './prompts'
 
 export type FetchLike = typeof fetch
 
@@ -75,6 +75,22 @@ export abstract class HttpVisionProvider implements VisionProvider {
     input: VisionAnalysisInput,
   ): ReturnType<VisionRequestOnce>
 
+  /** One text-only round-trip (no images), used for name normalization. */
+  protected abstract requestTextOnce(
+    prompt: string,
+  ): Promise<{ answerText: string; rawResponseJson: string }>
+
+  async normalizeName(rawName: string, context?: string): Promise<string> {
+    const { answerText } = await this.requestTextOnce(
+      buildNameNormalizationPrompt(rawName, context),
+    )
+    const cleaned = cleanNormalizedName(answerText)
+    if (!cleaned) {
+      throw new VisionProviderError(`${this.name} returned an empty name.`)
+    }
+    return cleaned
+  }
+
   async describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult> {
     let lastValidationError: VisionValidationError | undefined
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -125,4 +141,27 @@ export function stripJsonFences(text: string): string {
   const trimmed = text.trim()
   const match = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/)
   return match ? match[1] : trimmed
+}
+
+/** Builds the text-only prompt for the "Rename with AI" action. */
+export function buildNameNormalizationPrompt(rawName: string, context?: string): string {
+  const lines = [NAME_NORMALIZATION_PROMPT, '', `Raw file name: ${rawName}`]
+  if (context?.trim()) {
+    lines.push(`Known context about the model: ${context.trim()}`)
+  }
+  lines.push('', 'Normalized name:')
+  return lines.join('\n')
+}
+
+/** Extracts a single clean title from a model's free-text answer. */
+export function cleanNormalizedName(text: string): string {
+  const firstLine =
+    stripJsonFences(text)
+      .split('\n')
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? ''
+  return firstLine
+    .replace(/^["'`]+|["'`]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }

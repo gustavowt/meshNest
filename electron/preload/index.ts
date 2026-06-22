@@ -3,6 +3,7 @@ import type { IpcRendererEvent } from 'electron'
 import type { MeshNestApi, ScanProgressEvent } from '../../src/types/electronApi'
 
 const api: MeshNestApi = {
+  isMasBuild: process.mas === true,
   pickDirectory: () => ipcRenderer.invoke('filesystem:pickDirectory'),
   openWithSlicer: (absolutePath, slicerId) =>
     ipcRenderer.invoke('filesystem:openWithSlicer', absolutePath, slicerId),
@@ -28,6 +29,9 @@ const api: MeshNestApi = {
   listLibraryEntries: (projectId) => ipcRenderer.invoke('database:listLibraryEntries', projectId),
   getModelDetail: (modelFileId) => ipcRenderer.invoke('database:getModelDetail', modelFileId),
   resetToPending: (modelFileId) => ipcRenderer.invoke('database:resetToPending', modelFileId),
+  deleteModel: (modelFileId) => ipcRenderer.invoke('model:deleteModel', modelFileId),
+  renameModel: (modelFileId, newName) =>
+    ipcRenderer.invoke('model:renameModel', modelFileId, newName),
 
   searchByEmbedding: (embedding, options) =>
     ipcRenderer.invoke('database:searchByEmbedding', embedding, options),
@@ -42,6 +46,8 @@ const api: MeshNestApi = {
 
   describeModel: (input) => ipcRenderer.invoke('llm:describeModel', input),
   getActiveVisionProvider: () => ipcRenderer.invoke('llm:getActiveVisionProvider'),
+  normalizeName: (rawName, context) =>
+    ipcRenderer.invoke('llm:normalizeName', rawName, context),
   embedText: (text) => ipcRenderer.invoke('llm:embedText', text),
   getActiveEmbeddingProvider: () => ipcRenderer.invoke('llm:getActiveEmbeddingProvider'),
   reembedAll: () => ipcRenderer.invoke('llm:reembedAll'),

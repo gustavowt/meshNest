@@ -7,16 +7,33 @@ import type { ScannedFile } from '../../../src/types/modelFile'
 import { ScanCancelledError, scanDirectory } from '../../../src/services/filesystem/directoryScanner'
 import { hashFile } from '../../../src/services/filesystem/fileHash'
 import { getSupportedExtension } from '../../../src/services/filesystem/supportedFiles'
+import {
+  storeDirectoryBookmark,
+  withSecurityScopedAccess,
+} from '../services/securityScopedBookmarks'
 
 const activeScans = new Map<string, AbortController>()
 
 export function registerFilesystemIpc(): void {
   ipcMain.handle('filesystem:pickDirectory', async (event) => {
     const window = BrowserWindow.fromWebContents(event.sender)
+    // securityScopedBookmarks is required so the Mac App Store sandbox can
+    // regain access to this directory after a restart; it is ignored elsewhere.
     const result = window
-      ? await dialog.showOpenDialog(window, { properties: ['openDirectory'] })
-      : await dialog.showOpenDialog({ properties: ['openDirectory'] })
-    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+      ? await dialog.showOpenDialog(window, {
+          properties: ['openDirectory'],
+          securityScopedBookmarks: true,
+        })
+      : await dialog.showOpenDialog({
+          properties: ['openDirectory'],
+          securityScopedBookmarks: true,
+        })
+    if (result.canceled || result.filePaths.length === 0) {
+      return null
+    }
+    const directory = result.filePaths[0]
+    await storeDirectoryBookmark(directory, result.bookmarks?.[0])
+    return directory
   })
 
   ipcMain.handle(
@@ -25,26 +42,28 @@ export function registerFilesystemIpc(): void {
       const controller = new AbortController()
       activeScans.set(scanId, controller)
       try {
-        const discovered = await scanDirectory(directory, {
-          signal: controller.signal,
-          onFile: (file, scannedCount) => {
-            const progress: ScanProgressEvent = {
-              scanId,
-              scannedCount,
-              currentPath: file.relativePath,
-            }
-            event.sender.send('filesystem:scanProgress', progress)
-          },
-        })
+        return await withSecurityScopedAccess(directory, async () => {
+          const discovered = await scanDirectory(directory, {
+            signal: controller.signal,
+            onFile: (file, scannedCount) => {
+              const progress: ScanProgressEvent = {
+                scanId,
+                scannedCount,
+                currentPath: file.relativePath,
+              }
+              event.sender.send('filesystem:scanProgress', progress)
+            },
+          })
 
-        const scanned: ScannedFile[] = []
-        for (const file of discovered) {
-          if (controller.signal.aborted) {
-            throw new ScanCancelledError()
+          const scanned: ScannedFile[] = []
+          for (const file of discovered) {
+            if (controller.signal.aborted) {
+              throw new ScanCancelledError()
+            }
+            scanned.push({ ...file, contentHash: await hashFile(file.absolutePath) })
           }
-          scanned.push({ ...file, contentHash: await hashFile(file.absolutePath) })
-        }
-        return scanned
+          return scanned
+        })
       } finally {
         activeScans.delete(scanId)
       }
@@ -59,7 +78,7 @@ export function registerFilesystemIpc(): void {
     if (!getSupportedExtension(absolutePath)) {
       throw new Error('Only .stl and .3mf files can be read')
     }
-    return readFile(absolutePath)
+    return withSecurityScopedAccess(absolutePath, () => readFile(absolutePath))
   })
 
   ipcMain.handle(
@@ -69,21 +88,25 @@ export function registerFilesystemIpc(): void {
       if (!extension) {
         throw new Error('Only .stl and .3mf files can be scanned')
       }
-      const stats = await stat(absolutePath)
-      return {
-        absolutePath,
-        relativePath: basename(absolutePath),
-        filename: basename(absolutePath),
-        extension,
-        sizeBytes: stats.size,
-        modifiedAt: stats.mtime.toISOString(),
-        contentHash: await hashFile(absolutePath),
-      }
+      return withSecurityScopedAccess(absolutePath, async () => {
+        const stats = await stat(absolutePath)
+        return {
+          absolutePath,
+          relativePath: basename(absolutePath),
+          filename: basename(absolutePath),
+          extension,
+          sizeBytes: stats.size,
+          modifiedAt: stats.mtime.toISOString(),
+          contentHash: await hashFile(absolutePath),
+        }
+      })
     },
   )
 
   ipcMain.handle('filesystem:revealInFolder', async (_event, absolutePath: string) => {
-    shell.showItemInFolder(absolutePath)
+    await withSecurityScopedAccess(absolutePath, async () => {
+      shell.showItemInFolder(absolutePath)
+    })
   })
 
   const SLICER_MAP: Record<string, { darwin: string; win32: string[]; linux: string[] }> = {
@@ -117,8 +140,13 @@ export function registerFilesystemIpc(): void {
   ipcMain.handle(
     'filesystem:openWithSlicer',
     async (_event, absolutePath: string, slicerId: string): Promise<void> => {
-      if (slicerId === 'system') {
-        const error = await shell.openPath(absolutePath)
+      // The Mac App Store sandbox forbids launching a specific external app
+      // (e.g. `open -a BambuStudio`). There we always hand the file to its
+      // default handler through LaunchServices, which the sandbox allows.
+      if (process.mas || slicerId === 'system') {
+        const error = await withSecurityScopedAccess(absolutePath, () =>
+          shell.openPath(absolutePath),
+        )
         if (error) {
           throw new Error(`Failed to open path: ${error}`)
         }

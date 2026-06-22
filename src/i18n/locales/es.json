@@ -99,7 +99,18 @@
     "modified": "Modificado",
     "indexed": "Indexado",
     "openSlicer": "Abrir Laminador",
-    "default": "predeterminado"
+    "default": "predeterminado",
+    "actions": "Acciones",
+    "delete": "Eliminar",
+    "renameWithAi": "Renombrar con IA",
+    "renamePromptHeader": "Renombrar con IA",
+    "renamePromptMessage": "Revisa el nombre sugerido. La extensión del archivo se conserva automáticamente.",
+    "renamePlaceholder": "Nombre del modelo",
+    "rename": "Renombrar",
+    "renamed": "Archivo renombrado.",
+    "deleteConfirmHeader": "¿Eliminar modelo?",
+    "deleteConfirmMessage": "\"{name}\" se moverá a la papelera y se eliminará de tu biblioteca. Esto no se puede deshacer desde la aplicación.",
+    "deleted": "Modelo movido a la papelera."
   },
   "settings": {
     "saving": "Guardando…",

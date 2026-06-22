@@ -17,6 +17,13 @@ export class BridgeVisionProvider implements VisionProvider {
     }
     return window.meshNest.describeModel(input)
   }
+
+  async normalizeName(rawName: string, context?: string): Promise<string> {
+    if (!window.meshNest) {
+      throw new Error('Vision provider bridge is only available in the desktop app.')
+    }
+    return window.meshNest.normalizeName(rawName, context)
+  }
 }
 
 /** Builds the bridge provider labeled with the currently active settings. */

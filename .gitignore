@@ -31,3 +31,10 @@ npm-debug.log*
 /platforms
 /plugins
 /www
+
+# electron-builder output
+/release
+
+# Account-specific signing material (never commit)
+*.provisionprofile
+*.p12

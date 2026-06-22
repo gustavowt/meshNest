@@ -170,6 +170,46 @@ export class ModelFileRepository {
     )
   }
 
+  /**
+   * Updates the on-disk location columns after a file has been renamed
+   * (or moved). Content hash and indexing status are intentionally left
+   * untouched because a rename does not change the model contents.
+   */
+  async renameModelFile(
+    id: string,
+    location: { absolutePath: string; relativePath: string; filename: string },
+  ): Promise<void> {
+    await this.client.run(
+      `UPDATE model_files SET
+         absolute_path = $absolutePath,
+         relative_path = $relativePath,
+         filename = $filename,
+         updated_at = now()
+       WHERE id = $id`,
+      {
+        id,
+        absolutePath: location.absolutePath,
+        relativePath: location.relativePath,
+        filename: location.filename,
+      },
+    )
+  }
+
+  /**
+   * Removes a model file and every dependent record (metadata, renders,
+   * AI description, embedding, indexing history). There are no database-level
+   * cascades, so each table is cleared explicitly.
+   */
+  async deleteModelFile(id: string): Promise<void> {
+    await this.client.run('DELETE FROM geometry_metadata WHERE model_file_id = $id', { id })
+    await this.client.run('DELETE FROM three_mf_metadata WHERE model_file_id = $id', { id })
+    await this.client.run('DELETE FROM model_render_assets WHERE model_file_id = $id', { id })
+    await this.client.run('DELETE FROM ai_model_descriptions WHERE model_file_id = $id', { id })
+    await this.client.run('DELETE FROM model_embeddings WHERE model_file_id = $id', { id })
+    await this.client.run('DELETE FROM indexing_jobs WHERE model_file_id = $id', { id })
+    await this.client.run('DELETE FROM model_files WHERE id = $id', { id })
+  }
+
   /** Forces a file back to 'pending' so the next indexing run reprocesses it. */
   async resetToPending(id: string): Promise<void> {
     await this.client.run(

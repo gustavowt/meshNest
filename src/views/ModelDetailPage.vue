@@ -12,17 +12,16 @@
             <ion-icon slot="start" :icon="openOutline" />
             {{ $t('detail.openSlicer') }}
           </ion-button>
-          <ion-button :disabled="reindexing || !detail" id="open-with-trigger" style="margin-inline-start: -6px;">
+          <ion-button v-if="!isMasBuild" :disabled="reindexing || !detail" id="open-with-trigger" style="margin-inline-start: -6px;">
             <ion-icon slot="icon-only" :icon="chevronDownOutline" />
           </ion-button>
-          <ion-button :disabled="reindexing || !detail" @click="revealInFolder">
-            <ion-icon slot="start" :icon="folderOutline" />
-            {{ $t('detail.reveal') }}
-          </ion-button>
-          <ion-button :disabled="reindexing || !detail" @click="reindex">
-            <ion-spinner v-if="reindexing" slot="start" name="crescent" class="reindex-spinner" />
-            <ion-icon v-else slot="start" :icon="refreshOutline" />
-            {{ $t('detail.reindex') }}
+          <ion-spinner v-if="reindexing || aiRenaming" name="crescent" class="reindex-spinner header-spinner" />
+          <ion-button
+            :disabled="reindexing || aiRenaming || !detail"
+            id="model-actions-trigger"
+            :aria-label="$t('detail.actions')"
+          >
+            <ion-icon slot="icon-only" :icon="ellipsisVerticalOutline" />
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
@@ -66,6 +65,26 @@
               UltiMaker Cura
               <span v-if="providerSettings?.defaultSlicer === 'cura'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
             </ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-popover>
+      <ion-popover v-if="detail" trigger="model-actions-trigger" dismiss-on-select="true">
+        <ion-list>
+          <ion-item button :detail="false" @click="revealInFolder">
+            <ion-icon slot="start" :icon="folderOutline" />
+            <ion-label>{{ $t('detail.reveal') }}</ion-label>
+          </ion-item>
+          <ion-item button :detail="false" :disabled="!aiRenameEnabled" @click="renameWithAi">
+            <ion-icon slot="start" :icon="sparklesOutline" />
+            <ion-label>{{ $t('detail.renameWithAi') }}</ion-label>
+          </ion-item>
+          <ion-item button :detail="false" :disabled="reindexing" @click="reindex">
+            <ion-icon slot="start" :icon="refreshOutline" />
+            <ion-label>{{ $t('detail.reindex') }}</ion-label>
+          </ion-item>
+          <ion-item button :detail="false" lines="none" @click="confirmDelete">
+            <ion-icon slot="start" :icon="trashOutline" color="danger" />
+            <ion-label color="danger">{{ $t('detail.delete') }}</ion-label>
           </ion-item>
         </ion-list>
       </ion-popover>
@@ -118,6 +137,7 @@ import {
   IonList,
   IonItem,
   IonLabel,
+  alertController,
   toastController,
 } from '@ionic/vue'
 import {
@@ -126,9 +146,12 @@ import {
   refreshOutline,
   openOutline,
   chevronDownOutline,
+  ellipsisVerticalOutline,
+  sparklesOutline,
+  trashOutline,
 } from 'ionicons/icons'
-import { onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import IndexingStatusBadge from '@/components/library/IndexingStatusBadge.vue'
 import ModelMetadataPanel from '@/components/model/ModelMetadataPanel.vue'
@@ -141,6 +164,7 @@ import type { ModelDetail } from '@/types/modelDetail'
 
 const { t } = useI18n()
 const route = useRoute()
+const router = useRouter()
 const library = useLibraryStore()
 
 const detail = ref<ModelDetail | null>(null)
@@ -148,6 +172,17 @@ const providerSettings = ref<any>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 const reindexing = ref(false)
+const aiRenaming = ref(false)
+
+/** Sandboxed Mac App Store builds can only open files with the default app. */
+const isMasBuild = window.meshNest?.isMasBuild ?? false
+
+const AI_VISION_PROVIDERS = ['openai', 'gemini', 'ollama']
+
+/** Rename with AI requires a real vision provider (not 'none' or 'mock'). */
+const aiRenameEnabled = computed(() =>
+  AI_VISION_PROVIDERS.includes(providerSettings.value?.vision?.provider),
+)
 
 async function loadDetail(modelFileId: string): Promise<void> {
   if (!window.meshNest) {
@@ -225,6 +260,101 @@ async function revealInFolder(): Promise<void> {
   }
 }
 
+async function showSuccessToast(message: string): Promise<void> {
+  const toast = await toastController.create({
+    message,
+    duration: 3000,
+    color: 'success',
+  })
+  await toast.present()
+}
+
+function buildRenameContext(): string | undefined {
+  const description = detail.value?.description
+  if (!description) return undefined
+  const parts = [description.shortName, description.likelyCategory, description.description]
+    .map((part) => part?.trim())
+    .filter((part): part is string => Boolean(part))
+  return parts.length > 0 ? parts.join(' — ') : undefined
+}
+
+async function renameWithAi(): Promise<void> {
+  if (!window.meshNest || !detail.value || !aiRenameEnabled.value || aiRenaming.value) return
+
+  const file = detail.value.file
+  let suggested: string
+  aiRenaming.value = true
+  try {
+    suggested = await window.meshNest.normalizeName(file.filename, buildRenameContext())
+  } catch (normalizeError) {
+    await showToast(normalizeError instanceof Error ? normalizeError.message : String(normalizeError))
+    return
+  } finally {
+    aiRenaming.value = false
+  }
+
+  const alert = await alertController.create({
+    header: t('detail.renamePromptHeader'),
+    message: t('detail.renamePromptMessage'),
+    inputs: [
+      {
+        name: 'name',
+        type: 'text',
+        value: suggested,
+        placeholder: t('detail.renamePlaceholder'),
+      },
+    ],
+    buttons: [
+      { text: t('common.cancel'), role: 'cancel' },
+      { text: t('detail.rename'), role: 'confirm' },
+    ],
+  })
+  await alert.present()
+
+  const result = await alert.onDidDismiss()
+  if (result.role !== 'confirm') return
+  const newName = (result.data?.values?.name ?? '').trim()
+  if (!newName) return
+
+  try {
+    await window.meshNest.renameModel(file.id, newName)
+    await loadDetail(file.id)
+    await library.loadLibrary()
+    await showSuccessToast(t('detail.renamed'))
+  } catch (renameError) {
+    await showToast(renameError instanceof Error ? renameError.message : String(renameError))
+  }
+}
+
+async function confirmDelete(): Promise<void> {
+  if (!window.meshNest || !detail.value) return
+
+  const file = detail.value.file
+  const name = detail.value.description?.shortName ?? file.filename
+
+  const alert = await alertController.create({
+    header: t('detail.deleteConfirmHeader'),
+    message: t('detail.deleteConfirmMessage', { name }),
+    buttons: [
+      { text: t('common.cancel'), role: 'cancel' },
+      { text: t('detail.delete'), role: 'confirm' },
+    ],
+  })
+  await alert.present()
+
+  const result = await alert.onDidDismiss()
+  if (result.role !== 'confirm') return
+
+  try {
+    await window.meshNest.deleteModel(file.id)
+    await library.loadLibrary()
+    await showSuccessToast(t('detail.deleted'))
+    router.replace('/library')
+  } catch (deleteError) {
+    await showToast(deleteError instanceof Error ? deleteError.message : String(deleteError))
+  }
+}
+
 watch(
   () => route.params.id,
   (id) => {
@@ -251,6 +381,11 @@ onMounted(() => {
   width: 16px;
   height: 16px;
   margin-inline-end: 6px;
+}
+
+.header-spinner {
+  align-self: center;
+  margin-inline: 4px 0;
 }
 
 .state-container {

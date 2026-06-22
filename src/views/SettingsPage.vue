@@ -49,7 +49,7 @@
               <ion-icon :icon="languageOutline" />
               <ion-label>{{ $t('settings.tabs.language') }}</ion-label>
             </ion-segment-button>
-            <ion-segment-button value="slicer">
+            <ion-segment-button v-if="!isMasBuild" value="slicer">
               <ion-icon :icon="buildOutline" />
               <ion-label>{{ $t('settings.tabs.slicer') }}</ion-label>
             </ion-segment-button>
@@ -101,6 +101,7 @@
                 <span>{{ $t('settings.tabs.language') }}</span>
               </button>
               <button
+                v-if="!isMasBuild"
                 class="nav-item"
                 :class="{ active: activeSection === 'slicer' }"
                 @click="activeSection = 'slicer'"
@@ -122,9 +123,6 @@
               </ion-text>
               <ion-text v-if="settings.state.error" color="danger">
                 <p class="save-error">{{ settings.state.error }}</p>
-              </ion-text>
-              <ion-text v-if="settings.state.saved" color="success">
-                <p class="save-ok">{{ $t('settings.saved') }}</p>
               </ion-text>
             </div>
 
@@ -484,8 +482,8 @@
                   :class="{ active: (draft.language || 'en') === 'en' }"
                   @click="draft.language = 'en'; settings.markDirty()"
                 >
-                  <div class="theme-preview clear-preview" style="justify-content: center; align-items: center; font-size: 24px; font-weight: 700; color: var(--ion-color-primary);">
-                    EN
+                  <div class="theme-preview flag-preview">
+                    <img src="/flags/us.svg" alt="" class="flag-img" />
                   </div>
                   <div class="theme-info">
                     <span class="theme-name">{{ $t('settings.languageSection.enTitle') }}</span>
@@ -499,8 +497,8 @@
                   :class="{ active: (draft.language || 'en') === 'pt' }"
                   @click="draft.language = 'pt'; settings.markDirty()"
                 >
-                  <div class="theme-preview clear-preview" style="justify-content: center; align-items: center; font-size: 24px; font-weight: 700; color: var(--ion-color-primary); background: linear-gradient(135deg, #eefaf0 0%, #daf0dd 100%);">
-                    PT
+                  <div class="theme-preview flag-preview">
+                    <img src="/flags/br.svg" alt="" class="flag-img" />
                   </div>
                   <div class="theme-info">
                     <span class="theme-name">{{ $t('settings.languageSection.ptTitle') }}</span>
@@ -514,8 +512,8 @@
                   :class="{ active: (draft.language || 'en') === 'es' }"
                   @click="draft.language = 'es'; settings.markDirty()"
                 >
-                  <div class="theme-preview clear-preview" style="justify-content: center; align-items: center; font-size: 24px; font-weight: 700; color: var(--ion-color-primary); background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);">
-                    ES
+                  <div class="theme-preview flag-preview">
+                    <img src="/flags/es.svg" alt="" class="flag-img" />
                   </div>
                   <div class="theme-info">
                     <span class="theme-name">{{ $t('settings.languageSection.esTitle') }}</span>
@@ -526,7 +524,7 @@
             </section>
 
             <!-- Slicer Section -->
-            <section v-if="activeSection === 'slicer'" class="content-section">
+            <section v-if="activeSection === 'slicer' && !isMasBuild" class="content-section">
               <h2 class="section-title">{{ $t('settings.slicerSection.title') }}</h2>
               <p class="section-description">
                 {{ $t('settings.slicerSection.desc') }}
@@ -581,8 +579,10 @@ import {
   IonTitle,
   IonToggle,
   IonToolbar,
+  toastController,
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { folderOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline, buildOutline } from 'ionicons/icons'
 import ProviderTestBanner from '@/components/settings/ProviderTestBanner.vue'
 import type { VisionProviderId, EmbeddingProviderId } from '@/types/providerSettings'
@@ -594,10 +594,14 @@ import {
 } from '@/services/settings/providerSettings'
 import { useSettingsStore } from '@/stores/settingsStore'
  
+const { t } = useI18n()
 const settings = useSettingsStore()
 const draft = computed(() => settings.state.draft)
  
 const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language' | 'slicer'>('library')
+
+/** Sandboxed Mac App Store builds cannot launch external slicer apps. */
+const isMasBuild = window.meshNest?.isMasBuild ?? false
 
 const visionInfo = computed(() => VISION_PROVIDERS[draft.value!.vision.provider as Exclude<VisionProviderId, 'mock'>])
 const embeddingInfo = computed(() => EMBEDDING_PROVIDERS[draft.value!.embedding.provider as Exclude<EmbeddingProviderId, 'mock'>])
@@ -666,7 +670,16 @@ async function pickLibraryFolder(): Promise<void> {
 }
 
 async function save(): Promise<void> {
-  await settings.saveSettings()
+  const ok = await settings.saveSettings()
+  if (ok) {
+    const toast = await toastController.create({
+      message: t('settings.saved'),
+      duration: 2500,
+      color: 'success',
+      position: 'bottom',
+    })
+    await toast.present()
+  }
 }
 
 onMounted(() => {
@@ -699,8 +712,7 @@ onMounted(() => {
   font-size: 13px;
 }
 
-.save-error,
-.save-ok {
+.save-error {
   margin: 0 0 12px;
   font-size: 13px;
 }
@@ -921,6 +933,21 @@ onMounted(() => {
 /* Clear Preview styling */
 .clear-preview {
   background: linear-gradient(135deg, #F4F7FC 0%, #FAEBF4 100%);
+}
+
+/* Flag Preview styling */
+.flag-preview {
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.04);
+  padding: 12px;
+}
+.flag-preview .flag-img {
+  width: 96px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
 }
 .clear-preview .preview-header {
   height: 15px;

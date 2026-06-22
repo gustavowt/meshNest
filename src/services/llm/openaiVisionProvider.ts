@@ -50,4 +50,22 @@ export class OpenAiVisionProvider extends HttpVisionProvider {
     }
     return { answerText, rawResponseJson }
   }
+
+  protected async requestTextOnce(prompt: string) {
+    const rawResponseJson = await this.postJson(
+      `${this.baseUrl.replace(/\/$/, '')}/chat/completions`,
+      { Authorization: `Bearer ${this.apiKey}` },
+      {
+        model: this.model,
+        messages: [{ role: 'user', content: prompt }],
+      },
+    )
+
+    const parsed = JSON.parse(rawResponseJson) as ChatCompletionResponse
+    const answerText = parsed.choices?.[0]?.message?.content
+    if (!answerText) {
+      throw new VisionProviderError('OpenAI response contained no message content.')
+    }
+    return { answerText, rawResponseJson }
+  }
 }

@@ -99,7 +99,18 @@
     "modified": "Modified",
     "indexed": "Indexed",
     "openSlicer": "Open Slicer",
-    "default": "default"
+    "default": "default",
+    "actions": "Actions",
+    "delete": "Delete",
+    "renameWithAi": "Rename with AI",
+    "renamePromptHeader": "Rename with AI",
+    "renamePromptMessage": "Review the suggested name. The file extension is kept automatically.",
+    "renamePlaceholder": "Model name",
+    "rename": "Rename",
+    "renamed": "File renamed.",
+    "deleteConfirmHeader": "Delete model?",
+    "deleteConfirmMessage": "\"{name}\" will be moved to the trash and removed from your library. This cannot be undone from the app.",
+    "deleted": "Model moved to trash."
   },
   "settings": {
     "saving": "Saving…",

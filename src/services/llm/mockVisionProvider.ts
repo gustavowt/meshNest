@@ -49,6 +49,16 @@ export class MockVisionProvider implements VisionProvider {
       rawResponseJson,
     }
   }
+
+  async normalizeName(rawName: string): Promise<string> {
+    const baseName = rawName.replace(/\.[^.]+$/, '')
+    const titled = baseName
+      .split(/[^a-zA-Z0-9]+/)
+      .filter(Boolean)
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+    return titled || 'Unnamed Model'
+  }
 }
 
 function hashString(value: string): number {

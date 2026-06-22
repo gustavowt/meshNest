@@ -21,6 +21,15 @@ export function registerLlmIpc(): void {
     return { name: settings.vision.provider, model: settings.vision.model }
   })
 
+  ipcMain.handle('llm:normalizeName', async (_event, rawName: string, context?: string) => {
+    const settings = await getProviderSettings()
+    if (settings.vision.provider === 'none' || settings.vision.provider === 'mock') {
+      throw new Error('A vision AI provider must be enabled to rename with AI.')
+    }
+    const provider = createVisionProvider(settings.vision)
+    return provider.normalizeName(rawName, context)
+  })
+
   ipcMain.handle('llm:embedText', async (_event, text: string) => {
     const provider = await getActiveEmbeddingProvider()
     return provider.embedText(text)

@@ -31,6 +31,7 @@ export function createVisionProvider(
           },
           rawResponseJson: '{}',
         }),
+        normalizeName: async (rawName: string) => rawName,
       }
     case 'mock':
       return new MockVisionProvider()

@@ -109,7 +109,7 @@
       <div v-else>
         <div class="hero-section">
           <div class="hero-content">
-            <h1 class="hero-title">{{ $t('common.meshNest') }}</h1>
+            <img class="hero-logo" src="/meshNest_logo_name.png" :alt="$t('common.meshNest')" />
             <p class="hero-subtitle">{{ $t('library.heroSubtitle') }}</p>
             <div class="hero-search-container">
               <model-search-bar v-model="searchQuery" @search="handleSearch" class="hero-search-bar" />
@@ -449,15 +449,19 @@ onMounted(async () => {
   width: 100%;
 }
 
-.hero-title {
-  font-size: 38px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #ffffff 10%, #c7d2fe 60%, #c084fc 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  margin: 0 0 10px;
-  letter-spacing: -0.8px;
-  font-family: 'Outfit', sans-serif;
+.hero-logo {
+  display: block;
+  width: auto;
+  height: 96px;
+  max-width: 100%;
+  margin: 0 auto 20px;
+  object-fit: contain;
+}
+
+@media (max-width: 600px) {
+  .hero-logo {
+    height: 64px;
+  }
 }
 
 .hero-subtitle {

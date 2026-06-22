@@ -38,6 +38,8 @@ export type ScanProgressEvent = {
  * through this bridge.
  */
 export type MeshNestApi = {
+  /** True when running as a sandboxed Mac App Store build. */
+  readonly isMasBuild: boolean
   /** Opens the OS directory picker. Resolves to null when cancelled. */
   pickDirectory(): Promise<string | null>
   /** Opens the specified 3D model file with the given slicer. */
@@ -64,6 +66,10 @@ export type MeshNestApi = {
   getModelDetail(modelFileId: string): Promise<ModelDetail | null>
   /** Forces a file back to 'pending' so the next run reindexes it. */
   resetToPending(modelFileId: string): Promise<void>
+  /** Moves the model file to the OS trash and removes all of its records. */
+  deleteModel(modelFileId: string): Promise<void>
+  /** Renames the model file on disk (same folder) and updates its records. */
+  renameModel(modelFileId: string, newName: string): Promise<ModelFile>
 
   // Semantic search.
   searchByEmbedding(
@@ -82,6 +88,8 @@ export type MeshNestApi = {
   // LLM calls (run in main with the configured provider).
   describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult>
   getActiveVisionProvider(): Promise<{ name: string; model: string }>
+  /** Normalizes a raw file name into a clean title via the active vision LLM. */
+  normalizeName(rawName: string, context?: string): Promise<string>
   embedText(text: string): Promise<number[]>
   getActiveEmbeddingProvider(): Promise<{ name: string; model: string; dimensions: number }>
   reembedAll(): Promise<{ embedded: number; failed: number; errorMessage?: string }>

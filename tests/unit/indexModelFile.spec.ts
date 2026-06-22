@@ -165,7 +165,8 @@ describe('indexModelFile', () => {
         model: '',
         describeModel: async () => {
           throw new Error('Should not be called')
-        }
+        },
+        normalizeName: async (rawName: string) => rawName,
       }
     }
 

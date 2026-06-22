@@ -264,11 +264,38 @@ The target structure for services, types, Electron main/preload, and components 
 - IPC: `llm:embedText`, `llm:getActiveEmbeddingProvider`, `llm:reembedAll`. Renderer uses `BridgeEmbeddingProvider` (`src/services/llm/bridgeEmbeddingProvider.ts`); both `createDesktopIndexingDeps()` and the search store now embed through the bridge, so indexing and search always use the configured service.
 - Tests: `tests/unit/embeddingTable.spec.ts` (default width, keep/rebuild semantics, 384-dim round-trip + search, mismatch rejections), `tests/unit/embeddingProviders.spec.ts` (payload shapes per API with fake fetch, dimension validation, 401 mapping, factory selection incl. builtin injection). Verified in Electron with the real model: first `reembedAll` downloaded MiniLM and embedded 7 models in ~13 s; "weekly pill organizer with compartments" ranked the Pill Organizer first at 0.84 and "toy to fidget with" ranked the fidget toy first at 0.74.
 
+### Model actions menu (detail page)
+
+- `src/views/ModelDetailPage.vue` header has an overflow menu (ellipsis `ion-popover`, same pattern as the slicer dropdown) with **Reveal**, **Rename with AI**, **Reindex**, and **Delete**. Open Slicer stays a standalone button. While a reindex runs, a crescent spinner shows in the header (the popover closes on select).
+- **Rename with AI**: only enabled when a real vision provider is active (`openai`/`gemini`/`ollama`); the menu item is grayed out for `none`/`mock`. On click it makes a text-only LLM call (`window.meshNest.normalizeName`) that asks the active vision model to normalize the raw file name into a clean title (passing the AI description as context when available), shows the result in an editable `alertController` prompt, then renames the file on disk in the same folder (keeping the original extension), updates the `model_files` row, and syncs the AI description's `short_name` to the new name so the displayed title updates everywhere. The detail page reloads (`loadDetail` + library refresh) after the rename, so the header title, metadata, and 3D preview reflect the new name. A header spinner shows while the LLM call runs.
+- Name-normalization plumbing: `NAME_NORMALIZATION_PROMPT` (`prompts.ts`); `VisionProvider.normalizeName(rawName, context?)` added to the interface; `HttpVisionProvider` implements it generically via a new abstract `requestTextOnce(prompt)` (text-only, no images, reusing `postJson` + error mapping) plus `buildNameNormalizationPrompt`/`cleanNormalizedName` helpers; each HTTP provider (OpenAI/Gemini/Ollama) implements `requestTextOnce`; `MockVisionProvider`/`none` return trivial values. IPC `llm:normalizeName` rejects `none`/`mock` and runs the active provider in main.
+- **Delete**: confirmation dialog, then moves the file to the OS trash and removes every record for the model.
+- Repository (`ModelFileRepository`): `renameModelFile(id, { absolutePath, relativePath, filename })` updates only the on-disk location columns (content hash/status untouched); `deleteModelFile(id)` clears all dependent rows (geometry, 3MF, render assets, AI description, embedding, indexing jobs) then `model_files` — there are no DB-level cascades.
+- Main process: `electron/main/ipc/modelActionsIpc.ts` registers `model:deleteModel` (`shell.trashItem` best-effort + `RenderAssetStorage.clearModelRenders` + `deleteModelFile`) and `model:renameModel` (sanitizes the name, guards against collisions, `fs.rename`, then `renameModelFile`). Exposed as `window.meshNest.deleteModel` / `renameModel`.
+
 ## Branding assets
 
 - Brand images live in `public/` (served at the web root), all transparent-background PNGs: `meshNest_logo.png` (hexagon icon, square — outer white removed via edge flood-fill so the internal grout lines are preserved), `meshNest_logo_name.png` (logo + wordmark lockup, recolored to a dark-mode variant: white "mesh" + blue "Nest" so it reads on the dark hero), and `favicon.png` (a copy of the icon). Source assets were flat white-background JPEGs; transparency was added with a pure-Python PNG pipeline (no ImageMagick/Pillow on the machine).
-- App icon: `index.html` points its favicon at `./favicon.png`; `electron/main/index.ts` sets the `BrowserWindow` `icon` and calls `app.dock.setIcon(...)` on macOS (dev uses `public/`, packaged uses `dist/`). No `.icns`/`.ico` packaging config exists yet, so the runtime PNG is used directly.
+- App icon: `index.html` points its favicon at `./favicon.png`; `electron/main/index.ts` sets the `BrowserWindow` `icon` and calls `app.dock.setIcon(...)` on macOS (dev uses `public/`, packaged uses `dist/`). The packaged bundle icon is `build/icon.icns`, generated from `public/meshNest_logo.png` (1024px) via `sips`/`iconutil`.
 - Dashboard hero (`src/views/LibraryPage.vue`) shows the transparent `meshNest_logo_name.png` lockup above the search bar instead of a text title.
+
+## Packaging & distribution (Mac App Store)
+
+The app is packaged for the **Mac App Store** with `electron-builder` (`npm run dist:mas`). Config lives in the `build` block of `package.json`.
+
+- **Identity**: appId `app.meshnest.desktop`, productName `meshNest`, category `public.app-category.utilities`, Apple Team ID `P5VE23TX58`.
+- **Targets/output**: `mac.target: ["mas"]`; artifacts go to `release/`. `npmRebuild: false` because DuckDB and onnxruntime ship prebuilt binaries. Native modules (`@duckdb/**`, `onnxruntime-node`, `@huggingface/**`) are `asarUnpack`ed so the `.node`/dylibs load and can be deep-signed.
+- **Icon**: `build/icon.icns`.
+- **Entitlements** (`build/`): `entitlements.mas.plist` (app-sandbox, `network.client`, `files.user-selected.read-write`, app-scope bookmarks, application-identifier/team-identifier) and `entitlements.mas.inherit.plist` (sandbox + inherit) for helper processes.
+- **Provisioning profile**: `mas.provisioningProfile` points at `build/meshnest_mas.provisionprofile` — a Mac App Store distribution profile for the bundle ID that must be downloaded from the Apple Developer portal and placed there before building. Signing also requires the MAS certs (**Apple Distribution** + **Mac Installer Distribution**), which are separate from the Developer ID cert used for direct distribution.
+- **Upload**: the signed `.pkg` in `release/` is uploaded to App Store Connect via Xcode or the Transporter app.
+
+### Sandbox compliance (App Store requirement)
+
+The Mac App Store mandates App Sandbox. Two areas are handled so the sandboxed build behaves correctly; outside the sandbox (dev, any direct build) all of this is a no-op and behavior is unchanged.
+
+- **Security-scoped bookmarks** (`electron/main/services/securityScopedBookmarks.ts`): a sandboxed app loses access to user-selected folders after a restart unless it persists a bookmark. `filesystem:pickDirectory` requests `securityScopedBookmarks: true` and `storeDirectoryBookmark` saves the returned bookmark (keyed by directory) to `userData/security-bookmarks.json`. Every main-process file access — `scanDirectory`, `readModelFile`, `scanFile`, `revealInFolder`, plus `model:renameModel` / `model:deleteModel` — is wrapped in `withSecurityScopedAccess(targetPath, fn)`, which resolves the nearest-ancestor bookmark and brackets the work in `app.startAccessingSecurityScopedResource` / stop. The guard is keyed on `process.mas`, so it only activates in the MAS build.
+- **External app launching**: App Sandbox forbids launching a specific app (`open -a BambuStudio`). In the MAS build `filesystem:openWithSlicer` always hands the file to its default handler via `shell.openPath` (allowed by the sandbox); the named-slicer `spawn`/`exec` paths run only in non-MAS builds. The preload exposes `window.meshNest.isMasBuild` (`process.mas`), which `ModelDetailPage.vue` and `SettingsPage.vue` use to hide the named-slicer dropdown and the slicer settings section.
 
 ## Conventions
 

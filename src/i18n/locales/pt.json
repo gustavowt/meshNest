@@ -99,7 +99,18 @@
     "modified": "Modificado",
     "indexed": "Indexado",
     "openSlicer": "Abrir Fatiador",
-    "default": "padrão"
+    "default": "padrão",
+    "actions": "Ações",
+    "delete": "Excluir",
+    "renameWithAi": "Renomear com IA",
+    "renamePromptHeader": "Renomear com IA",
+    "renamePromptMessage": "Revise o nome sugerido. A extensão do arquivo é mantida automaticamente.",
+    "renamePlaceholder": "Nome do modelo",
+    "rename": "Renomear",
+    "renamed": "Arquivo renomeado.",
+    "deleteConfirmHeader": "Excluir modelo?",
+    "deleteConfirmMessage": "\"{name}\" será movido para a lixeira e removido da sua biblioteca. Isso não pode ser desfeito pelo aplicativo.",
+    "deleted": "Modelo movido para a lixeira."
   },
   "settings": {
     "saving": "Salvando…",

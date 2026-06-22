@@ -4,13 +4,46 @@
   "version": "0.0.1",
   "type": "module",
   "main": "dist-electron/main.js",
+  "author": "Gustavo Warmling Teixeira",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build",
     "preview": "vite preview",
     "test:e2e": "cypress run",
     "test:unit": "vitest",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "dist:mas": "npm run build && electron-builder --mac mas"
+  },
+  "build": {
+    "appId": "app.meshnest.desktop",
+    "productName": "meshNest",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "**/node_modules/@duckdb/**",
+      "**/node_modules/onnxruntime-node/**",
+      "**/node_modules/@huggingface/**"
+    ],
+    "mac": {
+      "category": "public.app-category.utilities",
+      "icon": "build/icon.icns",
+      "target": [
+        "mas"
+      ]
+    },
+    "mas": {
+      "entitlements": "build/entitlements.mas.plist",
+      "entitlementsInherit": "build/entitlements.mas.inherit.plist",
+      "provisioningProfile": "build/meshnest_mas.provisionprofile"
+    }
   },
   "dependencies": {
     "@capacitor/app": "8.1.0",
@@ -41,6 +74,7 @@
     "@vue/test-utils": "^2.3.0",
     "cypress": "^13.5.0",
     "electron": "^42.4.0",
+    "electron-builder": "^26.15.3",
     "eslint": "^8.35.0",
     "eslint-plugin-vue": "^9.9.0",
     "jsdom": "^22.1.0",

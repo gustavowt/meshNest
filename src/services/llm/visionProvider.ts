@@ -30,4 +30,10 @@ export interface VisionProvider {
   readonly name: string
   readonly model: string
   describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult>
+  /**
+   * Normalizes a raw model file name into a clean, human-readable title
+   * (text-only LLM call). `context` may carry known facts about the model
+   * (e.g. AI description, category) to improve the suggestion.
+   */
+  normalizeName(rawName: string, context?: string): Promise<string>
 }

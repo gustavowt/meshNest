@@ -45,4 +45,23 @@ export class OllamaVisionProvider extends HttpVisionProvider {
     }
     return { answerText, rawResponseJson }
   }
+
+  protected async requestTextOnce(prompt: string) {
+    const rawResponseJson = await this.postJson(
+      `${this.baseUrl.replace(/\/$/, '')}/api/chat`,
+      {},
+      {
+        model: this.model,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false,
+      },
+    )
+
+    const parsed = JSON.parse(rawResponseJson) as OllamaChatResponse
+    const answerText = parsed.message?.content
+    if (!answerText) {
+      throw new VisionProviderError('Ollama response contained no message content.')
+    }
+    return { answerText, rawResponseJson }
+  }
 }

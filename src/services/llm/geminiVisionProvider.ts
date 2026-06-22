@@ -42,4 +42,21 @@ export class GeminiVisionProvider extends HttpVisionProvider {
     }
     return { answerText, rawResponseJson }
   }
+
+  protected async requestTextOnce(prompt: string) {
+    const rawResponseJson = await this.postJson(
+      `${GEMINI_BASE}/models/${this.model}:generateContent`,
+      { 'x-goog-api-key': this.apiKey },
+      {
+        contents: [{ parts: [{ text: prompt }] }],
+      },
+    )
+
+    const parsed = JSON.parse(rawResponseJson) as GenerateContentResponse
+    const answerText = parsed.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!answerText) {
+      throw new VisionProviderError('Gemini response contained no candidate text.')
+    }
+    return { answerText, rawResponseJson }
+  }
 }
