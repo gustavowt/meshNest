@@ -62,6 +62,20 @@ export class IndexingJobRepository {
     )
   }
 
+  async updateAbsolutePathForModel(modelFileId: string, absolutePath: string): Promise<void> {
+    await this.client.run(
+      `UPDATE indexing_jobs SET absolute_path = $absolutePath WHERE model_file_id = $modelFileId`,
+      { modelFileId, absolutePath },
+    )
+  }
+
+  async updateAbsolutePath(previousAbsolutePath: string, absolutePath: string): Promise<void> {
+    await this.client.run(
+      `UPDATE indexing_jobs SET absolute_path = $absolutePath WHERE absolute_path = $previousAbsolutePath`,
+      { previousAbsolutePath, absolutePath },
+    )
+  }
+
   async listRecent(limit = 100): Promise<IndexingJob[]> {
     const rows = await this.client.all<IndexingJobRow>(
       `SELECT id, model_file_id, absolute_path, job_type, status, error_message,

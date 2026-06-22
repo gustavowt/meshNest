@@ -37,6 +37,13 @@ export const MIGRATIONS: Migration[] = [
     id: '002_embeddings_hnsw_index',
     statements: [CREATE_HNSW_INDEX],
   },
+  {
+    id: '003_model_files_absolute_path_non_unique',
+    statements: [
+      'DROP INDEX IF EXISTS idx_model_files_absolute_path;',
+      'CREATE INDEX IF NOT EXISTS idx_model_files_absolute_path ON model_files (absolute_path);',
+    ],
+  },
 ]
 
 const CREATE_SCHEMA_MIGRATIONS = `

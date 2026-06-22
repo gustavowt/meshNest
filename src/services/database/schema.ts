@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );`
 
 export const CREATE_INDEXES = [
-  'CREATE UNIQUE INDEX IF NOT EXISTS idx_model_files_absolute_path ON model_files (absolute_path);',
+  'CREATE INDEX IF NOT EXISTS idx_model_files_absolute_path ON model_files (absolute_path);',
   'CREATE INDEX IF NOT EXISTS idx_model_files_content_hash ON model_files (content_hash);',
   'CREATE INDEX IF NOT EXISTS idx_model_files_extension ON model_files (extension);',
   'CREATE INDEX IF NOT EXISTS idx_model_files_status ON model_files (status);',

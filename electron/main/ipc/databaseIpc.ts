@@ -6,19 +6,32 @@ import { IndexingJobRepository } from '../../../src/services/database/indexingJo
 import { LibraryRepository } from '../../../src/services/database/libraryRepository'
 import { getModelDetail } from '../../../src/services/database/modelDetailService'
 import { SearchRepository } from '../../../src/services/database/searchRepository'
-import { ModelFileRepository } from '../../../src/services/database/modelFileRepository'
+import {
+  ModelFileRepository,
+  type UpsertModelFileOptions,
+} from '../../../src/services/database/modelFileRepository'
+import { RenderAssetStorage } from '../../../src/services/rendering/renderAssetStorage'
 import { ThreeMfMetadataRepository } from '../../../src/services/database/threeMfMetadataRepository'
 import type { IndexingJobType } from '../../../src/types/indexing'
 import type { AIModelDescription, ModelEmbedding } from '../../../src/types/llm'
 import type { ScannedFile } from '../../../src/types/modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from '../../../src/types/modelMetadata'
+import { getModelRendersRoot } from '../services/appDataPaths'
 import { getDatabaseClient } from '../services/database'
 
 export function registerDatabaseIpc(): void {
-  ipcMain.handle('database:upsertModelFile', async (_event, file: ScannedFile, projectId: string) => {
-    const repository = new ModelFileRepository(await getDatabaseClient())
-    return repository.upsertModelFile(file, projectId)
-  })
+  ipcMain.handle(
+    'database:upsertModelFile',
+    async (
+      _event,
+      file: ScannedFile,
+      projectId: string,
+      options?: UpsertModelFileOptions,
+    ) => {
+      const repository = new ModelFileRepository(await getDatabaseClient())
+      return repository.upsertModelFile(file, projectId, options)
+    },
+  )
 
   ipcMain.handle('database:listModelFiles', async (_event, projectId?: string) => {
     const repository = new ModelFileRepository(await getDatabaseClient())
@@ -37,6 +50,19 @@ export function registerDatabaseIpc(): void {
   ipcMain.handle('database:resetToPending', async (_event, modelFileId: string) => {
     const repository = new ModelFileRepository(await getDatabaseClient())
     await repository.resetToPending(modelFileId)
+  })
+
+  ipcMain.handle('database:deleteFailedModelFiles', async (_event, projectId?: string) => {
+    const repository = new ModelFileRepository(await getDatabaseClient())
+    const failed = (await repository.listModelFiles(projectId)).filter(
+      (file) => file.status === 'failed',
+    )
+    const renderStorage = new RenderAssetStorage(getModelRendersRoot())
+    for (const file of failed) {
+      await renderStorage.clearModelRenders(file.id)
+    }
+    await repository.deleteFailedModelFiles(projectId)
+    return failed.length
   })
 
   ipcMain.handle(
