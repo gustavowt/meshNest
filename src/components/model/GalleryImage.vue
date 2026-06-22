@@ -24,8 +24,8 @@ const url = useRenderAssetUrl(() => props.path)
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: #f1f2f4;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: var(--card-glass-shadow);
@@ -41,7 +41,7 @@ const url = useRenderAssetUrl(() => props.path)
 
 @media (prefers-color-scheme: dark) {
   .gallery-image {
-    background: rgba(11, 17, 32, 0.3);
+    background: #f1f2f4;
     border: 1px solid rgba(255, 255, 255, 0.05);
   }
   .gallery-image:hover {

@@ -89,15 +89,15 @@ function formatSize(bytes: number): string {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.4);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  background: #f1f2f4;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   padding: 12px;
   overflow: hidden;
 }
 
 @media (prefers-color-scheme: dark) {
   .thumbnail {
-    background: rgba(11, 17, 32, 0.3);
+    background: #f1f2f4;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   }
 }

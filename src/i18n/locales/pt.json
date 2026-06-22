@@ -28,6 +28,24 @@
     "noFiles": "Nenhum arquivo STL ou 3MF encontrado neste diretório."
   },
   "library": {
+    "actions": "Ações da biblioteca",
+    "massRename": "Renomear em massa com IA",
+    "bulkRenameRequiresProvider": "Ative um provedor real de IA de Visão nas Configurações para renomear arquivos com IA.",
+    "bulkRenameRequiresModels": "Adicione arquivos indexados à biblioteca antes de usar a renomeação em massa.",
+    "bulkRenameBusy": "A renomeação em massa não está disponível enquanto outra operação da biblioteca está em execução.",
+    "bulkRenameChooseHeader": "Renomear em massa com IA",
+    "bulkRenameChooseMessage": "Envie {count} arquivo(s) da biblioteca para a IA em uma única solicitação. Escolha como aplicar os nomes sugeridos.",
+    "bulkRenameReview": "Revisar sugestões primeiro",
+    "bulkRenameApplyDirectly": "Aplicar diretamente",
+    "bulkRenameReviewHeader": "Revisar nomes da IA",
+    "bulkRenameReviewMessage": "Edite qualquer nome sugerido antes de renomear {count} arquivo(s). As extensões são mantidas automaticamente.",
+    "bulkRenameApplyReviewed": "Aplicar renomeações",
+    "bulkRenameComplete": "{count} arquivo(s) renomeado(s).",
+    "bulkRenameCancelled": "{count} arquivo(s) renomeado(s). Os arquivos restantes não foram alterados.",
+    "bulkRenamePartial": "{renamed} arquivo(s) renomeado(s), {failed} falharam. Primeiro erro: {error}",
+    "bulkRenameSuggesting": "Gerando sugestões de nomes…",
+    "bulkRenameRenamed": "{count} renomeado(s)",
+    "bulkRenameFailed": "{count} erro(s)",
     "sort": "Ordenar modelos",
     "sortOptions": {
       "name": "Nome",
@@ -36,6 +54,8 @@
     },
     "indexing": "Escaneando {dir}…",
     "indexingCancel": "Cancelar",
+    "indexingSuccessful": "{count} bem-sucedido(s)",
+    "indexingErrors": "{count} erro(s)",
     "runFinished": "Indexação concluída: {parts}",
     "runCancelled": "Indexação cancelada: {parts}",
     "parts": {
@@ -45,6 +65,7 @@
       "pending": "{count} não processado(s)"
     },
     "retryFailed": "Repetir {count} falha(s)",
+    "rescanFailed": "Re-escanear {count} modelo(s) com falha",
     "loadingLibrary": "Carregando biblioteca…",
     "noFolderTitle": "Selecione uma pasta de biblioteca",
     "noFolderDesc": "Escolha uma pasta contendo seus arquivos STL ou 3MF para escanear e indexar seus modelos 3D.",
@@ -99,7 +120,6 @@
     "modified": "Modificado",
     "indexed": "Indexado",
     "openSlicer": "Abrir Fatiador",
-    "default": "padrão",
     "actions": "Ações",
     "delete": "Excluir",
     "renameWithAi": "Renomear com IA",
@@ -116,13 +136,13 @@
     "saving": "Salvando…",
     "problemsTitle": "Problemas de validação:",
     "saved": "Configurações salvas.",
+    "unsavedChanges": "Alterações não salvas. Clique em Salvar antes de escanear ou re-escanear para usar as configurações de provedor atualizadas.",
     "tabs": {
       "library": "Biblioteca",
       "vision": "IA de Visão",
       "embedding": "Embeddings",
       "appearance": "Aparência",
-      "language": "Idioma",
-      "slicer": "Fatiadores"
+      "language": "Idioma"
     },
     "librarySection": {
       "title": "Local da Biblioteca",
@@ -135,17 +155,11 @@
       "title": "Enriquecimento Visual (IA de Visão)",
       "desc": "Enriquece seus modelos 3D gerando tags e títulos descritivos usando modelos de IA de visão.",
       "provider": "Provedor",
-      "useCloud": "Usar Modelos em Nuvem",
-      "useCloudNote": "Requer conta Ollama paga",
-      "modelSelection": "Seleção de Modelo",
-      "customModelOption": "Modelo personalizado...",
       "model": "Modelo",
       "apiKey": "Chave da API",
       "apiKeyPlaceholder": "sk-…",
       "baseUrl": "URL Base",
-      "pullLocal": "Buscar modelos locais",
-      "testConnection": "Testar conexão",
-      "pullFailed": "Falha ao buscar modelos: {error}"
+      "testConnection": "Testar conexão"
     },
     "embeddingSection": {
       "title": "Serviço de Embedding",
@@ -188,12 +202,6 @@
       "ptDesc": "Português",
       "esTitle": "Español",
       "esDesc": "Espanhol"
-    },
-    "slicerSection": {
-      "title": "Configuração do Fatiador",
-      "desc": "Configure os fatiadores de impressora 3D que você utiliza. Selecione seu fatiador padrão para abrir os arquivos de modelo diretamente.",
-      "defaultSlicer": "Fatiador Padrão",
-      "systemDefault": "Padrão do Sistema (SO)"
     }
   }
 }

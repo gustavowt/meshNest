@@ -28,6 +28,24 @@
     "noFiles": "No STL or 3MF files found in this directory."
   },
   "library": {
+    "actions": "Library actions",
+    "massRename": "Mass rename with AI",
+    "bulkRenameRequiresProvider": "Enable a real Vision AI provider in Settings to rename files with AI.",
+    "bulkRenameRequiresModels": "Add indexed library files before using mass rename.",
+    "bulkRenameBusy": "Mass rename is unavailable while another library operation is running.",
+    "bulkRenameChooseHeader": "Mass rename with AI",
+    "bulkRenameChooseMessage": "Send {count} library file(s) to the AI in one request. Choose how to apply the suggested names.",
+    "bulkRenameReview": "Review suggestions first",
+    "bulkRenameApplyDirectly": "Apply directly",
+    "bulkRenameReviewHeader": "Review AI names",
+    "bulkRenameReviewMessage": "Edit any suggested name before renaming {count} file(s). Extensions are kept automatically.",
+    "bulkRenameApplyReviewed": "Apply renames",
+    "bulkRenameComplete": "Renamed {count} file(s).",
+    "bulkRenameCancelled": "Renamed {count} file(s). Remaining files were not changed.",
+    "bulkRenamePartial": "Renamed {renamed} file(s), {failed} failed. First error: {error}",
+    "bulkRenameSuggesting": "Generating rename suggestions…",
+    "bulkRenameRenamed": "{count} renamed",
+    "bulkRenameFailed": "{count} error(s)",
     "sort": "Sort models",
     "sortOptions": {
       "name": "Name",
@@ -36,6 +54,8 @@
     },
     "indexing": "Scanning {dir}…",
     "indexingCancel": "Cancel",
+    "indexingSuccessful": "{count} successful",
+    "indexingErrors": "{count} error(s)",
     "runFinished": "Indexing finished: {parts}",
     "runCancelled": "Indexing cancelled: {parts}",
     "parts": {
@@ -45,6 +65,7 @@
       "pending": "{count} not processed"
     },
     "retryFailed": "Retry {count} failed",
+    "rescanFailed": "Re-scan {count} failed model(s)",
     "loadingLibrary": "Loading library…",
     "noFolderTitle": "Select a library folder",
     "noFolderDesc": "Choose a folder containing your STL or 3MF files to scan and index your 3D models.",
@@ -99,7 +120,6 @@
     "modified": "Modified",
     "indexed": "Indexed",
     "openSlicer": "Open Slicer",
-    "default": "default",
     "actions": "Actions",
     "delete": "Delete",
     "renameWithAi": "Rename with AI",
@@ -116,13 +136,13 @@
     "saving": "Saving…",
     "problemsTitle": "Validation problems:",
     "saved": "Settings saved.",
+    "unsavedChanges": "Unsaved changes. Click Save before scanning or re-scanning to use the updated provider settings.",
     "tabs": {
       "library": "Library",
       "vision": "Vision AI",
       "embedding": "Embeddings",
       "appearance": "Appearance",
-      "language": "Language",
-      "slicer": "Slicers"
+      "language": "Language"
     },
     "librarySection": {
       "title": "Library Location",
@@ -135,17 +155,11 @@
       "title": "Visual Enrichment (Vision AI)",
       "desc": "Enriches your 3D models by generating descriptive tags and titles using vision AI models.",
       "provider": "Provider",
-      "useCloud": "Use Cloud Models",
-      "useCloudNote": "Requires paid Ollama account",
-      "modelSelection": "Model Selection",
-      "customModelOption": "Custom model...",
       "model": "Model",
       "apiKey": "API key",
       "apiKeyPlaceholder": "sk-…",
       "baseUrl": "Base URL",
-      "pullLocal": "Pull local models",
-      "testConnection": "Test connection",
-      "pullFailed": "Failed to pull models: {error}"
+      "testConnection": "Test connection"
     },
     "embeddingSection": {
       "title": "Embedding Service",
@@ -188,12 +202,6 @@
       "ptDesc": "Portuguese",
       "esTitle": "Español",
       "esDesc": "Spanish"
-    },
-    "slicerSection": {
-      "title": "Slicer Configuration",
-      "desc": "Configure the 3D printer slicers you use. Select your default slicer to open model files directly.",
-      "defaultSlicer": "Default Slicer",
-      "systemDefault": "System Default (OS)"
     }
   }
 }

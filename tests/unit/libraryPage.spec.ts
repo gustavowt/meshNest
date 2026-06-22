@@ -62,6 +62,11 @@ describe('LibraryPage.vue', () => {
           'ion-toolbar': { template: '<div><slot /></div>' },
           'ion-title': { template: '<div><slot /></div>' },
           'ion-buttons': { template: '<div><slot /></div>' },
+          'ion-popover': { template: '<div><slot /></div>' },
+          'ion-modal': { template: '<div><slot /></div>' },
+          'ion-list': { template: '<div><slot /></div>' },
+          'ion-item': { template: '<button><slot /></button>' },
+          'ion-label': { template: '<span><slot /></span>' },
           'ion-button': { template: '<button><slot /></button>' },
           'ion-select': { template: '<div><slot /></div>' },
           'ion-select-option': { template: '<div><slot /></div>' },
@@ -137,6 +142,11 @@ describe('LibraryPage.vue', () => {
           'ion-toolbar': { template: '<div><slot /></div>' },
           'ion-title': { template: '<div><slot /></div>' },
           'ion-buttons': { template: '<div><slot /></div>' },
+          'ion-popover': { template: '<div><slot /></div>' },
+          'ion-modal': { template: '<div><slot /></div>' },
+          'ion-list': { template: '<div><slot /></div>' },
+          'ion-item': { template: '<button><slot /></button>' },
+          'ion-label': { template: '<span><slot /></span>' },
           'ion-button': { template: '<button><slot /></button>' },
           'ion-select': { template: '<div><slot /></div>' },
           'ion-select-option': { template: '<div><slot /></div>' },
@@ -181,6 +191,56 @@ describe('LibraryPage.vue', () => {
 
     wrapper.unmount()
     vi.useRealTimers()
+  })
+
+  test('shows re-scan failed models action in the hero when failed entries exist', async () => {
+    const mockEntries = [
+      entry({ filename: 'good.stl', status: 'indexed' }),
+      entry({ filename: 'bad.stl', status: 'failed', errorMessage: 'Parse error' }),
+    ]
+    window.meshNest = {
+      listLibraryEntries: async () => mockEntries,
+      countEmbeddings: async () => 1,
+    } as any
+
+    const settingsStore = useSettingsStore()
+    settingsStore.state.draft = { libraryFolder: '/models' } as any
+
+    const wrapper = mount(LibraryPage, {
+      global: {
+        stubs: {
+          'ion-page': { template: '<div><slot /></div>' },
+          'ion-header': { template: '<div><slot /></div>' },
+          'ion-toolbar': { template: '<div><slot /></div>' },
+          'ion-title': { template: '<div><slot /></div>' },
+          'ion-buttons': { template: '<div><slot /></div>' },
+          'ion-popover': { template: '<div><slot /></div>' },
+          'ion-modal': { template: '<div><slot /></div>' },
+          'ion-list': { template: '<div><slot /></div>' },
+          'ion-item': { template: '<button><slot /></button>' },
+          'ion-label': { template: '<span><slot /></span>' },
+          'ion-button': { template: '<button><slot /></button>' },
+          'ion-select': { template: '<div><slot /></div>' },
+          'ion-select-option': { template: '<div><slot /></div>' },
+          'ion-icon': { template: '<div><slot /></div>' },
+          'ion-progress-bar': { template: '<div><slot /></div>' },
+          'ion-content': { template: '<div><slot /></div>' },
+          'ion-spinner': { template: '<div><slot /></div>' },
+          'model-search-bar': {
+            template: '<input class="search-input" />',
+          },
+          'model-grid': {
+            template: '<div class="mock-grid"><div v-for="e in entries" :key="e.id">{{ e.filename }}</div></div>',
+            props: ['entries'],
+          },
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Re-scan 1 failed model(s)')
+    wrapper.unmount()
   })
 })
 

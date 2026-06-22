@@ -16,54 +16,167 @@
             <ion-select-option value="modifiedAt">{{ $t('library.sortOptions.modified') }}</ion-select-option>
             <ion-select-option value="indexedAt">{{ $t('library.sortOptions.indexed') }}</ion-select-option>
           </ion-select>
-          <ion-button router-link="/settings" :aria-label="$t('common.settings')">
-            <ion-icon slot="icon-only" :icon="settingsOutline" />
+          <ion-spinner v-if="bulkRenaming" name="crescent" class="header-spinner" />
+          <ion-button
+            id="library-actions-trigger"
+            :disabled="bulkRenaming"
+            :aria-label="$t('library.actions')"
+          >
+            <ion-icon slot="icon-only" :icon="ellipsisVerticalOutline" />
           </ion-button>
         </ion-buttons>
       </ion-toolbar>
 
-      <ion-toolbar v-if="indexing.state.running">
+      <ion-toolbar v-if="indexing.state.running" class="indexing-toolbar">
         <div class="indexing-bar">
-          <ion-progress-bar
-            :type="indexing.state.progress ? 'determinate' : 'indeterminate'"
-            :value="progressFraction"
-          />
-          <div class="indexing-info">
-            <span v-if="indexing.state.progress">
-              {{ indexing.state.progress.processed }} / {{ indexing.state.progress.total }}
-              <span v-if="indexing.state.progress.currentFile" class="current-file">
-                · {{ indexing.state.progress.currentFile }}
+          <div class="indexing-panel">
+            <div class="indexing-info">
+              <div class="indexing-copy">
+                <span v-if="indexing.state.progress" class="indexing-title">
+                  {{ indexing.state.progress.processed }} / {{ indexing.state.progress.total }}
+                </span>
+                <span v-else class="indexing-title">
+                  {{ $t('library.indexing', { dir: indexing.state.directory }) }}
+                </span>
+                <span v-if="currentFileName" class="current-file">{{ currentFileName }}</span>
+              </div>
+              <ion-button
+                class="indexing-cancel-btn"
+                size="small"
+                fill="clear"
+                color="medium"
+                @click="indexing.cancelIndexing()"
+              >
+                {{ $t('library.indexingCancel') }}
+              </ion-button>
+            </div>
+            <ion-progress-bar
+              class="indexing-progress"
+              :type="indexing.state.progress ? 'determinate' : 'indeterminate'"
+              :value="progressFraction"
+            />
+            <div v-if="indexing.state.progress" class="indexing-stats" aria-live="polite">
+              <span class="indexing-stat success">
+                {{ $t('library.indexingSuccessful', { count: indexingSuccessfulCount }) }}
               </span>
-            </span>
-            <span v-else>{{ $t('library.indexing', { dir: indexing.state.directory }) }}</span>
-            <ion-button size="small" fill="clear" color="medium" @click="indexing.cancelIndexing()">
-              {{ $t('library.indexingCancel') }}
-            </ion-button>
+              <span class="indexing-stat error">
+                {{ $t('library.indexingErrors', { count: indexingErrorCount }) }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </ion-toolbar>
+
+      <ion-toolbar v-else-if="bulkRenameProgress.phase !== 'idle'" class="indexing-toolbar">
+        <div class="indexing-bar">
+          <div class="indexing-panel">
+            <div class="indexing-info">
+              <div class="indexing-copy">
+                <span v-if="bulkRenameProgress.phase === 'applying'" class="indexing-title">
+                  {{ bulkRenameProgress.processed }} / {{ bulkRenameProgress.total }}
+                </span>
+                <span v-else class="indexing-title">
+                  {{ $t('library.bulkRenameSuggesting') }}
+                </span>
+                <span v-if="currentBulkRenameFileName" class="current-file">{{ currentBulkRenameFileName }}</span>
+              </div>
+              <ion-button
+                v-if="bulkRenameCanCancel"
+                class="indexing-cancel-btn"
+                size="small"
+                fill="clear"
+                color="medium"
+                @click="cancelBulkRename"
+              >
+                {{ $t('library.indexingCancel') }}
+              </ion-button>
+            </div>
+            <ion-progress-bar
+              class="indexing-progress"
+              :type="bulkRenameProgress.phase === 'applying' ? 'determinate' : 'indeterminate'"
+              :value="bulkRenameProgressFraction"
+            />
+            <div v-if="bulkRenameProgress.phase === 'applying'" class="indexing-stats" aria-live="polite">
+              <span class="indexing-stat success">
+                {{ $t('library.bulkRenameRenamed', { count: bulkRenameProgress.renamed }) }}
+              </span>
+              <span class="indexing-stat error">
+                {{ $t('library.bulkRenameFailed', { count: bulkRenameProgress.failed }) }}
+              </span>
+            </div>
           </div>
         </div>
       </ion-toolbar>
     </ion-header>
 
     <ion-content :fullscreen="true">
+      <ion-popover trigger="library-actions-trigger" dismiss-on-select="true">
+        <ion-list>
+          <ion-item
+            button
+            :detail="false"
+            :disabled="!bulkRenameEnabled"
+            :title="bulkRenameActionTitle"
+            @click="startBulkRename"
+          >
+            <ion-icon slot="start" :icon="sparklesOutline" />
+            <ion-label>{{ $t('library.massRename') }}</ion-label>
+          </ion-item>
+          <ion-item button :detail="false" router-link="/settings" lines="none">
+            <ion-icon slot="start" :icon="settingsOutline" />
+            <ion-label>{{ $t('common.settings') }}</ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-popover>
+
+      <ion-modal
+        :is-open="bulkRenameModeModalOpen"
+        css-class="bulk-rename-mode-modal"
+        @didDismiss="closeBulkRenameModeModal(null)"
+      >
+        <div class="bulk-rename-mode-card">
+          <h2>{{ $t('library.bulkRenameChooseHeader') }}</h2>
+          <p>{{ $t('library.bulkRenameChooseMessage', { count: bulkRenameCandidates.length }) }}</p>
+          <div class="bulk-rename-mode-actions">
+            <ion-button
+              expand="block"
+              fill="solid"
+              class="bulk-rename-mode-primary"
+              @click="closeBulkRenameModeModal('review')"
+            >
+              {{ $t('library.bulkRenameReview') }}
+            </ion-button>
+            <ion-button
+              expand="block"
+              fill="outline"
+              class="bulk-rename-mode-secondary"
+              @click="closeBulkRenameModeModal('apply')"
+            >
+              {{ $t('library.bulkRenameApplyDirectly') }}
+            </ion-button>
+            <ion-button
+              expand="block"
+              fill="clear"
+              class="bulk-rename-mode-cancel"
+              @click="closeBulkRenameModeModal(null)"
+            >
+              {{ $t('common.cancel') }}
+            </ion-button>
+          </div>
+        </div>
+      </ion-modal>
+
       <!-- Run summary -->
       <div v-if="runMessage" class="run-summary">
         <ion-text :color="indexing.state.summary?.failed ? 'warning' : 'success'">
           <p>{{ runMessage }}</p>
         </ion-text>
-        <ion-button
-          v-if="indexing.failedCount() > 0 && !indexing.state.running"
-          size="small"
-          fill="outline"
-          color="warning"
-          @click="retryFailed"
-        >
-          {{ $t('library.retryFailed', { count: indexing.failedCount() }) }}
-        </ion-button>
       </div>
 
-      <ion-text v-if="indexing.state.error" color="danger">
-        <p class="state-message">{{ indexing.state.error }}</p>
-      </ion-text>
+      <div v-if="indexing.state.error" class="inline-alert indexing-error" role="alert">
+        <ion-icon :icon="alertCircleOutline" class="inline-alert-icon" aria-hidden="true" />
+        <p>{{ indexing.state.error }}</p>
+      </div>
 
       <!-- Loading state -->
       <div v-if="library.state.loading || settings.state.loading" class="state-container">
@@ -108,6 +221,16 @@
       <!-- Main Library View with Hero Section -->
       <div v-else>
         <div class="hero-section">
+          <ion-button
+            v-if="failedLibraryCount > 0 && !indexing.state.running"
+            class="hero-rescan-failed-btn"
+            size="small"
+            fill="clear"
+            @click="retryFailedModels"
+          >
+            <ion-icon slot="start" :icon="refreshOutline" />
+            {{ $t('library.rescanFailed', { count: failedLibraryCount }) }}
+          </ion-button>
           <div class="hero-content">
             <img class="hero-logo" src="/meshNest_logo_name.png" :alt="$t('common.meshNest')" />
             <p class="hero-subtitle">{{ $t('library.heroSubtitle') }}</p>
@@ -157,7 +280,12 @@ import {
   IonContent,
   IonHeader,
   IonIcon,
+  IonItem,
+  IonLabel,
+  IonList,
+  IonModal,
   IonPage,
+  IonPopover,
   IonProgressBar,
   IonSelect,
   IonSelectOption,
@@ -165,16 +293,20 @@ import {
   IonText,
   IonTitle,
   IonToolbar,
+  alertController,
+  toastController,
 } from '@ionic/vue'
 import {
   alertCircleOutline,
   cubeOutline,
+  ellipsisVerticalOutline,
   folderOutline,
   refreshOutline,
   searchOutline,
   settingsOutline,
+  sparklesOutline,
 } from 'ionicons/icons'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import ModelGrid from '@/components/library/ModelGrid.vue'
@@ -184,6 +316,7 @@ import { useLibraryStore } from '@/stores/libraryStore'
 import { useSearchStore } from '@/stores/searchStore'
 import { useSettingsStore } from '@/stores/settingsStore'
 import type { LibraryEntry } from '@/types/library'
+import type { NameNormalizationInput } from '@/services/llm/visionProvider'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -193,6 +326,28 @@ const search = useSearchStore()
 const settings = useSettingsStore()
 
 const searchQuery = ref(search.state.query)
+const bulkRenaming = ref(false)
+const bulkRenameModeModalOpen = ref(false)
+
+type BulkRenameMode = 'review' | 'apply'
+type BulkRenamePhase = 'idle' | 'suggesting' | 'applying'
+type BulkRenameSuggestion = {
+  entry: LibraryEntry
+  normalizedName: string
+}
+
+const bulkRenameProgress = reactive({
+  phase: 'idle' as BulkRenamePhase,
+  total: 0,
+  processed: 0,
+  renamed: 0,
+  failed: 0,
+  currentFile: '',
+})
+const bulkRenameCancelRequested = ref(false)
+let bulkRenameModeResolver: ((mode: BulkRenameMode | null) => void) | null = null
+
+const AI_VISION_PROVIDERS = ['openai', 'gemini', 'ollama']
 
 const searchEntries = computed<LibraryEntry[]>(() => {
   return search.state.results
@@ -227,6 +382,52 @@ const displayedEntries = computed<LibraryEntry[]>(() => {
   return searchEntries.value
 })
 
+const bulkRenameCandidates = computed<LibraryEntry[]>(() => library.sortedEntries.value)
+
+const activeVisionProvider = computed(() => settings.state.draft?.vision?.provider ?? 'none')
+
+const bulkRenameHasAiProvider = computed(() =>
+  AI_VISION_PROVIDERS.includes(activeVisionProvider.value),
+)
+
+const bulkRenameEnabled = computed(() =>
+  Boolean(
+    window.meshNest &&
+      bulkRenameCandidates.value.length > 0 &&
+      !indexing.state.running &&
+      !bulkRenaming.value &&
+      !bulkRenameModeModalOpen.value &&
+      bulkRenameHasAiProvider.value,
+  ),
+)
+
+const bulkRenameActionTitle = computed(() => {
+  if (!bulkRenameHasAiProvider.value) {
+    return t('library.bulkRenameRequiresProvider')
+  }
+  if (bulkRenameCandidates.value.length === 0) {
+    return t('library.bulkRenameRequiresModels')
+  }
+  if (indexing.state.running || bulkRenaming.value || bulkRenameModeModalOpen.value) {
+    return t('library.bulkRenameBusy')
+  }
+  return t('library.massRename')
+})
+
+const bulkRenameProgressFraction = computed(() =>
+  bulkRenameProgress.total > 0 ? bulkRenameProgress.processed / bulkRenameProgress.total : 0,
+)
+
+const bulkRenameCanCancel = computed(() => bulkRenameProgress.phase === 'applying')
+
+const currentBulkRenameFileName = computed(() => {
+  const currentFile = bulkRenameProgress.currentFile
+  if (!currentFile) {
+    return ''
+  }
+  return currentFile.split(/[\\/]/).pop() ?? currentFile
+})
+
 function handleSearch(val: string): void {
   if (searchTimeout) {
     clearTimeout(searchTimeout)
@@ -239,9 +440,280 @@ function openDetail(entry: LibraryEntry): void {
   router.push({ name: 'ModelDetail', params: { id: entry.id } })
 }
 
+async function showErrorToast(message: string): Promise<void> {
+  const toast = await toastController.create({
+    message,
+    duration: 6000,
+    color: 'danger',
+    buttons: [
+      {
+        text: t('common.close'),
+        role: 'cancel',
+      },
+    ],
+  })
+  await toast.present()
+}
+
+async function showSuccessToast(message: string): Promise<void> {
+  const toast = await toastController.create({
+    message,
+    duration: 3000,
+    color: 'success',
+  })
+  await toast.present()
+}
+
+function resetBulkRenameProgress(): void {
+  bulkRenameProgress.phase = 'idle'
+  bulkRenameProgress.total = 0
+  bulkRenameProgress.processed = 0
+  bulkRenameProgress.renamed = 0
+  bulkRenameProgress.failed = 0
+  bulkRenameProgress.currentFile = ''
+  bulkRenameCancelRequested.value = false
+}
+
+function startBulkRenameSuggesting(): void {
+  bulkRenaming.value = true
+  bulkRenameCancelRequested.value = false
+  bulkRenameProgress.phase = 'suggesting'
+  bulkRenameProgress.total = 0
+  bulkRenameProgress.processed = 0
+  bulkRenameProgress.renamed = 0
+  bulkRenameProgress.failed = 0
+  bulkRenameProgress.currentFile = ''
+}
+
+function startBulkRenameApplying(total: number): void {
+  bulkRenaming.value = true
+  bulkRenameCancelRequested.value = false
+  bulkRenameProgress.phase = 'applying'
+  bulkRenameProgress.total = total
+  bulkRenameProgress.processed = 0
+  bulkRenameProgress.renamed = 0
+  bulkRenameProgress.failed = 0
+  bulkRenameProgress.currentFile = ''
+}
+
+function cancelBulkRename(): void {
+  bulkRenameCancelRequested.value = true
+}
+
+async function chooseBulkRenameMode(count: number): Promise<BulkRenameMode | null> {
+  if (count === 0) {
+    return null
+  }
+  bulkRenameModeModalOpen.value = true
+  return new Promise((resolve) => {
+    bulkRenameModeResolver = resolve
+  })
+}
+
+function closeBulkRenameModeModal(mode: BulkRenameMode | null): void {
+  bulkRenameModeModalOpen.value = false
+  if (!bulkRenameModeResolver) {
+    return
+  }
+  const resolve = bulkRenameModeResolver
+  bulkRenameModeResolver = null
+  resolve(mode)
+}
+
+function formatContextSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return 'unknown'
+  }
+  const units = ['B', 'KB', 'MB', 'GB']
+  let size = bytes
+  let unitIndex = 0
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024
+    unitIndex += 1
+  }
+  return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`
+}
+
+function buildBulkRenameContext(entry: LibraryEntry): string {
+  const parts = [
+    `Relative path: ${entry.relativePath}`,
+    `Format: ${entry.extension.toUpperCase()}`,
+    `Status: ${entry.status}`,
+    `Size: ${formatContextSize(entry.sizeBytes)}`,
+  ]
+  if (entry.shortName?.trim()) {
+    parts.push(`Current AI short name: ${entry.shortName.trim()}`)
+  }
+  if (entry.likelyCategory?.trim()) {
+    parts.push(`Likely category: ${entry.likelyCategory.trim()}`)
+  }
+  if (entry.tags.length > 0) {
+    parts.push(`Tags: ${entry.tags.slice(0, 8).join(', ')}`)
+  }
+  return parts.join('\n')
+}
+
+async function startBulkRename(): Promise<void> {
+  if (!window.meshNest || !bulkRenameEnabled.value) {
+    return
+  }
+  const candidates = bulkRenameCandidates.value
+  const mode = await chooseBulkRenameMode(candidates.length)
+  if (!mode) {
+    return
+  }
+
+  const request: NameNormalizationInput[] = candidates.map((entry) => ({
+    id: entry.id,
+    rawName: entry.filename,
+    context: buildBulkRenameContext(entry),
+  }))
+
+  startBulkRenameSuggesting()
+  let suggestions: BulkRenameSuggestion[]
+  try {
+    const results = await window.meshNest.normalizeNames(request)
+    const entriesById = new Map(candidates.map((entry) => [entry.id, entry]))
+    suggestions = results
+      .map((result) => {
+        const entry = entriesById.get(result.id)
+        return entry ? { entry, normalizedName: result.normalizedName } : null
+      })
+      .filter((item): item is BulkRenameSuggestion => item !== null)
+  } catch (renameError) {
+    await showErrorToast(renameError instanceof Error ? renameError.message : String(renameError))
+    resetBulkRenameProgress()
+    return
+  } finally {
+    if (bulkRenameProgress.phase === 'suggesting') {
+      bulkRenaming.value = false
+      bulkRenameProgress.phase = 'idle'
+    }
+  }
+
+  if (mode === 'review') {
+    await reviewBulkRenameSuggestions(suggestions)
+    return
+  }
+  await applyBulkRenameSuggestions(suggestions)
+}
+
+async function reviewBulkRenameSuggestions(suggestions: BulkRenameSuggestion[]): Promise<void> {
+  const alert = await alertController.create({
+    header: t('library.bulkRenameReviewHeader'),
+    message: t('library.bulkRenameReviewMessage', { count: suggestions.length }),
+    inputs: suggestions.map((suggestion, index) => ({
+      name: `name${index}`,
+      type: 'text',
+      value: suggestion.normalizedName,
+      placeholder: suggestion.entry.filename,
+    })),
+    buttons: [
+      { text: t('common.cancel'), role: 'cancel' },
+      { text: t('library.bulkRenameApplyReviewed'), role: 'confirm' },
+    ],
+  })
+  await alert.present()
+  const result = await alert.onDidDismiss()
+  if (result.role !== 'confirm') {
+    return
+  }
+  const values = result.data?.values ?? {}
+  await applyBulkRenameSuggestions(
+    suggestions.map((suggestion, index) => ({
+      entry: suggestion.entry,
+      normalizedName: String(values[`name${index}`] ?? '').trim(),
+    })),
+  )
+}
+
+async function applyBulkRenameSuggestions(suggestions: BulkRenameSuggestion[]): Promise<void> {
+  if (!window.meshNest || suggestions.length === 0) {
+    return
+  }
+
+  startBulkRenameApplying(suggestions.length)
+  let renamed = 0
+  const failures: string[] = []
+  try {
+    for (const suggestion of suggestions) {
+      if (bulkRenameCancelRequested.value) {
+        break
+      }
+      bulkRenameProgress.currentFile = suggestion.entry.filename
+      const newName = suggestion.normalizedName.trim()
+      if (!newName) {
+        bulkRenameProgress.processed += 1
+        continue
+      }
+      try {
+        const previousAbsolutePath = suggestion.entry.absolutePath
+        const updated = await window.meshNest.renameModel(suggestion.entry.id, newName)
+        indexing.syncRenamedModel(previousAbsolutePath, updated)
+        library.patchEntry(updated.id, {
+          absolutePath: updated.absolutePath,
+          relativePath: updated.relativePath,
+          filename: updated.filename,
+          shortName: updated.filename.replace(/\.[^.]+$/, ''),
+        })
+        search.patchResultPaths(updated.id, {
+          absolutePath: updated.absolutePath,
+          filename: updated.filename,
+        })
+        renamed += 1
+        bulkRenameProgress.renamed = renamed
+      } catch (renameError) {
+        const reason = renameError instanceof Error ? renameError.message : String(renameError)
+        failures.push(`${suggestion.entry.filename}: ${reason}`)
+        bulkRenameProgress.failed = failures.length
+      } finally {
+        bulkRenameProgress.processed += 1
+      }
+    }
+    await library.loadLibrary()
+    const cancelled = bulkRenameCancelRequested.value
+    if (failures.length > 0) {
+      await showErrorToast(
+        t('library.bulkRenamePartial', {
+          renamed,
+          failed: failures.length,
+          error: failures[0],
+        }),
+      )
+      return
+    }
+    if (cancelled) {
+      await showSuccessToast(t('library.bulkRenameCancelled', { count: renamed }))
+      return
+    }
+    await showSuccessToast(t('library.bulkRenameComplete', { count: renamed }))
+  } finally {
+    resetBulkRenameProgress()
+  }
+}
+
+const failedLibraryCount = computed(
+  () => library.state.entries.filter((entry) => entry.status === 'failed').length,
+)
+
 const progressFraction = computed(() => {
   const progress = indexing.state.progress
   return progress && progress.total > 0 ? progress.processed / progress.total : 0
+})
+
+const indexingSuccessfulCount = computed(() => {
+  const progress = indexing.state.progress
+  return progress ? progress.indexed + progress.skipped : 0
+})
+
+const indexingErrorCount = computed(() => indexing.state.progress?.failed ?? 0)
+
+const currentFileName = computed(() => {
+  const currentFile = indexing.state.progress?.currentFile
+  if (!currentFile) {
+    return ''
+  }
+  return currentFile.split(/[\\/]/).pop() ?? currentFile
 })
 
 const runMessage = computed(() => {
@@ -281,15 +753,21 @@ async function selectAndIndex(): Promise<void> {
   await indexing.runIndexing(directory)
 }
 
+async function retryFailedModels(): Promise<void> {
+  const failed = library.state.entries.filter((entry) => entry.status === 'failed')
+  if (failed.length > 0) {
+    await indexing.retryFailedLibrary(failed, settings.state.draft?.libraryFolder)
+    await library.loadLibrary()
+    return
+  }
+  await indexing.retryFailed()
+}
+
 async function rescanCurrentFolder(): Promise<void> {
   const directory = settings.state.draft?.libraryFolder
   if (directory) {
     await indexing.runIndexing(directory)
   }
-}
-
-async function retryFailed(): Promise<void> {
-  await indexing.retryFailed()
 }
 
 // Refresh the library whenever an indexing run finishes.
@@ -342,22 +820,189 @@ onMounted(async () => {
   font-size: 14px;
 }
 
+.header-spinner {
+  align-self: center;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 6px;
+}
+
+:global(.bulk-rename-mode-modal) {
+  --width: min(440px, calc(100vw - 32px));
+  --height: auto;
+  --border-radius: 18px;
+}
+
+.bulk-rename-mode-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 22px;
+  color: var(--ion-text-color);
+  background: var(--ion-background-color);
+}
+
+.bulk-rename-mode-card h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.bulk-rename-mode-card p {
+  margin: 0;
+  color: var(--ion-color-medium);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.bulk-rename-mode-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bulk-rename-mode-primary,
+.bulk-rename-mode-secondary,
+.bulk-rename-mode-cancel {
+  margin: 0;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.bulk-rename-mode-secondary {
+  --border-color: rgba(var(--ion-color-primary-rgb), 0.45);
+  --color: var(--ion-color-primary);
+}
+
+.bulk-rename-mode-cancel {
+  --color: var(--ion-color-medium);
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(.bulk-rename-mode-modal) {
+    --background: #0f172a;
+    --box-shadow: 0 24px 70px rgba(0, 0, 0, 0.42);
+  }
+
+  .bulk-rename-mode-card {
+    color: rgba(255, 255, 255, 0.92);
+    background: #0f172a;
+  }
+
+  .bulk-rename-mode-card p {
+    color: rgba(255, 255, 255, 0.72);
+  }
+
+  .bulk-rename-mode-secondary {
+    --border-color: rgba(129, 140, 248, 0.5);
+    --color: rgba(255, 255, 255, 0.9);
+  }
+
+  .bulk-rename-mode-cancel {
+    --color: rgba(255, 255, 255, 0.68);
+  }
+}
+
+.indexing-toolbar {
+  --min-height: auto;
+  --padding-top: 0;
+  --padding-bottom: 0;
+  --background: var(--ion-toolbar-background, var(--ion-background-color));
+  border-top: 1px solid rgba(var(--ion-color-primary-rgb), 0.1);
+}
+
 .indexing-bar {
-  padding: 0 16px 8px;
+  padding: 8px 14px 12px;
+}
+
+.indexing-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 12px 12px;
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.14);
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(var(--ion-color-primary-rgb), 0.08),
+    rgba(var(--ion-color-primary-rgb), 0.03)
+  );
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .indexing-info {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+}
+
+.indexing-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.indexing-title {
+  color: var(--ion-text-color);
   font-size: 13px;
-  color: var(--ion-color-medium);
-  margin-top: 4px;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .current-file {
-  word-break: break-all;
+  overflow: hidden;
+  color: var(--ion-color-medium);
+  font-size: 12px;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indexing-cancel-btn {
+  flex: 0 0 auto;
+  margin: -4px -4px -4px 8px;
+  font-weight: 600;
+  text-transform: none;
+  --padding-start: 10px;
+  --padding-end: 10px;
+}
+
+.indexing-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  --background: rgba(var(--ion-color-primary-rgb), 0.16);
+  --progress-background: var(--ion-color-primary);
+}
+
+.indexing-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.indexing-stat {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.indexing-stat.success {
+  color: var(--ion-color-success-shade);
+  background: rgba(var(--ion-color-success-rgb), 0.11);
+}
+
+.indexing-stat.error {
+  color: var(--ion-color-danger-shade);
+  background: rgba(var(--ion-color-danger-rgb), 0.1);
 }
 
 .run-summary {
@@ -372,10 +1017,32 @@ onMounted(async () => {
   font-size: 14px;
 }
 
-.state-message {
-  padding: 8px 16px 0;
+.inline-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 16px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.indexing-error {
+  color: var(--ion-color-danger-shade);
+  border: 1px solid rgba(var(--ion-color-danger-rgb), 0.18);
+  background: rgba(var(--ion-color-danger-rgb), 0.08);
+}
+
+.inline-alert-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  font-size: 18px;
+}
+
+.inline-alert p {
+  min-width: 0;
   margin: 0;
-  font-size: 14px;
 }
 
 .state-container {
@@ -470,6 +1137,42 @@ onMounted(async () => {
   margin: 0 0 28px;
   font-weight: 400;
   letter-spacing: -0.1px;
+}
+
+.hero-rescan-failed-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 3;
+  margin: 0;
+  --color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  --padding-start: 6px;
+  --padding-end: 8px;
+  --padding-top: 2px;
+  --padding-bottom: 2px;
+}
+
+.hero-rescan-failed-btn:hover,
+.hero-rescan-failed-btn:focus {
+  --color: rgba(255, 255, 255, 0.82);
+}
+
+.hero-rescan-failed-btn ion-icon {
+  font-size: 13px;
+  margin-inline-end: 4px;
+  opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .hero-rescan-failed-btn {
+    top: 8px;
+    right: 6px;
+    font-size: 11px;
+  }
 }
 
 .hero-search-container {
