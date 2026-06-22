@@ -21,6 +21,17 @@ export type VisionProviderResult = {
   rawResponseJson: string
 }
 
+export type NameNormalizationInput = {
+  id: string
+  rawName: string
+  context?: string
+}
+
+export type NameNormalizationResult = {
+  id: string
+  normalizedName: string
+}
+
 /**
  * Contract implemented by every vision backend (mock, OpenAI-compatible,
  * Ollama, ...). The indexing pipeline depends only on this interface and
@@ -36,4 +47,9 @@ export interface VisionProvider {
    * (e.g. AI description, category) to improve the suggestion.
    */
   normalizeName(rawName: string, context?: string): Promise<string>
+  /**
+   * Normalizes several names in one text-only LLM call. Each result is keyed by
+   * the corresponding input id so callers can keep file records aligned.
+   */
+  normalizeNames(items: NameNormalizationInput[]): Promise<NameNormalizationResult[]>
 }

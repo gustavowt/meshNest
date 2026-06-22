@@ -1,6 +1,9 @@
 import { describe, expect, test, vi } from 'vitest'
 import {
+  buildBulkNameNormalizationPrompt,
+  buildNameNormalizationPrompt,
   buildVisionUserText,
+  parseBulkNormalizedNames,
   stripJsonFences,
   VisionProviderError,
 } from '@/services/llm/httpVisionProvider'
@@ -89,6 +92,36 @@ describe('stripJsonFences', () => {
   })
 })
 
+describe('name normalization prompts', () => {
+  test('adds context and concise-name guidance to the single-file prompt', () => {
+    const prompt = buildNameNormalizationPrompt('dragon_phone_stand_v2.stl', 'Category: utility')
+
+    expect(prompt).toContain('dragon_phone_stand_v2.stl')
+    expect(prompt).toContain('Category: utility')
+    expect(prompt).toContain('2-5 words')
+  })
+
+  test('builds and parses bulk rename JSON by id', () => {
+    const prompt = buildBulkNameNormalizationPrompt([
+      { id: 'a', rawName: 'dragon_phone_stand_v2.stl', context: 'Tags: dragon, stand' },
+      { id: 'b', rawName: 'box-final-copy.3mf', context: 'Likely category: organizers' },
+    ])
+
+    expect(prompt).toContain('"id": "a"')
+    expect(prompt).toContain('dragon_phone_stand_v2.stl')
+    expect(prompt).toContain('Avoid duplicate names')
+
+    expect(
+      parseBulkNormalizedNames(
+        '```json\n{"renames":[{"id":"a","normalizedName":"Dragon Stand"},{"id":"b","normalizedName":"Storage Box"}]}\n```',
+      ),
+    ).toEqual([
+      { id: 'a', normalizedName: 'Dragon Stand' },
+      { id: 'b', normalizedName: 'Storage Box' },
+    ])
+  })
+})
+
 describe('OpenAiVisionProvider', () => {
   test('sends prompt + data-URL images and parses the JSON answer', async () => {
     const { fetch, calls } = fakeFetch([openAiBody(JSON.stringify(VALID_DESCRIPTION))])
@@ -156,6 +189,34 @@ describe('OpenAiVisionProvider', () => {
 
     const result = await provider.describeModel(sampleInput())
     expect(result.description.shortName).toBe('Dragon stand')
+  })
+
+  test('normalizes several names in one text request', async () => {
+    const { fetch, calls } = fakeFetch([
+      openAiBody(
+        JSON.stringify({
+          renames: [
+            { id: 'a', normalizedName: 'Dragon Stand' },
+            { id: 'b', normalizedName: 'Storage Box' },
+          ],
+        }),
+      ),
+    ])
+    const provider = new OpenAiVisionProvider('gpt-4o-mini', 'sk', undefined, fetch)
+
+    const results = await provider.normalizeNames([
+      { id: 'a', rawName: 'dragon_phone_stand_v2.stl', context: 'Tags: dragon, stand' },
+      { id: 'b', rawName: 'box-final-copy.3mf', context: 'Likely category: organizers' },
+    ])
+
+    expect(results).toEqual([
+      { id: 'a', normalizedName: 'Dragon Stand' },
+      { id: 'b', normalizedName: 'Storage Box' },
+    ])
+    expect(calls).toHaveLength(1)
+    const body = JSON.parse(String(calls[0].init.body))
+    expect(body.messages[0].content).toContain('dragon_phone_stand_v2.stl')
+    expect(body.messages[0].content).toContain('"id": "b"')
   })
 })
 

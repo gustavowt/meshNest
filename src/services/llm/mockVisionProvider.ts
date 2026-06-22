@@ -1,6 +1,12 @@
 import { validateVisionResponse } from './jsonValidation'
 import { SUGGESTED_CATEGORIES } from './prompts'
-import type { VisionAnalysisInput, VisionProvider, VisionProviderResult } from './visionProvider'
+import type {
+  NameNormalizationInput,
+  NameNormalizationResult,
+  VisionAnalysisInput,
+  VisionProvider,
+  VisionProviderResult,
+} from './visionProvider'
 
 /**
  * Deterministic development provider: derives a plausible structured
@@ -58,6 +64,15 @@ export class MockVisionProvider implements VisionProvider {
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
       .join(' ')
     return titled || 'Unnamed Model'
+  }
+
+  async normalizeNames(items: NameNormalizationInput[]): Promise<NameNormalizationResult[]> {
+    return Promise.all(
+      items.map(async (item) => ({
+        id: item.id,
+        normalizedName: await this.normalizeName(item.rawName),
+      })),
+    )
   }
 }
 

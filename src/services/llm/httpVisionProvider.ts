@@ -1,6 +1,12 @@
-import type { VisionAnalysisInput, VisionProvider, VisionProviderResult } from './visionProvider'
+import type {
+  NameNormalizationInput,
+  NameNormalizationResult,
+  VisionAnalysisInput,
+  VisionProvider,
+  VisionProviderResult,
+} from './visionProvider'
 import { validateVisionResponse, VisionValidationError } from './jsonValidation'
-import { NAME_NORMALIZATION_PROMPT, VISION_PROMPT } from './prompts'
+import { BULK_NAME_NORMALIZATION_PROMPT, NAME_NORMALIZATION_PROMPT, VISION_PROMPT } from './prompts'
 
 export type FetchLike = typeof fetch
 
@@ -91,6 +97,22 @@ export abstract class HttpVisionProvider implements VisionProvider {
     return cleaned
   }
 
+  async normalizeNames(items: NameNormalizationInput[]): Promise<NameNormalizationResult[]> {
+    if (items.length === 0) {
+      return []
+    }
+    const { answerText } = await this.requestTextOnce(buildBulkNameNormalizationPrompt(items))
+    const parsed = parseBulkNormalizedNames(answerText)
+    const namesById = new Map(parsed.map((item) => [item.id, item.normalizedName]))
+    return items.map((item) => {
+      const normalizedName = cleanNormalizedName(namesById.get(item.id) ?? '')
+      if (!normalizedName) {
+        throw new VisionProviderError(`${this.name} did not return a name for ${item.rawName}.`)
+      }
+      return { id: item.id, normalizedName }
+    })
+  }
+
   async describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult> {
     let lastValidationError: VisionValidationError | undefined
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -153,6 +175,54 @@ export function buildNameNormalizationPrompt(rawName: string, context?: string):
   return lines.join('\n')
 }
 
+/** Builds the text-only prompt for mass name normalization. */
+export function buildBulkNameNormalizationPrompt(items: NameNormalizationInput[]): string {
+  const files = items.map((item) => ({
+    id: item.id,
+    rawName: item.rawName,
+    context: item.context?.trim() || undefined,
+  }))
+  return [
+    BULK_NAME_NORMALIZATION_PROMPT,
+    '',
+    'Files:',
+    JSON.stringify(files, null, 2),
+    '',
+    'JSON:',
+  ].join('\n')
+}
+
+/** Parses and validates the JSON answer from the mass rename prompt. */
+export function parseBulkNormalizedNames(text: string): NameNormalizationResult[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stripJsonFences(text))
+  } catch (error) {
+    throw new VisionProviderError('The AI provider returned invalid rename JSON.', error)
+  }
+
+  const rows =
+    Array.isArray(parsed)
+      ? parsed
+      : isRecord(parsed) && Array.isArray(parsed.renames)
+        ? parsed.renames
+        : undefined
+  if (!rows) {
+    throw new VisionProviderError('The AI provider returned rename JSON in an unexpected shape.')
+  }
+
+  return rows.map((row) => {
+    if (!isRecord(row) || typeof row.id !== 'string') {
+      throw new VisionProviderError('The AI provider returned a rename entry without an id.')
+    }
+    const value = typeof row.normalizedName === 'string' ? row.normalizedName : row.name
+    if (typeof value !== 'string') {
+      throw new VisionProviderError(`The AI provider returned no normalized name for ${row.id}.`)
+    }
+    return { id: row.id, normalizedName: cleanNormalizedName(value) }
+  })
+}
+
 /** Extracts a single clean title from a model's free-text answer. */
 export function cleanNormalizedName(text: string): string {
   const firstLine =
@@ -164,4 +234,8 @@ export function cleanNormalizedName(text: string): string {
     .replace(/^["'`]+|["'`]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
