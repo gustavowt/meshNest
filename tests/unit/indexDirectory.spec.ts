@@ -8,7 +8,7 @@ import { IndexingJobRepository } from '@/services/database/indexingJobRepository
 import { runMigrations } from '@/services/database/migrations'
 import { indexScannedFiles, retryFailedFiles } from '@/services/indexing/indexDirectory'
 import type { IndexFilesDeps } from '@/services/indexing/indexDirectory'
-import { processIndexQueue } from '@/services/indexing/indexQueue'
+import { DEFAULT_INDEXING_CONCURRENCY, processIndexQueue } from '@/services/indexing/indexQueue'
 import { MockEmbeddingProvider } from '@/services/llm/mockEmbeddingProvider'
 import { MockVisionProvider } from '@/services/llm/mockVisionProvider'
 import type { IndexingProgress, IndexingResult } from '@/types/indexing'
@@ -86,6 +86,22 @@ describe('processIndexQueue', () => {
     expect(maxActive).toBeGreaterThan(1)
     expect(outcome.results.filter(Boolean)).toHaveLength(10)
     expect(outcome.cancelled).toBe(false)
+  })
+
+  test('processes 10 files concurrently by default', async () => {
+    let active = 0
+    let maxActive = 0
+    const items = Array.from({ length: 12 }, (_, i) => `item-${i}`)
+
+    await processIndexQueue(items, async (item) => {
+      active += 1
+      maxActive = Math.max(maxActive, active)
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      active -= 1
+      return okResult(item)
+    })
+
+    expect(maxActive).toBe(DEFAULT_INDEXING_CONCURRENCY)
   })
 
   test('emits progress events with a final complete snapshot', async () => {

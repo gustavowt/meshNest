@@ -60,6 +60,16 @@ function setSortKey(key: LibrarySortKey): void {
   state.sortKey = key
 }
 
+function patchEntry(
+  id: string,
+  patch: Partial<Pick<LibraryEntry, 'absolutePath' | 'relativePath' | 'filename' | 'shortName'>>,
+): void {
+  const index = state.entries.findIndex((entry) => entry.id === id)
+  if (index >= 0) {
+    state.entries[index] = { ...state.entries[index], ...patch }
+  }
+}
+
 /** Test-only helper to restore a pristine store between specs. */
 export function resetLibraryStore(): void {
   state.entries = []
@@ -79,5 +89,6 @@ export function useLibraryStore() {
     sortedEntries,
     loadLibrary,
     setSortKey,
+    patchEntry,
   }
 }

@@ -112,4 +112,25 @@ describe('libraryStore', () => {
       'never.stl',
     ])
   })
+
+  test('patches a single entry in place', async () => {
+    const id = crypto.randomUUID()
+    window.meshNest = {
+      listLibraryEntries: async () => [
+        entry({ id, filename: 'old-name.3mf', absolutePath: '/models/old-name.3mf' }),
+      ],
+    } as unknown as MeshNestApi
+
+    const store = useLibraryStore()
+    await store.loadLibrary()
+    store.patchEntry(id, {
+      filename: 'new-name.3mf',
+      absolutePath: '/models/new-name.3mf',
+      relativePath: 'new-name.3mf',
+      shortName: 'new name',
+    })
+
+    expect(store.state.entries[0].absolutePath).toBe('/models/new-name.3mf')
+    expect(store.state.entries[0].shortName).toBe('new name')
+  })
 })

@@ -1,6 +1,7 @@
 import { reactive, readonly } from 'vue'
 import { createBridgeEmbeddingProvider } from '@/services/llm/bridgeEmbeddingProvider'
 import { createDesktopSearchDeps, semanticSearch } from '@/services/search/semanticSearch'
+import { loadCachedProviderSettings } from '@/services/settings/providerSettingsCache'
 import type { SearchResult } from '@/types/search'
 
 type SearchState = {
@@ -36,6 +37,15 @@ async function refreshIndexStatus(): Promise<void> {
   }
 }
 
+function patchResultPaths(
+  modelFileId: string,
+  patch: Partial<Pick<SearchResult, 'absolutePath' | 'filename'>>,
+): void {
+  state.results = state.results.map((result) =>
+    result.modelFileId === modelFileId ? { ...result, ...patch } : result,
+  )
+}
+
 async function runSearch(query: string): Promise<void> {
   state.query = query
   if (query.trim().length === 0) {
@@ -54,7 +64,9 @@ async function runSearch(query: string): Promise<void> {
   try {
     state.results = await semanticSearch(
       query,
-      createDesktopSearchDeps(await createBridgeEmbeddingProvider()),
+      createDesktopSearchDeps(
+        await createBridgeEmbeddingProvider(loadCachedProviderSettings()?.embedding),
+      ),
     )
     state.searched = true
   } catch (error) {
@@ -85,5 +97,6 @@ export function useSearchStore() {
     state: readonly(state),
     runSearch,
     refreshIndexStatus,
+    patchResultPaths,
   }
 }

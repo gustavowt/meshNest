@@ -1,12 +1,14 @@
-import { rename } from 'node:fs/promises'
-import { dirname, extname, join } from 'node:path'
+import { rename, stat } from 'node:fs/promises'
+import { dirname, extname, join, normalize, relative } from 'node:path'
 import { ipcMain, shell } from 'electron'
 import { AiDescriptionRepository } from '../../../src/services/database/aiDescriptionRepository'
+import { IndexingJobRepository } from '../../../src/services/database/indexingJobRepository'
 import { ModelFileRepository } from '../../../src/services/database/modelFileRepository'
 import { RenderAssetStorage } from '../../../src/services/rendering/renderAssetStorage'
 import type { ModelFile } from '../../../src/types/modelFile'
 import { getModelRendersRoot } from '../services/appDataPaths'
 import { getDatabaseClient } from '../services/database'
+import { getProviderSettings } from '../services/providerSettings'
 import { withSecurityScopedAccess } from '../services/securityScopedBookmarks'
 
 /** Strips path separators and characters that are illegal in filenames. */
@@ -61,23 +63,29 @@ export function registerModelActionsIpc(): void {
 
       const directory = dirname(file.absolutePath)
       const newFilename = `${base}${extension}`
-      const newAbsolutePath = join(directory, newFilename)
+      const newAbsolutePath = normalize(join(directory, newFilename))
+      const previousAbsolutePath = normalize(file.absolutePath)
 
-      if (newAbsolutePath === file.absolutePath) {
+      if (newAbsolutePath.toLowerCase() === previousAbsolutePath.toLowerCase()) {
         return file
       }
       if (await repository.findByPath(newAbsolutePath)) {
         throw new Error('A model with that name already exists in this folder')
       }
 
-      await withSecurityScopedAccess(file.absolutePath, () =>
-        rename(file.absolutePath, newAbsolutePath),
+      await withSecurityScopedAccess(previousAbsolutePath, () =>
+        rename(previousAbsolutePath, newAbsolutePath),
       )
 
-      // Preserve the directory portion of the stored relative path.
-      const relativeDir = dirname(file.relativePath)
+      const settings = await getProviderSettings()
+      const libraryFolder = settings.libraryFolder?.trim()
       const newRelativePath =
-        relativeDir === '.' ? newFilename : join(relativeDir, newFilename)
+        libraryFolder && normalize(libraryFolder).toLowerCase() === normalize(directory).toLowerCase()
+          ? relative(libraryFolder, newAbsolutePath)
+          : (() => {
+              const relativeDir = dirname(file.relativePath)
+              return relativeDir === '.' ? newFilename : join(relativeDir, newFilename)
+            })()
 
       await repository.renameModelFile(modelFileId, {
         absolutePath: newAbsolutePath,
@@ -85,10 +93,20 @@ export function registerModelActionsIpc(): void {
         filename: newFilename,
       })
 
+      const jobRepository = new IndexingJobRepository(client)
+      await jobRepository.updateAbsolutePathForModel(modelFileId, newAbsolutePath)
+      await jobRepository.updateAbsolutePath(previousAbsolutePath, newAbsolutePath)
+
       // Keep the model's displayed title in sync with the new name.
       await new AiDescriptionRepository(client).updateShortName(modelFileId, base)
 
-      return (await repository.findById(modelFileId)) ?? file
+      await stat(newAbsolutePath)
+
+      const updated = await repository.findById(modelFileId)
+      if (!updated || normalize(updated.absolutePath) !== newAbsolutePath) {
+        throw new Error('Failed to update the model path in the database')
+      }
+      return updated
     },
   )
 }

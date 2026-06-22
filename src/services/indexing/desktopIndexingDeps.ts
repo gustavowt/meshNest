@@ -4,6 +4,7 @@ import type { ModelScene } from '@/services/model-parsing/modelScene'
 import { loadStlSceneAsync } from '@/services/model-parsing/stlLoaderService'
 import { loadThreeMfSceneAsync } from '@/services/model-parsing/threeMfLoaderService'
 import { renderModelViewsAsync } from '@/services/rendering/modelRenderer'
+import { loadCachedProviderSettings } from '@/services/settings/providerSettingsCache'
 import type { SupportedModelExtension } from '@/types/modelFile'
 import { createBridgeIndexingBackend, createBridgeJobTracker } from './bridgeBackend'
 import type { IndexFilesDeps } from './indexDirectory'
@@ -11,7 +12,7 @@ import type { IndexFilesDeps } from './indexDirectory'
 /**
  * Parses model bytes off the main thread in a Web Worker so large models
  * no longer freeze the UI during indexing/reindexing. Mirrors the model
- * preview loader; 3MF is geometry-only (no material colors) on this path.
+ * preview loader; 3MF base-material display colors are preserved on this path.
  */
 function loadModelSceneOffThread(
   bytes: Uint8Array,
@@ -41,9 +42,10 @@ function yieldToBrowser(): Promise<void> {
  * runs off-thread so the UI stays responsive on large models.
  */
 export async function createDesktopIndexingDeps(): Promise<IndexFilesDeps> {
+  const settings = loadCachedProviderSettings()
   const [visionProvider, embeddingProvider] = await Promise.all([
-    createBridgeVisionProvider(),
-    createBridgeEmbeddingProvider(),
+    createBridgeVisionProvider(settings?.vision),
+    createBridgeEmbeddingProvider(settings?.embedding),
   ])
   return {
     backend: createBridgeIndexingBackend(),

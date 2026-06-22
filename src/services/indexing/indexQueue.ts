@@ -20,7 +20,7 @@ export type QueueOutcome = {
   cancelled: boolean
 }
 
-const DEFAULT_CONCURRENCY = 2
+export const DEFAULT_INDEXING_CONCURRENCY = 10
 
 /**
  * Processes items with bounded concurrency, progress events, and
@@ -33,7 +33,7 @@ export async function processIndexQueue<T>(
   worker: (item: T) => Promise<IndexingResult>,
   options: ProcessQueueOptions<T> = {},
 ): Promise<QueueOutcome> {
-  const concurrency = Math.max(1, options.concurrency ?? DEFAULT_CONCURRENCY)
+  const concurrency = Math.max(1, options.concurrency ?? DEFAULT_INDEXING_CONCURRENCY)
   const results: (IndexingResult | undefined)[] = new Array(items.length)
 
   let nextIndex = 0

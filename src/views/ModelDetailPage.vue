@@ -8,12 +8,9 @@
         <ion-title>{{ detail?.description?.shortName ?? detail?.file.filename ?? $t('detail.model') }}</ion-title>
         <ion-buttons slot="end">
           <indexing-status-badge v-if="detail" :status="detail.file.status" class="header-badge" />
-          <ion-button :disabled="reindexing || !detail" @click="openDefaultSlicer">
+          <ion-button :disabled="reindexing || !detail" @click="openSlicer">
             <ion-icon slot="start" :icon="openOutline" />
             {{ $t('detail.openSlicer') }}
-          </ion-button>
-          <ion-button v-if="!isMasBuild" :disabled="reindexing || !detail" id="open-with-trigger" style="margin-inline-start: -6px;">
-            <ion-icon slot="icon-only" :icon="chevronDownOutline" />
           </ion-button>
           <ion-spinner v-if="reindexing || aiRenaming" name="crescent" class="reindex-spinner header-spinner" />
           <ion-button
@@ -28,46 +25,6 @@
     </ion-header>
 
     <ion-content :fullscreen="true">
-      <ion-popover v-if="detail" trigger="open-with-trigger" dismiss-on-select="true">
-        <ion-list>
-          <ion-item button @click="openSlicer('system')">
-            <ion-label>
-              {{ $t('settings.slicerSection.systemDefault') }}
-              <span v-if="(providerSettings?.defaultSlicer || 'system') === 'system'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
-            </ion-label>
-          </ion-item>
-          <ion-item button @click="openSlicer('bambu')">
-            <ion-label>
-              Bambu Studio
-              <span v-if="providerSettings?.defaultSlicer === 'bambu'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
-            </ion-label>
-          </ion-item>
-          <ion-item button @click="openSlicer('creality')">
-            <ion-label>
-              Creality Print
-              <span v-if="providerSettings?.defaultSlicer === 'creality'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
-            </ion-label>
-          </ion-item>
-          <ion-item button @click="openSlicer('prusa')">
-            <ion-label>
-              PrusaSlicer
-              <span v-if="providerSettings?.defaultSlicer === 'prusa'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
-            </ion-label>
-          </ion-item>
-          <ion-item button @click="openSlicer('orca')">
-            <ion-label>
-              OrcaSlicer
-              <span v-if="providerSettings?.defaultSlicer === 'orca'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
-            </ion-label>
-          </ion-item>
-          <ion-item button @click="openSlicer('cura')">
-            <ion-label>
-              UltiMaker Cura
-              <span v-if="providerSettings?.defaultSlicer === 'cura'" style="font-weight: 600; font-size: 11px; color: var(--ion-color-primary);"> ({{ $t('detail.default') }})</span>
-            </ion-label>
-          </ion-item>
-        </ion-list>
-      </ion-popover>
       <ion-popover v-if="detail" trigger="model-actions-trigger" dismiss-on-select="true">
         <ion-list>
           <ion-item button :detail="false" @click="revealInFolder">
@@ -145,7 +102,6 @@ import {
   folderOutline,
   refreshOutline,
   openOutline,
-  chevronDownOutline,
   ellipsisVerticalOutline,
   sparklesOutline,
   trashOutline,
@@ -159,13 +115,17 @@ import ModelPreview3D from '@/components/model/ModelPreview3D.vue'
 import ModelRenderGallery from '@/components/model/ModelRenderGallery.vue'
 import { indexModelFile } from '@/services/indexing/indexModelFile'
 import { createDesktopIndexingDeps } from '@/services/indexing/desktopIndexingDeps'
+import { useIndexingStore } from '@/stores/indexingStore'
 import { useLibraryStore } from '@/stores/libraryStore'
+import { useSearchStore } from '@/stores/searchStore'
 import type { ModelDetail } from '@/types/modelDetail'
 
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const library = useLibraryStore()
+const indexing = useIndexingStore()
+const search = useSearchStore()
 
 const detail = ref<ModelDetail | null>(null)
 const providerSettings = ref<any>(null)
@@ -173,9 +133,6 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const reindexing = ref(false)
 const aiRenaming = ref(false)
-
-/** Sandboxed Mac App Store builds can only open files with the default app. */
-const isMasBuild = window.meshNest?.isMasBuild ?? false
 
 const AI_VISION_PROVIDERS = ['openai', 'gemini', 'ollama']
 
@@ -201,16 +158,10 @@ async function loadDetail(modelFileId: string): Promise<void> {
   }
 }
 
-async function openDefaultSlicer(): Promise<void> {
-  if (!detail.value || !window.meshNest) return
-  const slicerId = providerSettings.value?.defaultSlicer || 'system'
-  await openSlicer(slicerId)
-}
-
-async function openSlicer(slicerId: string): Promise<void> {
+async function openSlicer(): Promise<void> {
   if (!detail.value || !window.meshNest) return
   try {
-    await window.meshNest.openWithSlicer(detail.value.file.absolutePath, slicerId)
+    await window.meshNest.openWithSlicer(detail.value.file.absolutePath)
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err)
     await showToast(msg)
@@ -271,8 +222,17 @@ async function showSuccessToast(message: string): Promise<void> {
 
 function buildRenameContext(): string | undefined {
   const description = detail.value?.description
-  if (!description) return undefined
-  const parts = [description.shortName, description.likelyCategory, description.description]
+  const file = detail.value?.file
+  const parts = [
+    file ? `Current filename: ${file.filename}` : undefined,
+    file ? `Format: ${file.extension.toUpperCase()}` : undefined,
+    description?.shortName ? `Current AI short name: ${description.shortName}` : undefined,
+    description?.likelyCategory ? `Likely category: ${description.likelyCategory}` : undefined,
+    description?.description ? `Description: ${description.description}` : undefined,
+    description?.printUse ? `Print use: ${description.printUse}` : undefined,
+    description?.style ? `Style: ${description.style}` : undefined,
+    description?.tags.length ? `Tags: ${description.tags.slice(0, 8).join(', ')}` : undefined,
+  ]
     .map((part) => part?.trim())
     .filter((part): part is string => Boolean(part))
   return parts.length > 0 ? parts.join(' — ') : undefined
@@ -317,7 +277,19 @@ async function renameWithAi(): Promise<void> {
   if (!newName) return
 
   try {
-    await window.meshNest.renameModel(file.id, newName)
+    const previousAbsolutePath = file.absolutePath
+    const updated = await window.meshNest.renameModel(file.id, newName)
+    indexing.syncRenamedModel(previousAbsolutePath, updated)
+    library.patchEntry(updated.id, {
+      absolutePath: updated.absolutePath,
+      relativePath: updated.relativePath,
+      filename: updated.filename,
+      shortName: updated.filename.replace(/\.[^.]+$/, ''),
+    })
+    search.patchResultPaths(updated.id, {
+      absolutePath: updated.absolutePath,
+      filename: updated.filename,
+    })
     await loadDetail(file.id)
     await library.loadLibrary()
     await showSuccessToast(t('detail.renamed'))
