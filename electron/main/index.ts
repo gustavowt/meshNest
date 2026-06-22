@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { BrowserWindow, app, nativeImage } from 'electron'
+import { BrowserWindow, Menu, app, nativeImage } from 'electron'
 import { registerDatabaseIpc } from './ipc/databaseIpc'
 import { registerFilesystemIpc } from './ipc/filesystemIpc'
 import { registerModelActionsIpc } from './ipc/modelActionsIpc'
@@ -37,6 +37,8 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null)
+
   if (process.platform === 'darwin' && app.dock) {
     const icon = nativeImage.createFromPath(resolveAppIcon())
     if (!icon.isEmpty()) {
