@@ -1,11 +1,11 @@
 import { readFile, stat } from 'node:fs/promises'
-import { spawn, exec } from 'node:child_process'
 import { basename } from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { ScanProgressEvent } from '../../../src/types/electronApi'
 import type { ScannedFile } from '../../../src/types/modelFile'
 import { ScanCancelledError, scanDirectory } from '../../../src/services/filesystem/directoryScanner'
 import { hashFile } from '../../../src/services/filesystem/fileHash'
+import { mapWithConcurrency } from '../../../src/services/filesystem/mapWithConcurrency'
 import { getSupportedExtension } from '../../../src/services/filesystem/supportedFiles'
 import {
   storeDirectoryBookmark,
@@ -55,13 +55,14 @@ export function registerFilesystemIpc(): void {
             },
           })
 
-          const scanned: ScannedFile[] = []
-          for (const file of discovered) {
-            if (controller.signal.aborted) {
-              throw new ScanCancelledError()
-            }
-            scanned.push({ ...file, contentHash: await hashFile(file.absolutePath) })
-          }
+          const scanned = await mapWithConcurrency(
+            discovered,
+            async (file) => ({
+              ...file,
+              contentHash: await hashFile(file.absolutePath),
+            }),
+            { signal: controller.signal },
+          )
           return scanned
         })
       } finally {
@@ -109,119 +110,14 @@ export function registerFilesystemIpc(): void {
     })
   })
 
-  const SLICER_MAP: Record<string, { darwin: string; win32: string[]; linux: string[] }> = {
-    bambu: {
-      darwin: 'BambuStudio',
-      win32: ['BambuStudio.exe'],
-      linux: ['bambu-studio', 'BambuStudio'],
-    },
-    creality: {
-      darwin: 'Creality Print',
-      win32: ['CrealityPrint.exe', 'Creality Print.exe'],
-      linux: ['creality-print', 'CrealityPrint'],
-    },
-    prusa: {
-      darwin: 'PrusaSlicer',
-      win32: ['prusa-slicer.exe'],
-      linux: ['prusa-slicer', 'PrusaSlicer'],
-    },
-    orca: {
-      darwin: 'OrcaSlicer',
-      win32: ['OrcaSlicer.exe'],
-      linux: ['orca-slicer', 'OrcaSlicer'],
-    },
-    cura: {
-      darwin: 'UltiMaker Cura',
-      win32: ['Cura.exe', 'UltiMaker Cura.exe'],
-      linux: ['cura', 'Cura'],
-    },
-  }
-
   ipcMain.handle(
     'filesystem:openWithSlicer',
-    async (_event, absolutePath: string, slicerId: string): Promise<void> => {
-      // The Mac App Store sandbox forbids launching a specific external app
-      // (e.g. `open -a BambuStudio`). There we always hand the file to its
-      // default handler through LaunchServices, which the sandbox allows.
-      if (process.mas || slicerId === 'system') {
-        const error = await withSecurityScopedAccess(absolutePath, () =>
-          shell.openPath(absolutePath),
-        )
-        if (error) {
-          throw new Error(`Failed to open path: ${error}`)
-        }
-        return
-      }
-
-      const nameMap: Record<string, string> = {
-        bambu: 'Bambu Studio',
-        creality: 'Creality Print',
-        prusa: 'PrusaSlicer',
-        orca: 'OrcaSlicer',
-        cura: 'UltiMaker Cura',
-      }
-      const slicerName = nameMap[slicerId] || slicerId
-
-      const config = SLICER_MAP[slicerId]
-      if (!config) {
-        throw new Error(`Unknown slicer identifier: ${slicerId}`)
-      }
-
-      const platform = process.platform
-
-      if (platform === 'darwin') {
-        const child = spawn('open', ['-a', config.darwin, absolutePath], {
-          detached: true,
-          stdio: 'ignore',
-        })
-        child.unref()
-      } else if (platform === 'win32') {
-        const execPromise = (cmd: string) =>
-          new Promise<void>((resolve, reject) => {
-            exec(cmd, (error) => {
-              if (error) reject(error)
-              else resolve()
-            })
-          })
-
-        let launched = false
-        for (const exe of config.win32) {
-          try {
-            const cmd = `start "" "${exe}" "${absolutePath}"`
-            await execPromise(cmd)
-            launched = true
-            break
-          } catch {
-            // Try next variant
-          }
-        }
-
-        if (!launched) {
-          throw new Error(
-            `Failed to open with ${slicerName}. Please ensure it is installed on your system.`
-          )
-        }
-      } else {
-        let launched = false
-        for (const binary of config.linux) {
-          try {
-            const child = spawn(binary, [absolutePath], {
-              detached: true,
-              stdio: 'ignore',
-            })
-            child.unref()
-            launched = true
-            break
-          } catch {
-            // Try next binary
-          }
-        }
-
-        if (!launched) {
-          throw new Error(
-            `Failed to open with ${slicerName}. Please ensure it is installed on your system.`
-          )
-        }
+    async (_event, absolutePath: string): Promise<void> => {
+      const error = await withSecurityScopedAccess(absolutePath, () =>
+        shell.openPath(absolutePath),
+      )
+      if (error) {
+        throw new Error(`Failed to open path: ${error}`)
       }
     },
   )
