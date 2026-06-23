@@ -1,18 +1,37 @@
+import { watch } from 'node:fs'
+import type { FSWatcher } from 'node:fs'
 import { readFile, stat } from 'node:fs/promises'
-import { basename } from 'node:path'
+import path from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
-import type { ScanProgressEvent } from '../../../src/types/electronApi'
+import type { DirectoryWatchEvent, ScanProgressEvent } from '../../../src/types/electronApi'
 import type { ScannedFile } from '../../../src/types/modelFile'
 import { ScanCancelledError, scanDirectory } from '../../../src/services/filesystem/directoryScanner'
 import { hashFile } from '../../../src/services/filesystem/fileHash'
 import { mapWithConcurrency } from '../../../src/services/filesystem/mapWithConcurrency'
-import { getSupportedExtension } from '../../../src/services/filesystem/supportedFiles'
 import {
+  DEFAULT_IGNORED_DIRECTORIES,
+  getSupportedExtension,
+  isHiddenName,
+} from '../../../src/services/filesystem/supportedFiles'
+import {
+  startSecurityScopedAccess,
   storeDirectoryBookmark,
   withSecurityScopedAccess,
 } from '../services/securityScopedBookmarks'
 
 const activeScans = new Map<string, AbortController>()
+const activeDirectoryWatches = new Map<string, DirectoryWatch>()
+const WATCH_DEBOUNCE_MS = 700
+const FILE_STABILITY_POLL_MS = 700
+const FILE_STABILITY_TIMEOUT_MS = 5 * 60 * 1000
+
+type DirectoryWatch = {
+  directory: string
+  sender: Electron.WebContents
+  watcher: FSWatcher
+  pendingTimers: Map<string, NodeJS.Timeout>
+  stopSecurityAccess: () => void
+}
 
 export function registerFilesystemIpc(): void {
   ipcMain.handle('filesystem:pickDirectory', async (event) => {
@@ -75,6 +94,42 @@ export function registerFilesystemIpc(): void {
     activeScans.get(scanId)?.abort()
   })
 
+  ipcMain.handle(
+    'filesystem:startDirectoryWatch',
+    async (event, directory: string, watchId: string): Promise<void> => {
+      stopDirectoryWatch(watchId)
+      const resolvedDirectory = path.resolve(directory)
+      const stopSecurityAccess = await startSecurityScopedAccess(resolvedDirectory)
+
+      try {
+        const watcher = createDirectoryWatcher(resolvedDirectory, (filename) => {
+          if (!filename) {
+            return
+          }
+          const absolutePath = path.resolve(resolvedDirectory, filename.toString())
+          scheduleDirectoryWatchEvent(watchId, absolutePath)
+        })
+
+        const directoryWatch: DirectoryWatch = {
+          directory: resolvedDirectory,
+          sender: event.sender,
+          watcher,
+          pendingTimers: new Map(),
+          stopSecurityAccess,
+        }
+        activeDirectoryWatches.set(watchId, directoryWatch)
+        event.sender.once('destroyed', () => stopDirectoryWatch(watchId))
+      } catch (error) {
+        stopSecurityAccess()
+        throw error
+      }
+    },
+  )
+
+  ipcMain.handle('filesystem:stopDirectoryWatch', (_event, watchId: string): void => {
+    stopDirectoryWatch(watchId)
+  })
+
   ipcMain.handle('filesystem:readModelFile', async (_event, absolutePath: string) => {
     if (!getSupportedExtension(absolutePath)) {
       throw new Error('Only .stl and .3mf files can be read')
@@ -93,8 +148,8 @@ export function registerFilesystemIpc(): void {
         const stats = await stat(absolutePath)
         return {
           absolutePath,
-          relativePath: basename(absolutePath),
-          filename: basename(absolutePath),
+          relativePath: path.basename(absolutePath),
+          filename: path.basename(absolutePath),
           extension,
           sizeBytes: stats.size,
           modifiedAt: stats.mtime.toISOString(),
@@ -121,4 +176,115 @@ export function registerFilesystemIpc(): void {
       }
     },
   )
+}
+
+function createDirectoryWatcher(
+  directory: string,
+  onPossibleFile: (filename: string | Buffer | null) => void,
+): FSWatcher {
+  try {
+    return watch(directory, { recursive: true }, (_eventType, filename) => onPossibleFile(filename))
+  } catch {
+    return watch(directory, (_eventType, filename) => onPossibleFile(filename))
+  }
+}
+
+function stopDirectoryWatch(watchId: string): void {
+  const directoryWatch = activeDirectoryWatches.get(watchId)
+  if (!directoryWatch) {
+    return
+  }
+  activeDirectoryWatches.delete(watchId)
+  for (const timer of directoryWatch.pendingTimers.values()) {
+    clearTimeout(timer)
+  }
+  directoryWatch.pendingTimers.clear()
+  directoryWatch.watcher.close()
+  directoryWatch.stopSecurityAccess()
+}
+
+function scheduleDirectoryWatchEvent(watchId: string, absolutePath: string): void {
+  const directoryWatch = activeDirectoryWatches.get(watchId)
+  if (!directoryWatch) {
+    return
+  }
+  const relativePath = path.relative(directoryWatch.directory, absolutePath)
+  if (relativePath.startsWith('..') || path.isAbsolute(relativePath)) {
+    return
+  }
+  if (!shouldReportWatchedPath(relativePath)) {
+    return
+  }
+
+  const existingTimer = directoryWatch.pendingTimers.get(absolutePath)
+  if (existingTimer) {
+    clearTimeout(existingTimer)
+  }
+
+  const timer = setTimeout(async () => {
+    directoryWatch.pendingTimers.delete(absolutePath)
+    if (!activeDirectoryWatches.has(watchId)) {
+      return
+    }
+    const stable = await waitForStableModelFile(absolutePath)
+    const activeWatch = activeDirectoryWatches.get(watchId)
+    if (!stable || !activeWatch) {
+      return
+    }
+    const extension = getSupportedExtension(absolutePath)
+    if (!extension) {
+      return
+    }
+    const event: DirectoryWatchEvent = {
+      watchId,
+      absolutePath,
+      relativePath,
+      filename: path.basename(absolutePath),
+      extension,
+    }
+    activeWatch.sender.send('filesystem:directoryWatchEvent', event)
+  }, WATCH_DEBOUNCE_MS)
+  directoryWatch.pendingTimers.set(absolutePath, timer)
+}
+
+function shouldReportWatchedPath(relativePath: string): boolean {
+  const parts = relativePath.split(/[\\/]+/).filter(Boolean)
+  if (parts.length === 0) {
+    return false
+  }
+  for (let index = 0; index < parts.length; index += 1) {
+    const part = parts[index]
+    if (isHiddenName(part)) {
+      return false
+    }
+    if (index < parts.length - 1 && DEFAULT_IGNORED_DIRECTORIES.has(part.toLowerCase())) {
+      return false
+    }
+  }
+  return Boolean(getSupportedExtension(parts[parts.length - 1]))
+}
+
+async function waitForStableModelFile(absolutePath: string): Promise<boolean> {
+  const startedAt = Date.now()
+  let previous: { size: number; mtimeMs: number } | null = null
+
+  while (Date.now() - startedAt < FILE_STABILITY_TIMEOUT_MS) {
+    try {
+      const stats = await withSecurityScopedAccess(absolutePath, () => stat(absolutePath))
+      if (!stats.isFile()) {
+        return false
+      }
+      const current = { size: stats.size, mtimeMs: stats.mtimeMs }
+      if (previous && previous.size === current.size && previous.mtimeMs === current.mtimeMs) {
+        return true
+      }
+      previous = current
+    } catch {
+      return false
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, FILE_STABILITY_POLL_MS))
+  }
+
+  return false
 }

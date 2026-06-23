@@ -5,6 +5,7 @@
       :key="entry.id"
       :entry="entry"
       @select="emit('select', $event)"
+      @open-default="emit('openDefault', $event)"
     />
   </div>
 </template>
@@ -19,6 +20,7 @@ defineProps<{
 
 const emit = defineEmits<{
   select: [entry: LibraryEntry]
+  openDefault: [entry: LibraryEntry]
 }>()
 </script>
 

@@ -113,6 +113,23 @@ describe('libraryStore', () => {
     ])
   })
 
+  test('pins a recently added entry before the active sort order', async () => {
+    const pinnedId = crypto.randomUUID()
+    window.meshNest = {
+      listLibraryEntries: async () => [
+        entry({ id: pinnedId, filename: 'zebra.stl' }),
+        entry({ filename: 'apple.stl' }),
+      ],
+    } as unknown as MeshNestApi
+
+    const store = useLibraryStore()
+    await store.loadLibrary()
+    store.setSortKey('filename')
+    store.pinEntryFirst(pinnedId)
+
+    expect(store.sortedEntries.value.map((e) => e.filename)).toEqual(['zebra.stl', 'apple.stl'])
+  })
+
   test('patches a single entry in place', async () => {
     const id = crypto.randomUUID()
     window.meshNest = {

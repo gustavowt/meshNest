@@ -81,19 +81,26 @@ export async function withSecurityScopedAccess<T>(
   target: string,
   fn: () => Promise<T>,
 ): Promise<T> {
-  if (!isSandboxed) {
-    return fn()
-  }
-  const bookmark = await findBookmarkFor(target)
-  if (!bookmark) {
-    return fn()
-  }
-  const stopAccessing = app.startAccessingSecurityScopedResource(bookmark)
+  const stopAccessing = await startSecurityScopedAccess(target)
   try {
     return await fn()
   } finally {
-    if (typeof stopAccessing === 'function') {
-      stopAccessing()
-    }
+    stopAccessing()
   }
+}
+
+/**
+ * Starts security-scoped access for long-lived filesystem work such as a
+ * directory watcher. The returned function must be called when work ends.
+ */
+export async function startSecurityScopedAccess(target: string): Promise<() => void> {
+  if (!isSandboxed) {
+    return () => undefined
+  }
+  const bookmark = await findBookmarkFor(target)
+  if (!bookmark) {
+    return () => undefined
+  }
+  const stopAccessing = app.startAccessingSecurityScopedResource(bookmark)
+  return typeof stopAccessing === 'function' ? () => stopAccessing() : () => undefined
 }

@@ -5,6 +5,7 @@ import type { IndexDirectorySummary } from '@/services/indexing/indexDirectory'
 import { createDesktopIndexingDeps } from '@/services/indexing/desktopIndexingDeps'
 import type { IndexingProgress, IndexingResult } from '@/types/indexing'
 import type { ModelFile, ScannedFile } from '@/types/modelFile'
+import type { DirectoryWatchEvent } from '@/types/electronApi'
 
 const DEFAULT_PROJECT_ID = 'default'
 
@@ -28,8 +29,19 @@ const state = reactive<IndexingState>({
 let abortController: AbortController | null = null
 let lastFiles: ScannedFile[] = []
 let lastResults: Map<string, IndexingResult> = new Map()
+let watchedFileProcessing = false
+const watchedFileQueue = new Map<string, DirectoryWatchEvent>()
+const watchedFileIndexedListeners = new Set<(result: IndexingResult) => void>()
 
-async function runIndexing(directory: string): Promise<void> {
+/**
+ * Runs a directory indexing pass. With `{ force: true }` every existing
+ * record is first reset to 'pending' so the whole library is reprocessed
+ * (re-render + re-AI) even when no file changed and nothing failed.
+ */
+async function runIndexing(
+  directory: string,
+  options: { force?: boolean } = {},
+): Promise<void> {
   if (state.running || !window.meshNest) {
     return
   }
@@ -41,6 +53,9 @@ async function runIndexing(directory: string): Promise<void> {
   abortController = new AbortController()
 
   try {
+    if (options.force) {
+      await window.meshNest.resetAllToPending(DEFAULT_PROJECT_ID)
+    }
     const files = await reconcileScannedDirectory(directory)
     lastFiles = files
     const outcome = await indexScannedFiles(files, DEFAULT_PROJECT_ID, await createDesktopIndexingDeps(), {
@@ -56,6 +71,7 @@ async function runIndexing(directory: string): Promise<void> {
   } finally {
     state.running = false
     abortController = null
+    void processWatchedFileQueue()
   }
 }
 
@@ -91,6 +107,7 @@ async function retryFailed(): Promise<void> {
   } finally {
     state.running = false
     abortController = null
+    void processWatchedFileQueue()
   }
 }
 
@@ -174,6 +191,7 @@ async function retryFailedLibrary(
   } finally {
     state.running = false
     abortController = null
+    void processWatchedFileQueue()
   }
 }
 
@@ -223,6 +241,80 @@ function cancelIndexing(): void {
   abortController?.abort()
 }
 
+function queueWatchedFile(event: DirectoryWatchEvent): void {
+  watchedFileQueue.set(event.absolutePath, event)
+  void processWatchedFileQueue()
+}
+
+function onWatchedFileIndexed(callback: (result: IndexingResult) => void): () => void {
+  watchedFileIndexedListeners.add(callback)
+  return () => watchedFileIndexedListeners.delete(callback)
+}
+
+async function processWatchedFileQueue(): Promise<void> {
+  if (watchedFileProcessing || state.running || !window.meshNest) {
+    return
+  }
+  watchedFileProcessing = true
+  try {
+    while (!state.running && watchedFileQueue.size > 0 && window.meshNest) {
+      const next = watchedFileQueue.entries().next().value as
+        | [string, DirectoryWatchEvent]
+        | undefined
+      if (!next) {
+        return
+      }
+      const [absolutePath, event] = next
+      watchedFileQueue.delete(absolutePath)
+      await indexWatchedFile(event)
+    }
+  } finally {
+    watchedFileProcessing = false
+  }
+}
+
+async function indexWatchedFile(event: DirectoryWatchEvent): Promise<void> {
+  if (!window.meshNest) {
+    return
+  }
+  state.running = true
+  state.directory = event.relativePath
+  state.progress = null
+  state.summary = null
+  state.error = null
+  abortController = new AbortController()
+
+  try {
+    const scanned = await window.meshNest.scanFile(event.absolutePath)
+    const file: ScannedFile = {
+      ...scanned,
+      relativePath: event.relativePath,
+      filename: event.filename,
+      extension: event.extension,
+    }
+    lastFiles = [file]
+    const outcome = await indexScannedFiles([file], DEFAULT_PROJECT_ID, await createDesktopIndexingDeps(), {
+      signal: abortController.signal,
+      onProgress: (progress) => {
+        state.progress = progress
+      },
+    })
+    lastResults = outcome.resultsByPath
+    state.summary = outcome.summary
+    const result = outcome.resultsByPath.get(file.absolutePath)
+    if (result?.modelFileId) {
+      for (const listener of watchedFileIndexedListeners) {
+        listener(result)
+      }
+    }
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : String(error)
+  } finally {
+    state.running = false
+    abortController = null
+  }
+}
+
 function failedCount(): number {
   let count = 0
   for (const result of lastResults.values()) {
@@ -264,6 +356,9 @@ export function resetIndexingStore(): void {
   abortController = null
   lastFiles = []
   lastResults = new Map()
+  watchedFileProcessing = false
+  watchedFileQueue.clear()
+  watchedFileIndexedListeners.clear()
 }
 
 /**
@@ -277,6 +372,8 @@ export function useIndexingStore() {
     retryFailed,
     retryFailedLibrary,
     cancelIndexing,
+    queueWatchedFile,
+    onWatchedFileIndexed,
     failedCount,
     syncRenamedModel,
   }

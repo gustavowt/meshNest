@@ -4,6 +4,7 @@ import type { SearchResult } from '@/types/search'
 export type SemanticSearchOptions = {
   limit?: number
   projectId?: string
+  queryText?: string
 }
 
 export type SemanticSearchDeps = {
@@ -27,7 +28,7 @@ export async function semanticSearch(
     return []
   }
   const embedding = await deps.embeddingProvider.embedText(trimmed)
-  return deps.searchByEmbedding(embedding, options)
+  return deps.searchByEmbedding(embedding, { ...options, queryText: trimmed })
 }
 
 /**

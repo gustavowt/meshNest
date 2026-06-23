@@ -3,9 +3,14 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
+import { AiDescriptionRepository } from '@/services/database/aiDescriptionRepository'
 import { DuckDbClient } from '@/services/database/duckdbClient'
-import { EmbeddingDimensionError } from '@/services/database/embeddingRepository'
+import {
+  EmbeddingDimensionError,
+  EmbeddingRepository,
+} from '@/services/database/embeddingRepository'
 import { runMigrations } from '@/services/database/migrations'
+import { EMBEDDING_DIMENSIONS } from '@/services/database/schema'
 import { NoEmbeddingsError, SearchRepository } from '@/services/database/searchRepository'
 import { indexModelFile } from '@/services/indexing/indexModelFile'
 import { MockEmbeddingProvider } from '@/services/llm/mockEmbeddingProvider'
@@ -18,6 +23,7 @@ import {
   writeScannedFile,
 } from './helpers/indexingTestUtils'
 import { buildBinaryStl, SPANNING_TRIANGLES } from './helpers/stlFixtures'
+import type { AIModelDescription } from '@/types/llm'
 
 const PROJECT_ID = 'project-1'
 
@@ -52,16 +58,70 @@ afterEach(async () => {
 })
 
 async function indexFixture(filename: string) {
+  const content = new Uint8Array(buildBinaryStl(SPANNING_TRIANGLES))
+  const header = new TextEncoder().encode(filename)
+  content.set(header.slice(0, 80), 0)
   const file = writeScannedFile(
     filesDir,
     filename,
-    new Uint8Array(buildBinaryStl(SPANNING_TRIANGLES)),
+    content,
   )
   return indexModelFile(file, PROJECT_ID, {
     backend: createTestBackend(client, rendersDir),
     visionProvider: new MockVisionProvider(),
     embeddingProvider: new MockEmbeddingProvider(),
     renderViews: fakeRenderViews,
+  })
+}
+
+function vectorWithCosine(cosine: number): number[] {
+  const vector = new Array<number>(EMBEDDING_DIMENSIONS).fill(0)
+  vector[0] = cosine
+  vector[1] = Math.sqrt(1 - cosine * cosine)
+  return vector
+}
+
+async function insertSearchFixture(
+  id: string,
+  filename: string,
+  description: AIModelDescription,
+  embedding: number[],
+): Promise<void> {
+  await client.run(
+    `INSERT INTO model_files (
+       id, project_id, absolute_path, relative_path, filename, extension,
+       size_bytes, modified_at, content_hash, status
+     ) VALUES (
+       $id, $projectId, $absolutePath, $relativePath, $filename, 'stl',
+       1, $modifiedAt, $contentHash, 'indexed'
+     )`,
+    {
+      id,
+      projectId: PROJECT_ID,
+      absolutePath: join(filesDir, filename),
+      relativePath: filename,
+      filename,
+      modifiedAt: '2026-06-01T12:00:00.000Z',
+      contentHash: `hash-${id}`,
+    },
+  )
+  await new AiDescriptionRepository(client).upsert(
+    id,
+    description,
+    JSON.stringify(description),
+  )
+  await new EmbeddingRepository(client).upsert({
+    modelFileId: id,
+    provider: 'test',
+    model: 'test-embedding',
+    dimensions: EMBEDDING_DIMENSIONS,
+    embedding,
+    sourceText: [
+      `Short name: ${description.shortName}`,
+      `Description: ${description.description}`,
+      `Tags: ${description.tags.join(', ')}`,
+      `Search phrases: ${description.searchPhrases.join('; ')}`,
+    ].join('\n'),
   })
 }
 
@@ -102,6 +162,44 @@ describe('semanticSearch', () => {
 
     const results = await semanticSearch('model', deps, { limit: 2 })
     expect(results).toHaveLength(2)
+  })
+
+  test('boosts direct Portuguese keyword matches over weaker vector-only hits', async () => {
+    const queryEmbedding = vectorWithCosine(1)
+    await insertSearchFixture(
+      'generic-vector-hit',
+      'headphone-stand.stl',
+      {
+        shortName: 'Suporte de Fone de Ouvido',
+        description: 'Um suporte decorativo para organizar fones de ouvido na mesa.',
+        likelyCategory: 'organização',
+        tags: ['suporte', 'organizador'],
+        objectsDetected: ['suporte'],
+        confidence: 0.9,
+        searchPhrases: ['suporte para fone', 'organizador de mesa'],
+      },
+      vectorWithCosine(1),
+    )
+    await insertSearchFixture(
+      'articulated-model',
+      'axolotl-keychain.stl',
+      {
+        shortName: 'Chaveiro de Axolote Articulado',
+        description: 'Um axolote estilizado com juntas móveis para impressão print-in-place.',
+        likelyCategory: 'brinquedos',
+        tags: ['axolote', 'articulado', 'chaveiro'],
+        objectsDetected: ['axolote'],
+        confidence: 0.9,
+        searchPhrases: ['axolote articulado 3d', 'chaveiro de animal articulado'],
+      },
+      vectorWithCosine(0.8),
+    )
+
+    const results = await repository.searchByEmbedding(queryEmbedding, { queryText: 'articulado' })
+
+    expect(results[0].filename).toBe('axolotl-keychain.stl')
+    expect(results[0].shortName).toBe('Chaveiro de Axolote Articulado')
+    expect(results[1].filename).toBe('headphone-stand.stl')
   })
 
   test('returns an empty list for blank queries without touching the index', async () => {

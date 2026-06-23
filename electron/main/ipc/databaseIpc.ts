@@ -52,6 +52,11 @@ export function registerDatabaseIpc(): void {
     await repository.resetToPending(modelFileId)
   })
 
+  ipcMain.handle('database:resetAllToPending', async (_event, projectId?: string) => {
+    const repository = new ModelFileRepository(await getDatabaseClient())
+    await repository.resetAllToPending(projectId)
+  })
+
   ipcMain.handle('database:deleteFailedModelFiles', async (_event, projectId?: string) => {
     const repository = new ModelFileRepository(await getDatabaseClient())
     const failed = (await repository.listModelFiles(projectId)).filter(
@@ -141,7 +146,11 @@ export function registerDatabaseIpc(): void {
 
   ipcMain.handle(
     'database:searchByEmbedding',
-    async (_event, embedding: number[], options?: { limit?: number; projectId?: string }) => {
+    async (
+      _event,
+      embedding: number[],
+      options?: { limit?: number; projectId?: string; queryText?: string },
+    ) => {
       const repository = new SearchRepository(await getDatabaseClient())
       return repository.searchByEmbedding(embedding, options)
     },

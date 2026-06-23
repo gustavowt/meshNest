@@ -352,6 +352,26 @@ export class ModelFileRepository {
     )
   }
 
+  /**
+   * Forces every file (optionally scoped to a project) back to 'pending' so a
+   * full re-index reprocesses the whole library even when nothing changed.
+   */
+  async resetAllToPending(projectId?: string): Promise<void> {
+    if (projectId) {
+      await this.client.run(
+        `UPDATE model_files SET
+           status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()
+         WHERE project_id = $projectId`,
+        { projectId },
+      )
+      return
+    }
+    await this.client.run(
+      `UPDATE model_files SET
+         status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()`,
+    )
+  }
+
   async markFailed(id: string, errorMessage: string): Promise<void> {
     const update = () =>
       this.client.run(

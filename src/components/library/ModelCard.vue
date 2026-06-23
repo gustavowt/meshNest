@@ -3,10 +3,25 @@
     <div class="thumbnail">
       <img v-if="thumbnailUrl" :src="thumbnailUrl" :alt="entry.filename" />
       <ion-icon v-else :icon="cubeOutline" class="placeholder-icon" aria-hidden="true" />
+      <ion-button
+        class="open-default-btn"
+        fill="clear"
+        size="small"
+        :aria-label="$t('library.openDefaultProgram')"
+        :title="$t('library.openDefaultProgram')"
+        @click.stop="emit('openDefault', entry)"
+      >
+        <ion-icon slot="icon-only" :icon="openOutline" />
+      </ion-button>
       <span v-if="entry.score !== undefined" class="score-badge">
         {{ Math.round(entry.score * 100) }}%
       </span>
-      <indexing-status-badge v-else :status="entry.status" class="card-status" />
+      <indexing-status-badge
+        v-else
+        :status="entry.status"
+        :error-message="entry.errorMessage"
+        class="card-status"
+      />
     </div>
 
     <ion-card-header class="card-header">
@@ -25,10 +40,6 @@
         <span v-if="hiddenTagCount > 0" class="more-tags">+{{ hiddenTagCount }}</span>
       </div>
 
-      <p v-if="entry.status === 'failed' && entry.errorMessage" class="error-message">
-        {{ entry.errorMessage }}
-      </p>
-
       <p class="file-meta">{{ formatSize(entry.sizeBytes) }} · {{ entry.extension.toUpperCase() }}</p>
     </ion-card-content>
   </ion-card>
@@ -42,9 +53,10 @@ import {
   IonCardSubtitle,
   IonCardTitle,
   IonChip,
+  IonButton,
   IonIcon,
 } from '@ionic/vue'
-import { cubeOutline } from 'ionicons/icons'
+import { cubeOutline, openOutline } from 'ionicons/icons'
 import { computed } from 'vue'
 import { useRenderAssetUrl } from '@/composables/useRenderAssetUrl'
 import type { LibraryEntry } from '@/types/library'
@@ -58,6 +70,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   select: [entry: LibraryEntry]
+  openDefault: [entry: LibraryEntry]
 }>()
 
 const thumbnailUrl = useRenderAssetUrl(() => props.entry.thumbnailPath)
@@ -131,6 +144,29 @@ function formatSize(bytes: number): string {
   right: 8px;
 }
 
+.open-default-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  margin: 0;
+  --border-radius: 999px;
+  --color: rgba(15, 23, 42, 0.82);
+  --background: rgba(255, 255, 255, 0.78);
+  --background-hover: rgba(255, 255, 255, 0.95);
+  --background-focused: rgba(255, 255, 255, 0.95);
+  --padding-bottom: 0;
+  --padding-end: 0;
+  --padding-start: 0;
+  --padding-top: 0;
+}
+
+.open-default-btn ion-icon {
+  font-size: 17px;
+}
+
 .score-badge {
   padding: 2px 8px;
   border-radius: 10px;
@@ -179,15 +215,6 @@ function formatSize(bytes: number): string {
 .more-tags {
   font-size: 11px;
   color: var(--ion-color-medium);
-}
-
-.error-message {
-  font-size: 12px;
-  color: var(--ion-color-danger);
-  overflow: hidden;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
 }
 
 .file-meta {

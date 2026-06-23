@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { resetIndexingStore, useIndexingStore } from '@/stores/indexingStore'
 import { indexScannedFiles } from '@/services/indexing/indexDirectory'
 import type { ScannedFile } from '@/types/modelFile'
+import type { DirectoryWatchEvent } from '@/types/electronApi'
 
 vi.mock('@/services/indexing/desktopIndexingDeps', () => ({
   createDesktopIndexingDeps: vi.fn(async () => ({})),
@@ -89,5 +90,46 @@ describe('indexingStore', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
     expect(store.state.summary?.indexed).toBe(2)
+  })
+
+  test('indexes watched files using the watcher relative path', async () => {
+    const bridgeFile = {
+      ...scannedFile('nested.stl'),
+      absolutePath: '/models/sub/nested.stl',
+    }
+    window.meshNest = {
+      scanFile: vi.fn(async () => bridgeFile),
+    } as any
+    const event: DirectoryWatchEvent = {
+      watchId: 'watch-1',
+      absolutePath: '/models/sub/nested.stl',
+      relativePath: 'sub/nested.stl',
+      filename: 'nested.stl',
+      extension: 'stl',
+    }
+    const indexedResults: string[] = []
+
+    const store = useIndexingStore()
+    const unsubscribe = store.onWatchedFileIndexed((result) => {
+      if (result.modelFileId) {
+        indexedResults.push(result.modelFileId)
+      }
+    })
+    store.queueWatchedFile(event)
+
+    await vi.waitFor(() => {
+      expect(indexScannedFiles).toHaveBeenCalledTimes(1)
+    })
+
+    const indexedFiles = vi.mocked(indexScannedFiles).mock.calls[0][0] as ScannedFile[]
+    expect(window.meshNest.scanFile).toHaveBeenCalledWith('/models/sub/nested.stl')
+    expect(indexedFiles[0]).toMatchObject({
+      absolutePath: '/models/sub/nested.stl',
+      relativePath: 'sub/nested.stl',
+      filename: 'nested.stl',
+      extension: 'stl',
+    })
+    expect(indexedResults).toEqual(['id-nested.stl'])
+    unsubscribe()
   })
 })

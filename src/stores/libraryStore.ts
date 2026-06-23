@@ -16,6 +16,7 @@ const state = reactive<LibraryState>({
   loaded: false,
   sortKey: 'filename',
 })
+const pinnedEntryIds: string[] = []
 
 function compareEntries(a: LibraryEntry, b: LibraryEntry, key: LibrarySortKey): number {
   switch (key) {
@@ -35,7 +36,16 @@ function compareEntries(a: LibraryEntry, b: LibraryEntry, key: LibrarySortKey): 
 }
 
 const sortedEntries = computed(() =>
-  [...state.entries].sort((a, b) => compareEntries(a, b, state.sortKey)),
+  [...state.entries].sort((a, b) => {
+    const pinnedA = pinnedEntryIds.indexOf(a.id)
+    const pinnedB = pinnedEntryIds.indexOf(b.id)
+    if (pinnedA !== -1 || pinnedB !== -1) {
+      if (pinnedA === -1) return 1
+      if (pinnedB === -1) return -1
+      return pinnedA - pinnedB
+    }
+    return compareEntries(a, b, state.sortKey)
+  }),
 )
 
 async function loadLibrary(): Promise<void> {
@@ -70,6 +80,14 @@ function patchEntry(
   }
 }
 
+function pinEntryFirst(id: string): void {
+  const existingIndex = pinnedEntryIds.indexOf(id)
+  if (existingIndex >= 0) {
+    pinnedEntryIds.splice(existingIndex, 1)
+  }
+  pinnedEntryIds.unshift(id)
+}
+
 /** Test-only helper to restore a pristine store between specs. */
 export function resetLibraryStore(): void {
   state.entries = []
@@ -77,6 +95,7 @@ export function resetLibraryStore(): void {
   state.error = null
   state.loaded = false
   state.sortKey = 'filename'
+  pinnedEntryIds.splice(0)
 }
 
 /**
@@ -90,5 +109,6 @@ export function useLibraryStore() {
     loadLibrary,
     setSortKey,
     patchEntry,
+    pinEntryFirst,
   }
 }

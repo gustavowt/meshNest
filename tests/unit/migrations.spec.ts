@@ -16,7 +16,6 @@ const EXPECTED_TABLES = [
   'ai_model_descriptions',
   'model_embeddings',
   'indexing_jobs',
-  'settings',
   'schema_migrations',
 ]
 
