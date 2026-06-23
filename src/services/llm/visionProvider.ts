@@ -1,6 +1,7 @@
 import type { AIModelDescription, VisionImageInput } from '@/types/llm'
 import type { SupportedModelExtension } from '@/types/modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from '@/types/modelMetadata'
+import type { AppLanguage } from '@/types/providerSettings'
 
 /**
  * Everything a vision provider receives to describe one model.
@@ -13,6 +14,12 @@ export type VisionAnalysisInput = {
   geometry?: GeometryMetadata
   /** 3MF package metadata, when the file is a 3MF. */
   packageMetadata?: ThreeMfPackageMetadata
+  /**
+   * UI language the user picked in Settings. When set to a non-English
+   * language the model is asked to write the human-readable description
+   * fields in that language (JSON keys stay unchanged).
+   */
+  language?: AppLanguage
 }
 
 export type VisionProviderResult = {

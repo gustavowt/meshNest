@@ -34,6 +34,14 @@ export type ScanProgressEvent = {
   currentPath: string
 }
 
+export type DirectoryWatchEvent = {
+  watchId: string
+  absolutePath: string
+  relativePath: string
+  filename: string
+  extension: ModelFile['extension']
+}
+
 /**
  * Contract of the API exposed by the Electron preload script on
  * `window.meshNest`. UI code must access desktop features only
@@ -50,6 +58,10 @@ export type MeshNestApi = {
   scanDirectory(directory: string, scanId: string): Promise<ScannedFile[]>
   /** Cancels a running scan by id. */
   cancelScan(scanId: string): Promise<void>
+  /** Starts watching a directory tree for newly-added supported model files. */
+  startDirectoryWatch(directory: string, watchId: string): Promise<void>
+  /** Stops a previously started directory watcher. */
+  stopDirectoryWatch(watchId: string): Promise<void>
   /** Reads the raw bytes of a supported model file. */
   readModelFile(absolutePath: string): Promise<Uint8Array>
   /** Stats and hashes a single supported model file. */
@@ -72,6 +84,8 @@ export type MeshNestApi = {
   getModelDetail(modelFileId: string): Promise<ModelDetail | null>
   /** Forces a file back to 'pending' so the next run reindexes it. */
   resetToPending(modelFileId: string): Promise<void>
+  /** Forces every file (optionally scoped to a project) back to 'pending' for a full re-index. */
+  resetAllToPending(projectId?: string): Promise<void>
   /** Removes failed database records without deleting source files. */
   deleteFailedModelFiles(projectId?: string): Promise<number>
   /** Moves the model file to the OS trash and removes all of its records. */
@@ -82,13 +96,14 @@ export type MeshNestApi = {
   // Semantic search.
   searchByEmbedding(
     embedding: number[],
-    options?: { limit?: number; projectId?: string },
+    options?: { limit?: number; projectId?: string; queryText?: string },
   ): Promise<SearchResult[]>
   countEmbeddings(): Promise<number>
 
   // Provider settings.
   getProviderSettings(): Promise<ProviderSettings>
   saveProviderSettings(settings: ProviderSettings): Promise<{ embeddingsCleared: boolean }>
+  syncProviderSettings(settings: ProviderSettings): Promise<void>
   testVisionProvider(settings: VisionSettings): Promise<ProviderTestResult>
   testEmbeddingProvider(settings: EmbeddingSettings): Promise<ProviderTestResult>
   getOllamaModels(baseUrl: string): Promise<string[]>
@@ -97,9 +112,9 @@ export type MeshNestApi = {
   describeModel(input: VisionAnalysisInput, settings?: VisionSettings): Promise<VisionProviderResult>
   getActiveVisionProvider(): Promise<{ name: string; model: string }>
   /** Normalizes a raw file name into a clean title via the active vision LLM. */
-  normalizeName(rawName: string, context?: string): Promise<string>
+  normalizeName(rawName: string, context?: string, settings?: VisionSettings): Promise<string>
   /** Normalizes several file names in one active vision LLM call. */
-  normalizeNames(items: NameNormalizationInput[]): Promise<NameNormalizationResult[]>
+  normalizeNames(items: NameNormalizationInput[], settings?: VisionSettings): Promise<NameNormalizationResult[]>
   embedText(text: string, settings?: EmbeddingSettings): Promise<number[]>
   getActiveEmbeddingProvider(): Promise<{ name: string; model: string; dimensions: number }>
   reembedAll(): Promise<{ embedded: number; failed: number; errorMessage?: string }>
@@ -126,6 +141,8 @@ export type MeshNestApi = {
   listIndexingJobs(limit?: number): Promise<IndexingJob[]>
   /** Subscribes to scan progress events. Returns an unsubscribe function. */
   onScanProgress(callback: (event: ScanProgressEvent) => void): () => void
+  /** Subscribes to directory watcher events. Returns an unsubscribe function. */
+  onDirectoryWatchEvent(callback: (event: DirectoryWatchEvent) => void): () => void
 }
 
 declare global {

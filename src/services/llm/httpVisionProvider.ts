@@ -6,9 +6,21 @@ import type {
   VisionProviderResult,
 } from './visionProvider'
 import { validateVisionResponse, VisionValidationError } from './jsonValidation'
-import { BULK_NAME_NORMALIZATION_PROMPT, NAME_NORMALIZATION_PROMPT, VISION_PROMPT } from './prompts'
+import {
+  BULK_NAME_NORMALIZATION_PROMPT,
+  buildLanguageInstruction,
+  NAME_NORMALIZATION_PROMPT,
+  VISION_PROMPT,
+} from './prompts'
 
 export type FetchLike = typeof fetch
+
+/**
+ * Number of file names sent per bulk-rename request. Kept small so local
+ * models (Ollama) reliably return one entry per file; callers chunk larger
+ * selections into batches of this size to keep each request manageable.
+ */
+export const BULK_RENAME_BATCH_SIZE = 10
 
 /** User-facing failure from a remote vision provider (auth, network, HTTP). */
 export class VisionProviderError extends Error {
@@ -52,6 +64,11 @@ export function buildVisionUserText(input: VisionAnalysisInput): string {
     }
   }
 
+  const languageInstruction = buildLanguageInstruction(input.language)
+  if (languageInstruction) {
+    lines.push('', languageInstruction)
+  }
+
   return lines.join('\n')
 }
 
@@ -81,9 +98,14 @@ export abstract class HttpVisionProvider implements VisionProvider {
     input: VisionAnalysisInput,
   ): ReturnType<VisionRequestOnce>
 
-  /** One text-only round-trip (no images), used for name normalization. */
+  /**
+   * One text-only round-trip (no images). When `expectJson` is set the
+   * subclass should ask the API for a strict JSON answer (used by the bulk
+   * rename path); single-name normalization leaves it off to receive plain text.
+   */
   protected abstract requestTextOnce(
     prompt: string,
+    expectJson?: boolean,
   ): Promise<{ answerText: string; rawResponseJson: string }>
 
   async normalizeName(rawName: string, context?: string): Promise<string> {
@@ -101,16 +123,55 @@ export abstract class HttpVisionProvider implements VisionProvider {
     if (items.length === 0) {
       return []
     }
-    const { answerText } = await this.requestTextOnce(buildBulkNameNormalizationPrompt(items))
-    const parsed = parseBulkNormalizedNames(answerText)
-    const namesById = new Map(parsed.map((item) => [item.id, item.normalizedName]))
-    return items.map((item) => {
+
+    const namesById = await this.requestBulkNames(items)
+    const results: NameNormalizationResult[] = []
+    const missing: NameNormalizationInput[] = []
+    for (const item of items) {
       const normalizedName = cleanNormalizedName(namesById.get(item.id) ?? '')
-      if (!normalizedName) {
-        throw new VisionProviderError(`${this.name} did not return a name for ${item.rawName}.`)
+      if (normalizedName) {
+        results.push({ id: item.id, normalizedName })
+      } else {
+        missing.push(item)
       }
-      return { id: item.id, normalizedName }
-    })
+    }
+
+    // Models frequently omit or mis-key entries in a batch. Recover each
+    // missing name with a focused single-file request rather than failing the
+    // whole batch over one dropped item.
+    let lastError: unknown
+    for (const item of missing) {
+      try {
+        const normalizedName = await this.normalizeName(item.rawName, item.context)
+        results.push({ id: item.id, normalizedName })
+      } catch (error) {
+        lastError = error
+      }
+    }
+
+    // Only surface an error when nothing could be normalized at all, which
+    // signals a real provider/connectivity failure rather than partial drift.
+    if (results.length === 0) {
+      throw lastError instanceof Error
+        ? lastError
+        : new VisionProviderError(`${this.name} did not return any names.`)
+    }
+    return results
+  }
+
+  /** Requests one bulk JSON answer, returning an id→name map (empty on failure). */
+  private async requestBulkNames(items: NameNormalizationInput[]): Promise<Map<string, string>> {
+    try {
+      const { answerText } = await this.requestTextOnce(
+        buildBulkNameNormalizationPrompt(items),
+        true,
+      )
+      const parsed = parseBulkNormalizedNames(answerText)
+      return new Map(parsed.map((item) => [item.id, item.normalizedName]))
+    } catch {
+      // Let the per-item fallback recover the names individually.
+      return new Map()
+    }
   }
 
   async describeModel(input: VisionAnalysisInput): Promise<VisionProviderResult> {

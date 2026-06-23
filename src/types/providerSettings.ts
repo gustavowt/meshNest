@@ -2,6 +2,9 @@ export type VisionProviderId = 'none' | 'mock' | 'openai' | 'gemini' | 'ollama'
 
 export type EmbeddingProviderId = 'none' | 'builtin' | 'mock' | 'openai' | 'gemini' | 'ollama'
 
+/** UI / output languages the user can pick in Settings. */
+export type AppLanguage = 'en' | 'pt' | 'es'
+
 /**
  * Configuration of the vision-capable LLM used for visual enrichment.
  */
@@ -31,7 +34,7 @@ export type ProviderSettings = {
   embedding: EmbeddingSettings
   libraryFolder?: string
   appearance?: 'clear' | 'dark' | 'system'
-  language?: 'en' | 'pt' | 'es'
+  language?: AppLanguage
 }
 
 export type ProviderTestResult = {

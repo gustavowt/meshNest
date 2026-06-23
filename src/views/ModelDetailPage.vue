@@ -7,7 +7,12 @@
         </ion-buttons>
         <ion-title>{{ detail?.description?.shortName ?? detail?.file.filename ?? $t('detail.model') }}</ion-title>
         <ion-buttons slot="end">
-          <indexing-status-badge v-if="detail" :status="detail.file.status" class="header-badge" />
+          <indexing-status-badge
+            v-if="detail"
+            :status="detail.file.status"
+            :error-message="detail.file.errorMessage"
+            class="header-badge"
+          />
           <ion-button :disabled="reindexing || !detail" @click="openSlicer">
             <ion-icon slot="start" :icon="openOutline" />
             {{ $t('detail.openSlicer') }}
@@ -118,6 +123,7 @@ import { createDesktopIndexingDeps } from '@/services/indexing/desktopIndexingDe
 import { useIndexingStore } from '@/stores/indexingStore'
 import { useLibraryStore } from '@/stores/libraryStore'
 import { useSearchStore } from '@/stores/searchStore'
+import { loadCachedProviderSettings } from '@/services/settings/providerSettingsCache'
 import type { ModelDetail } from '@/types/modelDetail'
 
 const { t } = useI18n()
@@ -150,7 +156,7 @@ async function loadDetail(modelFileId: string): Promise<void> {
   error.value = null
   try {
     detail.value = await window.meshNest.getModelDetail(modelFileId)
-    providerSettings.value = await window.meshNest.getProviderSettings()
+    providerSettings.value = loadCachedProviderSettings() ?? await window.meshNest.getProviderSettings()
   } catch (loadError) {
     error.value = loadError instanceof Error ? loadError.message : String(loadError)
   } finally {
@@ -245,7 +251,14 @@ async function renameWithAi(): Promise<void> {
   let suggested: string
   aiRenaming.value = true
   try {
-    suggested = await window.meshNest.normalizeName(file.filename, buildRenameContext())
+    const visionSettings = providerSettings.value?.vision
+      ? JSON.parse(JSON.stringify(providerSettings.value.vision))
+      : undefined
+    suggested = await window.meshNest.normalizeName(
+      file.filename,
+      buildRenameContext(),
+      visionSettings,
+    )
   } catch (normalizeError) {
     await showToast(normalizeError instanceof Error ? normalizeError.message : String(normalizeError))
     return

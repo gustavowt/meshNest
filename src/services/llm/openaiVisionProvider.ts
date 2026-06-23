@@ -51,13 +51,14 @@ export class OpenAiVisionProvider extends HttpVisionProvider {
     return { answerText, rawResponseJson }
   }
 
-  protected async requestTextOnce(prompt: string) {
+  protected async requestTextOnce(prompt: string, expectJson = false) {
     const rawResponseJson = await this.postJson(
       `${this.baseUrl.replace(/\/$/, '')}/chat/completions`,
       { Authorization: `Bearer ${this.apiKey}` },
       {
         model: this.model,
         messages: [{ role: 'user', content: prompt }],
+        ...(expectJson ? { response_format: { type: 'json_object' } } : {}),
       },
     )
 

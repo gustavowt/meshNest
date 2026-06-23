@@ -19,9 +19,12 @@ export function registerLlmIpc(): void {
   ipcMain.handle(
     'llm:describeModel',
     async (_event, input: VisionAnalysisInput, settingsSnapshot?: VisionSettings) => {
-      const settings = settingsSnapshot ?? (await getProviderSettings()).vision
+      const providerSettings = await getProviderSettings()
+      const settings = settingsSnapshot ?? providerSettings.vision
       const provider = createVisionProvider(settings)
-      return provider.describeModel(input)
+      // Ask the model to answer in the language the user picked in Settings,
+      // which the main process keeps authoritative for every (re)index call.
+      return provider.describeModel({ ...input, language: providerSettings.language })
     },
   )
 
@@ -30,21 +33,21 @@ export function registerLlmIpc(): void {
     return { name: settings.vision.provider, model: settings.vision.model }
   })
 
-  ipcMain.handle('llm:normalizeName', async (_event, rawName: string, context?: string) => {
-    const settings = await getProviderSettings()
-    if (settings.vision.provider === 'none' || settings.vision.provider === 'mock') {
+  ipcMain.handle('llm:normalizeName', async (_event, rawName: string, context?: string, settingsSnapshot?: VisionSettings) => {
+    const settings = settingsSnapshot ?? (await getProviderSettings()).vision
+    if (settings.provider === 'none' || settings.provider === 'mock') {
       throw new Error('A vision AI provider must be enabled to rename with AI.')
     }
-    const provider = createVisionProvider(settings.vision)
+    const provider = createVisionProvider(settings)
     return provider.normalizeName(rawName, context)
   })
 
-  ipcMain.handle('llm:normalizeNames', async (_event, items: NameNormalizationInput[]) => {
-    const settings = await getProviderSettings()
-    if (settings.vision.provider === 'none' || settings.vision.provider === 'mock') {
+  ipcMain.handle('llm:normalizeNames', async (_event, items: NameNormalizationInput[], settingsSnapshot?: VisionSettings) => {
+    const settings = settingsSnapshot ?? (await getProviderSettings()).vision
+    if (settings.provider === 'none' || settings.provider === 'mock') {
       throw new Error('A vision AI provider must be enabled to rename with AI.')
     }
-    const provider = createVisionProvider(settings.vision)
+    const provider = createVisionProvider(settings)
     return provider.normalizeNames(items)
   })
 

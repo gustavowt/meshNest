@@ -46,7 +46,7 @@ export class OllamaVisionProvider extends HttpVisionProvider {
     return { answerText, rawResponseJson }
   }
 
-  protected async requestTextOnce(prompt: string) {
+  protected async requestTextOnce(prompt: string, expectJson = false) {
     const rawResponseJson = await this.postJson(
       `${this.baseUrl.replace(/\/$/, '')}/api/chat`,
       {},
@@ -54,6 +54,7 @@ export class OllamaVisionProvider extends HttpVisionProvider {
         model: this.model,
         messages: [{ role: 'user', content: prompt }],
         stream: false,
+        ...(expectJson ? { format: 'json' } : {}),
       },
     )
 

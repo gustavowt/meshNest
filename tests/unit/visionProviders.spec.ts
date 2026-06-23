@@ -82,6 +82,22 @@ describe('buildVisionUserText', () => {
     expect(text).toContain('Body, Wing')
     expect(text).toContain('PLA Red')
   })
+
+  test('asks for a non-English language while keeping JSON keys in English', () => {
+    const pt = buildVisionUserText({ ...sampleInput(), language: 'pt' })
+    expect(pt).toContain('Portuguese')
+    expect(pt).toContain('Keep the JSON keys')
+
+    const es = buildVisionUserText({ ...sampleInput(), language: 'es' })
+    expect(es).toContain('Spanish')
+  })
+
+  test('adds no language instruction for English or when unset', () => {
+    expect(buildVisionUserText({ ...sampleInput(), language: 'en' })).not.toContain(
+      'Keep the JSON keys',
+    )
+    expect(buildVisionUserText(sampleInput())).not.toContain('Keep the JSON keys')
+  })
 })
 
 describe('stripJsonFences', () => {

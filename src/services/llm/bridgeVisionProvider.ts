@@ -30,14 +30,14 @@ export class BridgeVisionProvider implements VisionProvider {
     if (!window.meshNest) {
       throw new Error('Vision provider bridge is only available in the desktop app.')
     }
-    return window.meshNest.normalizeName(rawName, context)
+    return window.meshNest.normalizeName(rawName, context, this.settings)
   }
 
   async normalizeNames(items: NameNormalizationInput[]): Promise<NameNormalizationResult[]> {
     if (!window.meshNest) {
       throw new Error('Vision provider bridge is only available in the desktop app.')
     }
-    return window.meshNest.normalizeNames(items)
+    return window.meshNest.normalizeNames(items, this.settings)
   }
 }
 

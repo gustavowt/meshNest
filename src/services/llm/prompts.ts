@@ -52,6 +52,30 @@ Rules:
 - Prefer short names: 2-5 words, object-first, practical, and easy to scan in a file list.
 - Avoid duplicate names within the batch. Preserve short distinguishing details when needed.`
 
+/**
+ * Human-readable names for the languages the user can pick in Settings,
+ * used to instruct vision models to answer in that language.
+ */
+export const LANGUAGE_NAMES: Record<'en' | 'pt' | 'es', string> = {
+  en: 'English',
+  pt: 'Portuguese',
+  es: 'Spanish',
+}
+
+/**
+ * Builds the instruction that asks the model to write the human-readable
+ * description fields in the user's language while keeping the JSON keys
+ * and structure exactly as specified. Returns an empty string for English
+ * (the prompt's native language) so existing behavior is unchanged.
+ */
+export function buildLanguageInstruction(language?: 'en' | 'pt' | 'es'): string {
+  if (!language || language === 'en') {
+    return ''
+  }
+  const languageName = LANGUAGE_NAMES[language]
+  return `Write all human-readable text values (shortName, description, likelyCategory, tags, objectsDetected, printUse, style, searchPhrases) in ${languageName}. Keep the JSON keys and overall structure exactly as specified, in English.`
+}
+
 export const SUGGESTED_CATEGORIES = [
   'toys',
   'tools',

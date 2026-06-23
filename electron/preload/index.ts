@@ -1,6 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
-import type { MeshNestApi, ScanProgressEvent } from '../../src/types/electronApi'
+import type {
+  DirectoryWatchEvent,
+  MeshNestApi,
+  ScanProgressEvent,
+} from '../../src/types/electronApi'
 
 const api: MeshNestApi = {
   isMasBuild: process.mas === true,
@@ -12,6 +16,12 @@ const api: MeshNestApi = {
     ipcRenderer.invoke('filesystem:scanDirectory', directory, scanId),
 
   cancelScan: (scanId) => ipcRenderer.invoke('filesystem:cancelScan', scanId),
+
+  startDirectoryWatch: (directory, watchId) =>
+    ipcRenderer.invoke('filesystem:startDirectoryWatch', directory, watchId),
+
+  stopDirectoryWatch: (watchId) =>
+    ipcRenderer.invoke('filesystem:stopDirectoryWatch', watchId),
 
   readModelFile: (absolutePath) => ipcRenderer.invoke('filesystem:readModelFile', absolutePath),
 
@@ -30,6 +40,7 @@ const api: MeshNestApi = {
   listLibraryEntries: (projectId) => ipcRenderer.invoke('database:listLibraryEntries', projectId),
   getModelDetail: (modelFileId) => ipcRenderer.invoke('database:getModelDetail', modelFileId),
   resetToPending: (modelFileId) => ipcRenderer.invoke('database:resetToPending', modelFileId),
+  resetAllToPending: (projectId) => ipcRenderer.invoke('database:resetAllToPending', projectId),
   deleteFailedModelFiles: (projectId) =>
     ipcRenderer.invoke('database:deleteFailedModelFiles', projectId),
   deleteModel: (modelFileId) => ipcRenderer.invoke('model:deleteModel', modelFileId),
@@ -42,6 +53,7 @@ const api: MeshNestApi = {
 
   getProviderSettings: () => ipcRenderer.invoke('settings:getProviderSettings'),
   saveProviderSettings: (settings) => ipcRenderer.invoke('settings:saveProviderSettings', settings),
+  syncProviderSettings: (settings) => ipcRenderer.invoke('settings:syncProviderSettings', settings),
   testVisionProvider: (settings) => ipcRenderer.invoke('settings:testVisionProvider', settings),
   testEmbeddingProvider: (settings) =>
     ipcRenderer.invoke('settings:testEmbeddingProvider', settings),
@@ -49,9 +61,9 @@ const api: MeshNestApi = {
 
   describeModel: (input, settings) => ipcRenderer.invoke('llm:describeModel', input, settings),
   getActiveVisionProvider: () => ipcRenderer.invoke('llm:getActiveVisionProvider'),
-  normalizeName: (rawName, context) =>
-    ipcRenderer.invoke('llm:normalizeName', rawName, context),
-  normalizeNames: (items) => ipcRenderer.invoke('llm:normalizeNames', items),
+  normalizeName: (rawName, context, settings) =>
+    ipcRenderer.invoke('llm:normalizeName', rawName, context, settings),
+  normalizeNames: (items, settings) => ipcRenderer.invoke('llm:normalizeNames', items, settings),
   embedText: (text, settings) => ipcRenderer.invoke('llm:embedText', text, settings),
   getActiveEmbeddingProvider: () => ipcRenderer.invoke('llm:getActiveEmbeddingProvider'),
   reembedAll: () => ipcRenderer.invoke('llm:reembedAll'),
@@ -76,6 +88,13 @@ const api: MeshNestApi = {
     const listener = (_event: IpcRendererEvent, progress: ScanProgressEvent) => callback(progress)
     ipcRenderer.on('filesystem:scanProgress', listener)
     return () => ipcRenderer.removeListener('filesystem:scanProgress', listener)
+  },
+
+  onDirectoryWatchEvent: (callback) => {
+    const listener = (_event: IpcRendererEvent, watchEvent: DirectoryWatchEvent) =>
+      callback(watchEvent)
+    ipcRenderer.on('filesystem:directoryWatchEvent', listener)
+    return () => ipcRenderer.removeListener('filesystem:directoryWatchEvent', listener)
   },
 }
 

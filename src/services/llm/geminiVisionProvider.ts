@@ -43,12 +43,13 @@ export class GeminiVisionProvider extends HttpVisionProvider {
     return { answerText, rawResponseJson }
   }
 
-  protected async requestTextOnce(prompt: string) {
+  protected async requestTextOnce(prompt: string, expectJson = false) {
     const rawResponseJson = await this.postJson(
       `${GEMINI_BASE}/models/${this.model}:generateContent`,
       { 'x-goog-api-key': this.apiKey },
       {
         contents: [{ parts: [{ text: prompt }] }],
+        ...(expectJson ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
       },
     )
 
