@@ -48,13 +48,15 @@ const sortedEntries = computed(() =>
   }),
 )
 
-async function loadLibrary(): Promise<void> {
+async function loadLibrary(options: { silent?: boolean } = {}): Promise<void> {
   if (!window.meshNest) {
     state.error = 'The library is only available in the desktop app.'
     state.loaded = true
     return
   }
-  state.loading = true
+  if (!options.silent) {
+    state.loading = true
+  }
   state.error = null
   try {
     state.entries = await window.meshNest.listLibraryEntries()
@@ -62,7 +64,35 @@ async function loadLibrary(): Promise<void> {
   } catch (error) {
     state.error = error instanceof Error ? error.message : String(error)
   } finally {
-    state.loading = false
+    if (!options.silent) {
+      state.loading = false
+    }
+  }
+}
+
+function upsertEntry(entry: LibraryEntry): void {
+  const index = state.entries.findIndex((candidate) => candidate.id === entry.id)
+  if (index >= 0) {
+    state.entries[index] = entry
+  } else {
+    state.entries.push(entry)
+  }
+  state.loaded = true
+}
+
+async function refreshEntry(modelFileId: string): Promise<LibraryEntry | null> {
+  if (!window.meshNest) {
+    return null
+  }
+  try {
+    const entry = await window.meshNest.getLibraryEntry(modelFileId)
+    if (entry) {
+      upsertEntry(entry)
+    }
+    return entry
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : String(error)
+    return null
   }
 }
 
@@ -107,6 +137,7 @@ export function useLibraryStore() {
     state: readonly(state),
     sortedEntries,
     loadLibrary,
+    refreshEntry,
     setSortKey,
     patchEntry,
     pinEntryFirst,

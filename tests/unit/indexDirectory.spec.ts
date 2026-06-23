@@ -121,6 +121,22 @@ describe('processIndexQueue', () => {
     expect(processedCounts).toEqual([...processedCounts].sort((a, b) => a - b))
   })
 
+  test('emits item completion events as workers finish', async () => {
+    const completed: Array<{ item: string; result: IndexingResult }> = []
+
+    await processIndexQueue(['a.stl', 'b.stl'], async (item) => okResult(item), {
+      concurrency: 1,
+      onItemComplete: (item, result) => {
+        completed.push({ item, result })
+      },
+    })
+
+    expect(completed).toEqual([
+      { item: 'a.stl', result: { modelFileId: 'a.stl', status: 'indexed' } },
+      { item: 'b.stl', result: { modelFileId: 'b.stl', status: 'indexed' } },
+    ])
+  })
+
   test('stops starting new items when the signal aborts', async () => {
     const controller = new AbortController()
     const items = Array.from({ length: 6 }, (_, i) => `item-${i}`)
@@ -175,6 +191,26 @@ describe('indexScannedFiles', () => {
       cancelled: false,
     })
     expect(outcome.resultsByPath.get(files[1].absolutePath)?.status).toBe('failed')
+  })
+
+  test('reports each completed scanned file to the caller', async () => {
+    const files = [
+      writeScannedFile('alpha-complete.stl', validStl()),
+      writeScannedFile('broken-complete.stl', 'not an stl'),
+    ]
+    const completed: Array<{ path: string; status: IndexingResult['status'] }> = []
+
+    await indexScannedFiles(files, PROJECT_ID, deps, {
+      concurrency: 1,
+      onFileComplete: (file, result) => {
+        completed.push({ path: file.absolutePath, status: result.status })
+      },
+    })
+
+    expect(completed).toEqual([
+      { path: files[0].absolutePath, status: 'indexed' },
+      { path: files[1].absolutePath, status: 'failed' },
+    ])
   })
 
   test('persists one job per file with final statuses and error reasons', async () => {

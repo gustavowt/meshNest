@@ -6,6 +6,8 @@ export type ProcessQueueOptions<T> = {
   /** Abort to stop starting new items; in-flight items finish. */
   signal?: AbortSignal
   onProgress?: (progress: IndexingProgress) => void
+  /** Called after an item finishes and its result has been recorded. */
+  onItemComplete?: (item: T, result: IndexingResult) => void | Promise<void>
   /** Label used for `currentFile` in progress events. */
   itemLabel?: (item: T) => string
 }
@@ -87,6 +89,7 @@ export async function processIndexQueue<T>(
       else if (result.status === 'skipped') skipped += 1
       else failed += 1
       emitProgress()
+      await options.onItemComplete?.(item, result)
     }
   }
 

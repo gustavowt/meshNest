@@ -31,6 +31,7 @@ let lastFiles: ScannedFile[] = []
 let lastResults: Map<string, IndexingResult> = new Map()
 let watchedFileProcessing = false
 const watchedFileQueue = new Map<string, DirectoryWatchEvent>()
+const fileProcessedListeners = new Set<(file: ScannedFile, result: IndexingResult) => void>()
 const watchedFileIndexedListeners = new Set<(result: IndexingResult) => void>()
 let activeManualRunPaths = new Set<string>()
 const recentlyHandledWatchPaths = new Map<string, number>()
@@ -67,6 +68,7 @@ async function runIndexing(
       onProgress: (progress) => {
         state.progress = progress
       },
+      onFileComplete: notifyFileProcessed,
     })
     lastResults = outcome.resultsByPath
     state.summary = outcome.summary
@@ -113,6 +115,7 @@ async function indexNewFilesOnBoot(directory?: string | null): Promise<void> {
       onProgress: (progress) => {
         state.progress = progress
       },
+      onFileComplete: notifyFileProcessed,
     })
     lastResults = outcome.resultsByPath
     state.summary = outcome.summary
@@ -146,6 +149,7 @@ async function retryFailed(): Promise<void> {
         onProgress: (progress) => {
           state.progress = progress
         },
+        onFileComplete: notifyFileProcessed,
       },
     )
     // Merge retry results so another retry only picks still-failing files.
@@ -192,6 +196,7 @@ async function retryFailedLibrary(
         onProgress: (progress) => {
           state.progress = progress
         },
+        onFileComplete: notifyFileProcessed,
       })
       lastResults = outcome.resultsByPath
       state.summary = outcome.summary
@@ -230,6 +235,7 @@ async function retryFailedLibrary(
         onProgress: (progress) => {
           state.progress = progress
         },
+        onFileComplete: notifyFileProcessed,
       })
       for (const [path, result] of outcome.resultsByPath) {
         resultsByPath.set(path, result)
@@ -344,6 +350,17 @@ function onWatchedFileIndexed(callback: (result: IndexingResult) => void): () =>
   return () => watchedFileIndexedListeners.delete(callback)
 }
 
+function onFileProcessed(callback: (file: ScannedFile, result: IndexingResult) => void): () => void {
+  fileProcessedListeners.add(callback)
+  return () => fileProcessedListeners.delete(callback)
+}
+
+function notifyFileProcessed(file: ScannedFile, result: IndexingResult): void {
+  for (const listener of fileProcessedListeners) {
+    listener(file, result)
+  }
+}
+
 async function processWatchedFileQueue(): Promise<void> {
   if (watchedFileProcessing || state.running || !window.meshNest) {
     return
@@ -370,6 +387,8 @@ async function indexWatchedFile(event: DirectoryWatchEvent): Promise<void> {
   if (!window.meshNest) {
     return
   }
+  ignoreWatchedPaths([event.absolutePath])
+  watchedFileQueue.delete(event.absolutePath)
   state.running = true
   state.directory = event.relativePath
   state.progress = null
@@ -391,6 +410,7 @@ async function indexWatchedFile(event: DirectoryWatchEvent): Promise<void> {
       onProgress: (progress) => {
         state.progress = progress
       },
+      onFileComplete: notifyFileProcessed,
     })
     lastResults = outcome.resultsByPath
     state.summary = outcome.summary
@@ -452,6 +472,7 @@ export function resetIndexingStore(): void {
   lastResults = new Map()
   watchedFileProcessing = false
   watchedFileQueue.clear()
+  fileProcessedListeners.clear()
   watchedFileIndexedListeners.clear()
   activeManualRunPaths = new Set()
   recentlyHandledWatchPaths.clear()
@@ -470,6 +491,7 @@ export function useIndexingStore() {
     indexNewFilesOnBoot,
     cancelIndexing,
     queueWatchedFile,
+    onFileProcessed,
     onWatchedFileIndexed,
     failedCount,
     syncRenamedModel,

@@ -347,6 +347,11 @@ const settings = useSettingsStore()
 let activeDirectoryWatchId: string | null = null
 let unsubscribeDirectoryWatchEvents: (() => void) | null = null
 const RUN_SUMMARY_DISMISS_MS = 5000
+const unsubscribeFileProcessed = indexing.onFileProcessed((_file, result) => {
+  if (result.modelFileId) {
+    void library.refreshEntry(result.modelFileId)
+  }
+})
 const unsubscribeWatchedFileIndexed = indexing.onWatchedFileIndexed((result) => {
   if (result.modelFileId) {
     library.pinEntryFirst(result.modelFileId)
@@ -964,7 +969,7 @@ watch(
   () => indexing.state.running,
   (running, wasRunning) => {
     if (wasRunning && !running) {
-      library.loadLibrary()
+      void library.loadLibrary({ silent: true })
     }
   },
 )
@@ -998,6 +1003,7 @@ onBeforeUnmount(() => {
     clearTimeout(searchTimeout)
   }
   clearRunSummaryDismissTimeout()
+  unsubscribeFileProcessed()
   unsubscribeWatchedFileIndexed()
   void stopLibraryWatcher()
 })

@@ -242,4 +242,49 @@ describe('indexingStore', () => {
     expect(indexedResults).toEqual(['id-nested.stl'])
     unsubscribe()
   })
+
+  test('ignores duplicate watcher events while a watched file is indexing', async () => {
+    const bridgeFile = scannedFile('duplicate.stl')
+    const event: DirectoryWatchEvent = {
+      watchId: 'watch-1',
+      absolutePath: bridgeFile.absolutePath,
+      relativePath: bridgeFile.relativePath,
+      filename: bridgeFile.filename,
+      extension: bridgeFile.extension,
+    }
+    window.meshNest = {
+      scanFile: vi.fn(async () => bridgeFile),
+    } as any
+
+    const store = useIndexingStore()
+    vi.mocked(indexScannedFiles).mockImplementationOnce(async (files: ScannedFile[]) => {
+      store.queueWatchedFile(event)
+      return {
+        summary: {
+          total: files.length,
+          indexed: files.length,
+          skipped: 0,
+          failed: 0,
+          pending: 0,
+          cancelled: false,
+        },
+        resultsByPath: new Map(
+          files.map((file) => [
+            file.absolutePath,
+            { modelFileId: `id-${file.filename}`, status: 'indexed' },
+          ]),
+        ),
+      }
+    })
+
+    store.queueWatchedFile(event)
+
+    await vi.waitFor(() => {
+      expect(indexScannedFiles).toHaveBeenCalledTimes(1)
+    })
+    await Promise.resolve()
+
+    expect(window.meshNest.scanFile).toHaveBeenCalledTimes(1)
+    expect(indexScannedFiles).toHaveBeenCalledTimes(1)
+  })
 })

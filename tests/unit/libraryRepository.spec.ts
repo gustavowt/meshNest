@@ -55,7 +55,7 @@ async function indexFixture(filename: string, content: Uint8Array | string) {
 
 describe('LibraryRepository', () => {
   test('returns indexed entries joined with description and thumbnail', async () => {
-    await indexFixture('dragon-stand.stl', new Uint8Array(buildBinaryStl(SPANNING_TRIANGLES)))
+    const result = await indexFixture('dragon-stand.stl', new Uint8Array(buildBinaryStl(SPANNING_TRIANGLES)))
 
     const entries = await repository.listLibraryEntries()
     expect(entries).toHaveLength(1)
@@ -68,6 +68,9 @@ describe('LibraryRepository', () => {
     expect(entry.likelyCategory).toBeTruthy()
     expect(entry.tags.length).toBeGreaterThan(0)
     expect(entry.thumbnailPath).toContain('thumbnail.png')
+
+    const single = await repository.getLibraryEntry(result.modelFileId)
+    expect(single).toEqual(entry)
   })
 
   test('returns failed entries without description but with error message', async () => {

@@ -43,6 +43,11 @@ export function registerDatabaseIpc(): void {
     return repository.listLibraryEntries(projectId)
   })
 
+  ipcMain.handle('database:getLibraryEntry', async (_event, modelFileId: string) => {
+    const repository = new LibraryRepository(await getDatabaseClient())
+    return (await repository.getLibraryEntry(modelFileId)) ?? null
+  })
+
   ipcMain.handle('database:getModelDetail', async (_event, modelFileId: string) => {
     return (await getModelDetail(await getDatabaseClient(), modelFileId)) ?? null
   })

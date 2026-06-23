@@ -63,6 +63,44 @@ describe('libraryStore', () => {
     expect(store.state.loading).toBe(false)
   })
 
+  test('refreshes one entry without entering the full loading state', async () => {
+    const first = entry({ id: 'model-1', filename: 'first.stl' })
+    const updated = entry({ id: 'model-1', filename: 'updated.stl', shortName: 'Updated' })
+    window.meshNest = {
+      listLibraryEntries: async () => [first],
+      getLibraryEntry: async () => updated,
+    } as unknown as MeshNestApi
+
+    const store = useLibraryStore()
+    await store.loadLibrary()
+    await store.refreshEntry('model-1')
+
+    expect(store.state.loading).toBe(false)
+    expect(store.state.entries).toHaveLength(1)
+    expect(store.state.entries[0].filename).toBe('updated.stl')
+    expect(store.state.entries[0].shortName).toBe('Updated')
+  })
+
+  test('can reconcile silently without hiding the current list', async () => {
+    let resolveEntries: ((entries: LibraryEntry[]) => void) | null = null
+    window.meshNest = {
+      listLibraryEntries: () =>
+        new Promise<LibraryEntry[]>((resolve) => {
+          resolveEntries = resolve
+        }),
+    } as unknown as MeshNestApi
+
+    const store = useLibraryStore()
+    const load = store.loadLibrary({ silent: true })
+
+    expect(store.state.loading).toBe(false)
+    resolveEntries?.([entry({ filename: 'silent.stl' })])
+    await load
+
+    expect(store.state.entries[0].filename).toBe('silent.stl')
+    expect(store.state.loading).toBe(false)
+  })
+
   test('sorts by filename ascending', async () => {
     window.meshNest = {
       listLibraryEntries: async () => [

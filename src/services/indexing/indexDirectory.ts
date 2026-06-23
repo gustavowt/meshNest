@@ -23,6 +23,8 @@ export type IndexFilesOptions = {
   concurrency?: number
   signal?: AbortSignal
   onProgress?: (progress: IndexingProgress) => void
+  /** Called after each file finishes indexing, skipping, or failing. */
+  onFileComplete?: (file: ScannedFile, result: IndexingResult) => void | Promise<void>
   /** Recorded on job rows; 'retry' when re-running failed files. */
   jobType?: IndexingJobType
 }
@@ -96,6 +98,7 @@ export async function indexScannedFiles(
     concurrency: options.concurrency,
     signal: options.signal,
     onProgress: options.onProgress,
+    onItemComplete: options.onFileComplete,
     itemLabel: (file) => file.relativePath,
   })
 

@@ -65,4 +65,22 @@ export class LibraryRepository {
       : await this.client.all<LibraryRow>(`${baseQuery} ORDER BY f.relative_path`)
     return rows.map(toLibraryEntry)
   }
+
+  async getLibraryEntry(modelFileId: string): Promise<LibraryEntry | undefined> {
+    const rows = await this.client.all<LibraryRow>(
+      `
+      SELECT
+        f.id, f.filename, f.relative_path, f.absolute_path, f.extension,
+        f.size_bytes, f.modified_at, f.indexed_at, f.status, f.error_message,
+        d.short_name, d.likely_category, d.tags,
+        r.absolute_path AS thumbnail_path
+      FROM model_files f
+      LEFT JOIN ai_model_descriptions d ON d.model_file_id = f.id
+      LEFT JOIN model_render_assets r
+        ON r.model_file_id = f.id AND r.view_name = 'thumbnail'
+      WHERE f.id = $modelFileId`,
+      { modelFileId },
+    )
+    return rows.length > 0 ? toLibraryEntry(rows[0]) : undefined
+  }
 }

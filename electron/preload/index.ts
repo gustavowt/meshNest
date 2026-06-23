@@ -38,6 +38,7 @@ const api: MeshNestApi = {
     ipcRenderer.invoke('database:upsertModelFile', file, projectId, options),
   listModelFiles: (projectId) => ipcRenderer.invoke('database:listModelFiles', projectId),
   listLibraryEntries: (projectId) => ipcRenderer.invoke('database:listLibraryEntries', projectId),
+  getLibraryEntry: (modelFileId) => ipcRenderer.invoke('database:getLibraryEntry', modelFileId),
   getModelDetail: (modelFileId) => ipcRenderer.invoke('database:getModelDetail', modelFileId),
   resetToPending: (modelFileId) => ipcRenderer.invoke('database:resetToPending', modelFileId),
   resetAllToPending: (projectId) => ipcRenderer.invoke('database:resetAllToPending', projectId),

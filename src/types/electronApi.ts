@@ -81,6 +81,7 @@ export type MeshNestApi = {
   ): Promise<ModelFile>
   listModelFiles(projectId?: string): Promise<ModelFile[]>
   listLibraryEntries(projectId?: string): Promise<LibraryEntry[]>
+  getLibraryEntry(modelFileId: string): Promise<LibraryEntry | null>
   getModelDetail(modelFileId: string): Promise<ModelDetail | null>
   /** Forces a file back to 'pending' so the next run reindexes it. */
   resetToPending(modelFileId: string): Promise<void>
