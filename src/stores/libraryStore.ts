@@ -71,7 +71,12 @@ async function loadLibrary(options: { silent?: boolean } = {}): Promise<void> {
 }
 
 function upsertEntry(entry: LibraryEntry): void {
-  const index = state.entries.findIndex((candidate) => candidate.id === entry.id)
+  const index = state.entries.findIndex(
+    (candidate) =>
+      candidate.id === entry.id ||
+      candidate.absolutePath === entry.absolutePath ||
+      candidate.relativePath === entry.relativePath,
+  )
   if (index >= 0) {
     state.entries[index] = entry
   } else {

@@ -81,6 +81,34 @@ describe('libraryStore', () => {
     expect(store.state.entries[0].shortName).toBe('Updated')
   })
 
+  test('refresh upserts by file path when a reindexed entry has a new id', async () => {
+    const original = entry({
+      id: 'old-id',
+      filename: 'same-file.stl',
+      relativePath: 'same-file.stl',
+      absolutePath: '/models/same-file.stl',
+    })
+    const reindexed = entry({
+      id: 'new-id',
+      filename: 'same-file.stl',
+      relativePath: 'same-file.stl',
+      absolutePath: '/models/same-file.stl',
+      shortName: 'Same File',
+    })
+    window.meshNest = {
+      listLibraryEntries: async () => [original],
+      getLibraryEntry: async () => reindexed,
+    } as unknown as MeshNestApi
+
+    const store = useLibraryStore()
+    await store.loadLibrary()
+    await store.refreshEntry('new-id')
+
+    expect(store.state.entries).toHaveLength(1)
+    expect(store.state.entries[0].id).toBe('new-id')
+    expect(store.state.entries[0].shortName).toBe('Same File')
+  })
+
   test('can reconcile silently without hiding the current list', async () => {
     let resolveEntries: ((entries: LibraryEntry[]) => void) | null = null
     window.meshNest = {
