@@ -32,6 +32,9 @@ let lastResults: Map<string, IndexingResult> = new Map()
 let watchedFileProcessing = false
 const watchedFileQueue = new Map<string, DirectoryWatchEvent>()
 const watchedFileIndexedListeners = new Set<(result: IndexingResult) => void>()
+let activeManualRunPaths = new Set<string>()
+const recentlyHandledWatchPaths = new Map<string, number>()
+const WATCH_EVENT_IGNORE_MS = 10_000
 
 /**
  * Runs a directory indexing pass. With `{ force: true }` every existing
@@ -58,6 +61,7 @@ async function runIndexing(
     }
     const files = await reconcileScannedDirectory(directory)
     lastFiles = files
+    rememberManualRunFiles(files)
     const outcome = await indexScannedFiles(files, DEFAULT_PROJECT_ID, await createDesktopIndexingDeps(), {
       signal: abortController.signal,
       onProgress: (progress) => {
@@ -69,6 +73,53 @@ async function runIndexing(
   } catch (error) {
     state.error = error instanceof Error ? error.message : String(error)
   } finally {
+    finishManualRunWatchSuppression()
+    state.running = false
+    abortController = null
+    void processWatchedFileQueue()
+  }
+}
+
+/**
+ * On startup, catch files added while the app was closed. This keeps the
+ * watcher path focused on live additions while preserving the same queue.
+ */
+async function indexNewFilesOnBoot(directory?: string | null): Promise<void> {
+  if (state.running || !directory || !window.meshNest) {
+    return
+  }
+
+  state.running = true
+  state.directory = directory
+  state.progress = null
+  state.summary = null
+  state.error = null
+  abortController = new AbortController()
+
+  try {
+    const scannedFiles = await window.meshNest.scanDirectory(directory, crypto.randomUUID())
+    rememberManualRunFiles(scannedFiles)
+    const existingFiles = await window.meshNest.listModelFiles(DEFAULT_PROJECT_ID)
+    const existingPaths = new Set(existingFiles.map((file) => file.absolutePath))
+    const newFiles = scannedFiles.filter((file) => !existingPaths.has(file.absolutePath))
+
+    if (newFiles.length === 0) {
+      return
+    }
+
+    lastFiles = newFiles
+    const outcome = await indexScannedFiles(newFiles, DEFAULT_PROJECT_ID, await createDesktopIndexingDeps(), {
+      signal: abortController.signal,
+      onProgress: (progress) => {
+        state.progress = progress
+      },
+    })
+    lastResults = outcome.resultsByPath
+    state.summary = outcome.summary
+  } catch (error) {
+    state.error = error instanceof Error ? error.message : String(error)
+  } finally {
+    finishManualRunWatchSuppression()
     state.running = false
     abortController = null
     void processWatchedFileQueue()
@@ -134,6 +185,7 @@ async function retryFailedLibrary(
     if (libraryFolder) {
       const files = await reconcileScannedDirectory(libraryFolder)
       lastFiles = files
+      rememberManualRunFiles(files)
       const outcome = await indexScannedFiles(files, DEFAULT_PROJECT_ID, deps, {
         signal: abortController.signal,
         jobType: 'retry',
@@ -189,6 +241,7 @@ async function retryFailedLibrary(
   } catch (error) {
     state.error = error instanceof Error ? error.message : String(error)
   } finally {
+    finishManualRunWatchSuppression()
     state.running = false
     abortController = null
     void processWatchedFileQueue()
@@ -242,8 +295,48 @@ function cancelIndexing(): void {
 }
 
 function queueWatchedFile(event: DirectoryWatchEvent): void {
+  if (shouldIgnoreWatchedFile(event.absolutePath)) {
+    return
+  }
   watchedFileQueue.set(event.absolutePath, event)
   void processWatchedFileQueue()
+}
+
+function rememberManualRunFiles(files: readonly ScannedFile[]): void {
+  activeManualRunPaths = new Set(files.map((file) => file.absolutePath))
+  ignoreWatchedPaths(activeManualRunPaths)
+  for (const absolutePath of activeManualRunPaths) {
+    watchedFileQueue.delete(absolutePath)
+  }
+}
+
+function finishManualRunWatchSuppression(): void {
+  if (activeManualRunPaths.size > 0) {
+    ignoreWatchedPaths(activeManualRunPaths)
+    activeManualRunPaths = new Set()
+  }
+  pruneExpiredWatchIgnores()
+}
+
+function ignoreWatchedPaths(paths: Iterable<string>): void {
+  const until = Date.now() + WATCH_EVENT_IGNORE_MS
+  for (const path of paths) {
+    recentlyHandledWatchPaths.set(path, until)
+  }
+}
+
+function shouldIgnoreWatchedFile(absolutePath: string): boolean {
+  pruneExpiredWatchIgnores()
+  return activeManualRunPaths.has(absolutePath) || recentlyHandledWatchPaths.has(absolutePath)
+}
+
+function pruneExpiredWatchIgnores(): void {
+  const now = Date.now()
+  for (const [path, until] of recentlyHandledWatchPaths) {
+    if (until <= now) {
+      recentlyHandledWatchPaths.delete(path)
+    }
+  }
 }
 
 function onWatchedFileIndexed(callback: (result: IndexingResult) => void): () => void {
@@ -310,6 +403,7 @@ async function indexWatchedFile(event: DirectoryWatchEvent): Promise<void> {
   } catch (error) {
     state.error = error instanceof Error ? error.message : String(error)
   } finally {
+    ignoreWatchedPaths([event.absolutePath])
     state.running = false
     abortController = null
   }
@@ -359,6 +453,8 @@ export function resetIndexingStore(): void {
   watchedFileProcessing = false
   watchedFileQueue.clear()
   watchedFileIndexedListeners.clear()
+  activeManualRunPaths = new Set()
+  recentlyHandledWatchPaths.clear()
 }
 
 /**
@@ -371,6 +467,7 @@ export function useIndexingStore() {
     runIndexing,
     retryFailed,
     retryFailedLibrary,
+    indexNewFilesOnBoot,
     cancelIndexing,
     queueWatchedFile,
     onWatchedFileIndexed,

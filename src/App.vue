@@ -7,11 +7,14 @@
 <script setup lang="ts">
 import { IonApp, IonRouterOutlet } from '@ionic/vue';
 import { onMounted } from 'vue';
+import { useIndexingStore } from '@/stores/indexingStore';
 import { useSettingsStore } from '@/stores/settingsStore';
 
+const indexing = useIndexingStore();
 const settings = useSettingsStore();
 
-onMounted(() => {
-  settings.loadSettings();
+onMounted(async () => {
+  await settings.loadSettings();
+  await indexing.indexNewFilesOnBoot(settings.state.draft?.libraryFolder);
 });
 </script>

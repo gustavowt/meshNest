@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import { resetIndexingStore, useIndexingStore } from '@/stores/indexingStore'
 import { indexScannedFiles } from '@/services/indexing/indexDirectory'
-import type { ScannedFile } from '@/types/modelFile'
+import type { ModelFile, ScannedFile } from '@/types/modelFile'
 import type { DirectoryWatchEvent } from '@/types/electronApi'
 
 vi.mock('@/services/indexing/desktopIndexingDeps', () => ({
@@ -43,6 +43,21 @@ function scannedFile(filename: string): ScannedFile {
   }
 }
 
+function modelFile(file: ScannedFile): ModelFile {
+  return {
+    id: `id-${file.filename}`,
+    projectId: 'default',
+    absolutePath: file.absolutePath,
+    relativePath: file.relativePath,
+    filename: file.filename,
+    extension: file.extension,
+    sizeBytes: file.sizeBytes,
+    modifiedAt: file.modifiedAt,
+    contentHash: file.contentHash,
+    status: 'indexed',
+  }
+}
+
 beforeEach(() => {
   resetIndexingStore()
   vi.clearAllMocks()
@@ -53,6 +68,57 @@ afterEach(() => {
 })
 
 describe('indexingStore', () => {
+  test('indexes files discovered on boot that are missing from the library', async () => {
+    const known = scannedFile('known.stl')
+    const addedWhileClosed = scannedFile('new-file.3mf')
+    window.meshNest = {
+      scanDirectory: vi.fn(async () => [known, addedWhileClosed]),
+      listModelFiles: vi.fn(async () => [modelFile(known)]),
+    } as any
+
+    const store = useIndexingStore()
+    await store.indexNewFilesOnBoot('/models')
+
+    expect(window.meshNest.scanDirectory).toHaveBeenCalledWith('/models', expect.any(String))
+    expect(window.meshNest.listModelFiles).toHaveBeenCalledWith('default')
+    expect(indexScannedFiles).toHaveBeenCalledTimes(1)
+    expect(indexScannedFiles).toHaveBeenCalledWith(
+      [addedWhileClosed],
+      'default',
+      expect.any(Object),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+    expect(store.state.summary?.indexed).toBe(1)
+  })
+
+  test('does not start an indexing queue on boot when no new paths are found', async () => {
+    const known = scannedFile('known.stl')
+    const event: DirectoryWatchEvent = {
+      watchId: 'watch-1',
+      absolutePath: known.absolutePath,
+      relativePath: known.relativePath,
+      filename: known.filename,
+      extension: known.extension,
+    }
+    const store = useIndexingStore()
+    window.meshNest = {
+      scanDirectory: vi.fn(async () => {
+        store.queueWatchedFile(event)
+        return [known]
+      }),
+      scanFile: vi.fn(async () => known),
+      listModelFiles: vi.fn(async () => [modelFile(known)]),
+    } as any
+
+    await store.indexNewFilesOnBoot('/models')
+    await Promise.resolve()
+
+    expect(indexScannedFiles).not.toHaveBeenCalled()
+    expect(window.meshNest.scanFile).not.toHaveBeenCalled()
+    expect(store.state.summary).toBeNull()
+    expect(store.state.running).toBe(false)
+  })
+
   test('reconciles failed rows before full directory indexing', async () => {
     const files = [scannedFile('good.stl'), scannedFile('retry.stl')]
     window.meshNest = {
@@ -90,6 +156,50 @@ describe('indexingStore', () => {
       expect.objectContaining({ signal: expect.any(AbortSignal) }),
     )
     expect(store.state.summary?.indexed).toBe(2)
+  })
+
+  test('ignores watcher events for files already included in a manual scan', async () => {
+    const files = [scannedFile('garden-hose-hanger.3mf')]
+    const event: DirectoryWatchEvent = {
+      watchId: 'watch-1',
+      absolutePath: files[0].absolutePath,
+      relativePath: files[0].relativePath,
+      filename: files[0].filename,
+      extension: files[0].extension,
+    }
+    const store = useIndexingStore()
+    window.meshNest = {
+      scanDirectory: vi.fn(async () => {
+        store.queueWatchedFile(event)
+        return files
+      }),
+      scanFile: vi.fn(async () => files[0]),
+      deleteFailedModelFiles: vi.fn(async () => 0),
+      upsertModelFile: vi.fn(async (file: ScannedFile) => ({
+        id: `id-${file.filename}`,
+        projectId: 'default',
+        absolutePath: file.absolutePath,
+        relativePath: file.relativePath,
+        filename: file.filename,
+        extension: file.extension,
+        sizeBytes: file.sizeBytes,
+        modifiedAt: file.modifiedAt,
+        contentHash: file.contentHash,
+        status: 'pending',
+      })),
+    } as any
+
+    await store.runIndexing('/models')
+    await Promise.resolve()
+
+    expect(indexScannedFiles).toHaveBeenCalledTimes(1)
+    expect(indexScannedFiles).toHaveBeenCalledWith(
+      files,
+      'default',
+      expect.any(Object),
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+    expect(window.meshNest.scanFile).not.toHaveBeenCalled()
   })
 
   test('indexes watched files using the watcher relative path', async () => {
