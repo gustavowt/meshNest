@@ -109,13 +109,6 @@ CREATE TABLE IF NOT EXISTS indexing_jobs (
   created_at TIMESTAMP DEFAULT now()
 );`
 
-export const CREATE_SETTINGS = `
-CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL,
-  updated_at TIMESTAMP DEFAULT now()
-);`
-
 export const CREATE_INDEXES = [
   'CREATE INDEX IF NOT EXISTS idx_model_files_absolute_path ON model_files (absolute_path);',
   'CREATE INDEX IF NOT EXISTS idx_model_files_content_hash ON model_files (content_hash);',

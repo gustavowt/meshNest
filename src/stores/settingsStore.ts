@@ -1,6 +1,7 @@
 import { reactive, watch } from 'vue'
 import i18n from '@/i18n'
 import {
+  DEFAULT_PROVIDER_SETTINGS,
   defaultEmbeddingSettings,
   defaultVisionSettings,
   validateProviderSettings,
@@ -125,27 +126,12 @@ watch(
 )
 
 async function loadSettings(): Promise<void> {
-  if (!window.meshNest) {
-    state.error = 'Settings are only available in the desktop app.'
-    return
-  }
   state.loading = true
   state.error = null
   try {
-    const cached = loadCachedProviderSettings()
-    if (cached) {
-      try {
-        const outcome = await window.meshNest.saveProviderSettings(cloneSettings(cached))
-        state.draft = cloneSettings(cached)
-        if (outcome.embeddingsCleared) {
-          state.needsReembed = true
-          state.reembedResult = null
-        }
-      } catch {
-        state.draft = await window.meshNest.getProviderSettings()
-      }
-    } else {
-      state.draft = await window.meshNest.getProviderSettings()
+    state.draft = cloneSettings(loadCachedProviderSettings() ?? DEFAULT_PROVIDER_SETTINGS)
+    if (window.meshNest) {
+      await window.meshNest.syncProviderSettings(cloneSettings(state.draft))
     }
     persistedSettings = cloneSettings(state.draft)
     state.dirty = false
@@ -184,7 +170,7 @@ function switchEmbeddingProvider(provider: EmbeddingProviderId): void {
 }
 
 async function saveSettings(): Promise<boolean> {
-  if (!window.meshNest || !state.draft) {
+  if (!state.draft) {
     return false
   }
   state.problems = validateProviderSettings(state.draft)
@@ -194,10 +180,10 @@ async function saveSettings(): Promise<boolean> {
   state.saving = true
   state.error = null
   try {
-    const outcome = await window.meshNest.saveProviderSettings(
-      JSON.parse(JSON.stringify(state.draft)),
-    )
     saveCachedProviderSettings(state.draft)
+    const outcome = window.meshNest
+      ? await window.meshNest.saveProviderSettings(JSON.parse(JSON.stringify(state.draft)))
+      : { embeddingsCleared: false }
     persistedSettings = cloneSettings(state.draft)
     state.saved = true
     state.dirty = false

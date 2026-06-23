@@ -2,17 +2,11 @@ import {
   DEFAULT_PROVIDER_SETTINGS,
   validateProviderSettings,
 } from '../../../src/services/settings/providerSettings'
-import {
-  loadStoredProviderSettings,
-  SettingsRepository,
-  storeProviderSettings,
-} from '../../../src/services/database/settingsRepository'
 import { clearEmbeddings, ensureEmbeddingTable } from '../../../src/services/database/embeddingTable'
-import type { DuckDbClient } from '../../../src/services/database/duckdbClient'
 import type { EmbeddingSettings, ProviderSettings, VisionSettings } from '../../../src/types/providerSettings'
 import { getDatabaseClient } from './database'
 
-let lastKnownProviderSettings: ProviderSettings | null = null
+let activeProviderSettings: ProviderSettings = cloneSettings(DEFAULT_PROVIDER_SETTINGS)
 
 function cloneSettings(settings: ProviderSettings): ProviderSettings {
   return JSON.parse(JSON.stringify(settings))
@@ -38,29 +32,12 @@ function mergeProviderSettings(stored: Partial<ProviderSettings>): ProviderSetti
   }
 }
 
-/**
- * Loads provider settings from an already-open client, falling back to
- * the last valid settings seen in this main-process session, then defaults,
- * when nothing is saved yet. Used during database startup, before
- * getDatabaseClient() has resolved.
- */
-export async function resolveProviderSettings(client: DuckDbClient): Promise<ProviderSettings> {
-  const repository = new SettingsRepository(client)
-  const stored = await loadStoredProviderSettings<ProviderSettings>(repository)
-  if (!stored) {
-    return lastKnownProviderSettings
-      ? cloneSettings(lastKnownProviderSettings)
-      : cloneSettings(DEFAULT_PROVIDER_SETTINGS)
-  }
-  const resolved = mergeProviderSettings(stored)
-  if (validateProviderSettings(resolved).length === 0) {
-    lastKnownProviderSettings = cloneSettings(resolved)
-  }
-  return resolved
+export function resolveProviderSettings(): ProviderSettings {
+  return cloneSettings(activeProviderSettings)
 }
 
-export async function getProviderSettings(): Promise<ProviderSettings> {
-  return resolveProviderSettings(await getDatabaseClient())
+export function getProviderSettings(): ProviderSettings {
+  return resolveProviderSettings()
 }
 
 export type SaveSettingsOutcome = {
@@ -85,10 +62,8 @@ export async function saveProviderSettings(
     throw new Error(`Invalid provider settings: ${problems.join(' ')}`)
   }
 
-  const client = await getDatabaseClient()
-  const previous = await resolveProviderSettings(client)
-  await storeProviderSettings(new SettingsRepository(client), sanitized)
-  lastKnownProviderSettings = cloneSettings(sanitized)
+  const previous = resolveProviderSettings()
+  activeProviderSettings = cloneSettings(sanitized)
 
   if (!embeddingConfigChanged(previous.embedding, sanitized.embedding)) {
     return { embeddingsCleared: false }
@@ -96,6 +71,7 @@ export async function saveProviderSettings(
 
   // The vector space changed: resize the table if needed and drop all
   // stored embeddings so stale vectors can never pollute search results.
+  const client = await getDatabaseClient()
   const { rebuilt } = await ensureEmbeddingTable(client, sanitized.embedding.dimensions)
   if (!rebuilt) {
     await clearEmbeddings(client)
@@ -103,7 +79,16 @@ export async function saveProviderSettings(
   return { embeddingsCleared: true }
 }
 
+export function syncProviderSettings(settings: ProviderSettings): void {
+  const sanitized = mergeProviderSettings(settings)
+  const problems = validateProviderSettings(sanitized)
+  if (problems.length > 0) {
+    throw new Error(`Invalid provider settings: ${problems.join(' ')}`)
+  }
+  activeProviderSettings = cloneSettings(sanitized)
+}
+
 /** Test-only helper to avoid leaking main-process fallback state between specs. */
 export function resetProviderSettingsFallbackForTests(): void {
-  lastKnownProviderSettings = null
+  activeProviderSettings = cloneSettings(DEFAULT_PROVIDER_SETTINGS)
 }

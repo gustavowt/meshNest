@@ -148,6 +148,36 @@
                 {{ $t('settings.visionSection.desc') }}
               </p>
 
+              <div class="provider-explainer">
+                <div class="provider-explainer-copy">
+                  <p class="explainer-kicker">{{ $t('settings.visionSection.explainerKicker') }}</p>
+                  <div class="benefit-row">
+                    <span class="benefit-dot enabled" />
+                    <div>
+                      <h3>{{ $t('settings.visionSection.enabledTitle') }}</h3>
+                      <p>{{ $t('settings.visionSection.enabledDesc') }}</p>
+                    </div>
+                  </div>
+                  <div class="benefit-row">
+                    <span class="benefit-dot disabled" />
+                    <div>
+                      <h3>{{ $t('settings.visionSection.disabledTitle') }}</h3>
+                      <p>{{ $t('settings.visionSection.disabledDesc') }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="provider-visual vision-visual" aria-hidden="true">
+                  <div class="visual-card model-card-visual">
+                    <ion-icon :icon="imageOutline" />
+                    <span class="visual-line wide" />
+                    <span class="visual-line" />
+                  </div>
+                  <div class="visual-chip chip-one" />
+                  <div class="visual-chip chip-two" />
+                  <div class="visual-chip chip-three" />
+                </div>
+              </div>
+
               <ion-list inset>
                 <ion-item>
                   <ion-select
@@ -208,6 +238,43 @@
               <p class="section-description">
                 {{ $t('settings.embeddingSection.desc') }}
               </p>
+
+              <div class="provider-explainer">
+                <div class="provider-explainer-copy">
+                  <p class="explainer-kicker">{{ $t('settings.embeddingSection.explainerKicker') }}</p>
+                  <div class="benefit-row">
+                    <span class="benefit-dot enabled" />
+                    <div>
+                      <h3>{{ $t('settings.embeddingSection.enabledTitle') }}</h3>
+                      <p>{{ $t('settings.embeddingSection.enabledDesc') }}</p>
+                    </div>
+                  </div>
+                  <div class="benefit-row">
+                    <span class="benefit-dot dimensions" />
+                    <div>
+                      <h3>{{ $t('settings.embeddingSection.dimensionsTitle') }}</h3>
+                      <p>{{ $t('settings.embeddingSection.dimensionsDesc') }}</p>
+                    </div>
+                  </div>
+                  <div class="benefit-row">
+                    <span class="benefit-dot disabled" />
+                    <div>
+                      <h3>{{ $t('settings.embeddingSection.disabledTitle') }}</h3>
+                      <p>{{ $t('settings.embeddingSection.disabledDesc') }}</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="provider-visual embedding-visual" aria-hidden="true">
+                  <div class="search-orb">
+                    <ion-icon :icon="searchOutline" />
+                  </div>
+                  <span class="connection-line line-one" />
+                  <span class="connection-line line-two" />
+                  <div class="match-card match-one" />
+                  <div class="match-card match-two" />
+                  <div class="match-card match-three" />
+                </div>
+              </div>
 
               <ion-list inset>
                 <ion-item>
@@ -749,6 +816,207 @@ onMounted(() => {
   line-height: 1.5;
 }
 
+.provider-explainer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 20px;
+  align-items: stretch;
+  margin: 0 0 24px;
+  padding: 18px;
+  border: var(--card-glass-border);
+  border-radius: 18px;
+  background: var(--card-glass-bg);
+  box-shadow: var(--card-glass-shadow);
+  overflow: hidden;
+}
+
+.provider-explainer-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.explainer-kicker {
+  margin: 0;
+  color: var(--ion-color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.benefit-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.benefit-row h3 {
+  margin: -3px 0 4px;
+  color: var(--ion-text-color);
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.benefit-row p {
+  margin: 0;
+  color: var(--ion-color-medium);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.benefit-dot {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 999px;
+}
+
+.benefit-dot.enabled {
+  background: var(--ion-color-success);
+  box-shadow: 0 0 0 4px rgba(45, 211, 111, 0.14);
+}
+
+.benefit-dot.dimensions {
+  background: var(--ion-color-primary);
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.14);
+}
+
+.benefit-dot.disabled {
+  background: var(--ion-color-medium);
+  box-shadow: 0 0 0 4px rgba(107, 114, 128, 0.12);
+}
+
+.provider-visual {
+  position: relative;
+  min-height: 180px;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at 25% 20%, rgba(79, 70, 229, 0.22), transparent 35%),
+    linear-gradient(135deg, rgba(79, 70, 229, 0.08), rgba(236, 72, 153, 0.08));
+  border: 1px solid rgba(79, 70, 229, 0.12);
+  overflow: hidden;
+}
+
+.visual-card {
+  position: absolute;
+  left: 28px;
+  top: 34px;
+  width: 104px;
+  height: 116px;
+  padding: 18px 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.visual-card ion-icon {
+  color: var(--ion-color-primary);
+  font-size: 30px;
+}
+
+.visual-line {
+  display: block;
+  width: 54px;
+  height: 8px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.16);
+}
+
+.visual-line.wide {
+  width: 76px;
+}
+
+.visual-chip {
+  position: absolute;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.18);
+}
+
+.chip-one {
+  right: 20px;
+  top: 42px;
+  width: 58px;
+}
+
+.chip-two {
+  right: 34px;
+  top: 74px;
+  width: 78px;
+  background: rgba(236, 72, 153, 0.18);
+}
+
+.chip-three {
+  right: 16px;
+  top: 106px;
+  width: 48px;
+  background: rgba(14, 165, 233, 0.18);
+}
+
+.search-orb {
+  position: absolute;
+  left: 54px;
+  top: 56px;
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.search-orb ion-icon {
+  color: var(--ion-color-primary);
+  font-size: 32px;
+}
+
+.connection-line {
+  position: absolute;
+  left: 104px;
+  width: 58px;
+  height: 2px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.22);
+  transform-origin: left center;
+}
+
+.line-one {
+  top: 76px;
+  transform: rotate(-18deg);
+}
+
+.line-two {
+  top: 112px;
+  transform: rotate(18deg);
+}
+
+.match-card {
+  position: absolute;
+  right: 18px;
+  width: 54px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+}
+
+.match-one {
+  top: 36px;
+}
+
+.match-two {
+  top: 82px;
+  right: 32px;
+}
+
+.match-three {
+  top: 128px;
+}
+
 @media (max-width: 768px) {
   .mobile-tabs {
     display: block;
@@ -769,6 +1037,14 @@ onMounted(() => {
 
   .content-section {
     max-width: 100%;
+  }
+
+  .provider-explainer {
+    grid-template-columns: 1fr;
+  }
+
+  .provider-visual {
+    min-height: 130px;
   }
 }
 

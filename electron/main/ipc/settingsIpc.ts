@@ -8,7 +8,7 @@ import type {
   ProviderSettings,
   VisionSettings,
 } from '../../../src/types/providerSettings'
-import { getProviderSettings, saveProviderSettings } from '../services/providerSettings'
+import { getProviderSettings, saveProviderSettings, syncProviderSettings } from '../services/providerSettings'
 
 export function registerSettingsIpc(): void {
   ipcMain.handle('settings:getProviderSettings', async () => {
@@ -17,6 +17,10 @@ export function registerSettingsIpc(): void {
 
   ipcMain.handle('settings:saveProviderSettings', async (_event, settings: ProviderSettings) => {
     return saveProviderSettings(settings)
+  })
+
+  ipcMain.handle('settings:syncProviderSettings', async (_event, settings: ProviderSettings) => {
+    syncProviderSettings(settings)
   })
 
   ipcMain.handle('settings:testVisionProvider', async (_event, settings: VisionSettings) => {

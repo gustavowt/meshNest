@@ -1,11 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
-import { runMigrations } from '@/services/database/migrations'
-import {
-  loadStoredProviderSettings,
-  SettingsRepository,
-  storeProviderSettings,
-} from '@/services/database/settingsRepository'
+import { describe, expect, test } from 'vitest'
 import {
   DEFAULT_PROVIDER_SETTINGS,
   defaultEmbeddingSettings,
@@ -17,17 +10,6 @@ import {
   testVisionConnection,
 } from '@/services/settings/providerTester'
 import type { ProviderSettings } from '@/types/providerSettings'
-
-let client: DuckDbClient
-
-beforeEach(async () => {
-  client = await DuckDbClient.open(':memory:')
-  await runMigrations(client)
-})
-
-afterEach(async () => {
-  await client.close()
-})
 
 function validSettings(): ProviderSettings {
   return JSON.parse(JSON.stringify(DEFAULT_PROVIDER_SETTINGS))
@@ -98,51 +80,6 @@ describe('validateProviderSettings', () => {
     expect(problems.some((p) => p.includes('dimensions'))).toBe(true)
   })
 
-})
-
-describe('settings persistence', () => {
-  test('stores and reloads provider settings as JSON', async () => {
-    const repository = new SettingsRepository(client)
-    const settings = validSettings()
-    settings.vision = { ...defaultVisionSettings('openai'), apiKey: 'sk-test' }
-
-    await storeProviderSettings(repository, settings)
-    const reloaded = await loadStoredProviderSettings<ProviderSettings>(repository)
-
-    expect(reloaded?.vision.provider).toBe('openai')
-    expect(reloaded?.vision.apiKey).toBe('sk-test')
-    expect(reloaded?.embedding.provider).toBe('builtin')
-  })
-
-  test('stores and reloads embedding useCloud and libraryFolder settings', async () => {
-    const repository = new SettingsRepository(client)
-    const settings = validSettings()
-    settings.embedding.useCloud = true
-    settings.libraryFolder = '/path/to/models'
-
-    await storeProviderSettings(repository, settings)
-    const reloaded = await loadStoredProviderSettings<ProviderSettings>(repository)
-
-    expect(reloaded?.embedding.useCloud).toBe(true)
-    expect(reloaded?.libraryFolder).toBe('/path/to/models')
-  })
-
-  test('overwrites previous settings on save', async () => {
-    const repository = new SettingsRepository(client)
-    await storeProviderSettings(repository, validSettings())
-
-    const updated = validSettings()
-    updated.embedding = { ...defaultEmbeddingSettings('openai'), apiKey: 'sk-2' }
-    await storeProviderSettings(repository, updated)
-
-    const reloaded = await loadStoredProviderSettings<ProviderSettings>(repository)
-    expect(reloaded?.embedding.provider).toBe('openai')
-  })
-
-  test('returns undefined when nothing is stored', async () => {
-    const repository = new SettingsRepository(client)
-    expect(await loadStoredProviderSettings(repository)).toBeUndefined()
-  })
 })
 
 describe('provider connection tests', () => {

@@ -53,14 +53,14 @@ describe('settingsStore', () => {
     saveCachedProviderSettings(cached)
 
     window.meshNest = {
-      saveProviderSettings: vi.fn(async () => ({ embeddingsCleared: false })),
+      syncProviderSettings: vi.fn(async () => undefined),
       getProviderSettings: vi.fn(),
     } as any
 
     const store = useSettingsStore()
     await store.loadSettings()
 
-    expect(window.meshNest.saveProviderSettings).toHaveBeenCalledWith(cached)
+    expect(window.meshNest.syncProviderSettings).toHaveBeenCalledWith(cached)
     expect(window.meshNest.getProviderSettings).not.toHaveBeenCalled()
     expect(store.state.draft?.vision.model).toBe('llava:13b')
     expect(store.state.draft?.libraryFolder).toBe('/models')
