@@ -3,6 +3,7 @@ import {
   DEFAULT_PROVIDER_SETTINGS,
   defaultEmbeddingSettings,
   defaultVisionSettings,
+  isRealVisionProviderId,
   validateProviderSettings,
 } from '@/services/settings/providerSettings'
 import {
@@ -36,6 +37,14 @@ describe('provider settings defaults', () => {
   test('defaults to embedding useCloud: false and empty libraryFolder', () => {
     expect(DEFAULT_PROVIDER_SETTINGS.embedding.useCloud).toBe(false)
     expect(DEFAULT_PROVIDER_SETTINGS.libraryFolder).toBe('')
+  })
+
+  test('recognizes only real vision providers as image-search capable', () => {
+    expect(isRealVisionProviderId('none')).toBe(false)
+    expect(isRealVisionProviderId('mock')).toBe(false)
+    expect(isRealVisionProviderId('openai')).toBe(true)
+    expect(isRealVisionProviderId('gemini')).toBe(true)
+    expect(isRealVisionProviderId('ollama')).toBe(true)
   })
 })
 
