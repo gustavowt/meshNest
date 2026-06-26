@@ -1,4 +1,5 @@
 import type { VisionAnalysisInput } from './visionProvider'
+import type { VisionImageInput } from '@/types/llm'
 import { buildVisionUserText, HttpVisionProvider, VisionProviderError } from './httpVisionProvider'
 import type { FetchLike } from './httpVisionProvider'
 
@@ -21,8 +22,12 @@ export class GeminiVisionProvider extends HttpVisionProvider {
   }
 
   protected async requestOnce(input: VisionAnalysisInput) {
-    const parts: unknown[] = [{ text: buildVisionUserText(input) }]
-    for (const image of input.images) {
+    return this.requestVisionJsonOnce(buildVisionUserText(input), input.images)
+  }
+
+  protected async requestVisionJsonOnce(prompt: string, images: VisionImageInput[]) {
+    const parts: unknown[] = [{ text: prompt }]
+    for (const image of images) {
       parts.push({ inline_data: { mime_type: 'image/png', data: image.base64Png } })
     }
 

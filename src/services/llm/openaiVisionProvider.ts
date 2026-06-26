@@ -1,4 +1,5 @@
 import type { VisionAnalysisInput } from './visionProvider'
+import type { VisionImageInput } from '@/types/llm'
 import { buildVisionUserText, HttpVisionProvider, VisionProviderError } from './httpVisionProvider'
 import type { FetchLike } from './httpVisionProvider'
 
@@ -25,8 +26,12 @@ export class OpenAiVisionProvider extends HttpVisionProvider {
   }
 
   protected async requestOnce(input: VisionAnalysisInput) {
-    const content: unknown[] = [{ type: 'text', text: buildVisionUserText(input) }]
-    for (const image of input.images) {
+    return this.requestVisionJsonOnce(buildVisionUserText(input), input.images)
+  }
+
+  protected async requestVisionJsonOnce(prompt: string, images: VisionImageInput[]) {
+    const content: unknown[] = [{ type: 'text', text: prompt }]
+    for (const image of images) {
       content.push({
         type: 'image_url',
         image_url: { url: `data:image/png;base64,${image.base64Png}` },

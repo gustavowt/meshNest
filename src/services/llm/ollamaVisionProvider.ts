@@ -1,4 +1,5 @@
 import type { VisionAnalysisInput } from './visionProvider'
+import type { VisionImageInput } from '@/types/llm'
 import { buildVisionUserText, HttpVisionProvider, VisionProviderError } from './httpVisionProvider'
 import type { FetchLike } from './httpVisionProvider'
 
@@ -21,6 +22,10 @@ export class OllamaVisionProvider extends HttpVisionProvider {
   }
 
   protected async requestOnce(input: VisionAnalysisInput) {
+    return this.requestVisionJsonOnce(buildVisionUserText(input), input.images)
+  }
+
+  protected async requestVisionJsonOnce(prompt: string, images: VisionImageInput[]) {
     const rawResponseJson = await this.postJson(
       `${this.baseUrl.replace(/\/$/, '')}/api/chat`,
       {},
@@ -29,8 +34,8 @@ export class OllamaVisionProvider extends HttpVisionProvider {
         messages: [
           {
             role: 'user',
-            content: buildVisionUserText(input),
-            images: input.images.map((image) => image.base64Png),
+            content: prompt,
+            images: images.map((image) => image.base64Png),
           },
         ],
         format: 'json',

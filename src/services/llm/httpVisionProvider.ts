@@ -5,10 +5,14 @@ import type {
   VisionProvider,
   VisionProviderResult,
 } from './visionProvider'
-import { validateVisionResponse, VisionValidationError } from './jsonValidation'
+import type { VisionImageInput } from '@/types/llm'
+import type { AppLanguage } from '@/types/providerSettings'
+import type { ImageSearchQuery, ImageWebResearchResult } from '@/types/worldSearch'
+import { validateImageSearchQuery, validateVisionResponse, VisionValidationError } from './jsonValidation'
 import {
   BULK_NAME_NORMALIZATION_PROMPT,
   buildLanguageInstruction,
+  IMAGE_WORLD_SEARCH_PROMPT,
   NAME_NORMALIZATION_PROMPT,
   VISION_PROMPT,
 } from './prompts'
@@ -97,6 +101,12 @@ export abstract class HttpVisionProvider implements VisionProvider {
   protected abstract requestOnce(
     input: VisionAnalysisInput,
   ): ReturnType<VisionRequestOnce>
+
+  /** Vision round-trip with a custom prompt and one or more images. */
+  protected abstract requestVisionJsonOnce(
+    prompt: string,
+    images: VisionImageInput[],
+  ): Promise<{ answerText: string; rawResponseJson: string }>
 
   /**
    * One text-only round-trip (no images). When `expectJson` is set the
@@ -191,6 +201,37 @@ export abstract class HttpVisionProvider implements VisionProvider {
     }
     throw new VisionProviderError(
       `${this.name} returned an invalid description twice: ${lastValidationError?.message}`,
+      lastValidationError,
+    )
+  }
+
+  async analyzeImageForSearch(
+    images: VisionImageInput[],
+    language?: AppLanguage,
+    webResearch?: ImageWebResearchResult,
+  ): Promise<ImageSearchQuery> {
+    if (images.length === 0) {
+      throw new VisionProviderError('At least one image is required for image search.')
+    }
+
+    let lastValidationError: VisionValidationError | undefined
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { answerText } = await this.requestVisionJsonOnce(
+        buildImageWorldSearchPrompt(language, webResearch),
+        images,
+      )
+      try {
+        return validateImageSearchQuery(stripJsonFences(answerText))
+      } catch (error) {
+        if (error instanceof VisionValidationError) {
+          lastValidationError = error
+          continue
+        }
+        throw error
+      }
+    }
+    throw new VisionProviderError(
+      `${this.name} returned invalid image search JSON twice: ${lastValidationError?.message}`,
       lastValidationError,
     )
   }
@@ -299,4 +340,29 @@ export function cleanNormalizedName(text: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
+}
+
+export function buildImageWorldSearchPrompt(
+  language?: AppLanguage,
+  webResearch?: ImageWebResearchResult,
+): string {
+  const lines = [IMAGE_WORLD_SEARCH_PROMPT]
+  const labels = webResearch?.bestGuessLabels.filter(Boolean) ?? []
+  const entities = webResearch?.webEntities.filter(Boolean) ?? []
+  const pageTitles = webResearch?.pageTitles.filter(Boolean) ?? []
+  if (labels.length > 0 || entities.length > 0 || pageTitles.length > 0) {
+    lines.push(
+      '',
+      'Internet image research context:',
+      `Best guesses: ${labels.slice(0, 5).join(', ') || 'none'}`,
+      `Related web entities: ${entities.slice(0, 8).join(', ') || 'none'}`,
+      `Matching page titles: ${pageTitles.slice(0, 5).join(' | ') || 'none'}`,
+      'Use this context to identify named objects, characters, products, or styles, but still optimize the final query for printable STL/3MF repositories.',
+    )
+  }
+  const languageInstruction = buildLanguageInstruction(language)
+  if (languageInstruction) {
+    lines.push('', languageInstruction)
+  }
+  return lines.join('\n')
 }

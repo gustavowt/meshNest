@@ -1,4 +1,4 @@
-import { validateVisionResponse } from './jsonValidation'
+import { validateImageSearchQuery, validateVisionResponse } from './jsonValidation'
 import { SUGGESTED_CATEGORIES } from './prompts'
 import type {
   NameNormalizationInput,
@@ -7,6 +7,8 @@ import type {
   VisionProvider,
   VisionProviderResult,
 } from './visionProvider'
+import type { VisionImageInput } from '@/types/llm'
+import type { ImageSearchQuery } from '@/types/worldSearch'
 
 /**
  * Deterministic development provider: derives a plausible structured
@@ -73,6 +75,16 @@ export class MockVisionProvider implements VisionProvider {
         normalizedName: await this.normalizeName(item.rawName),
       })),
     )
+  }
+
+  async analyzeImageForSearch(images: VisionImageInput[]): Promise<ImageSearchQuery> {
+    void images
+    const payload = {
+      query: 'phone stand organizer',
+      tags: ['phone', 'stand', 'desk', 'organizer'],
+      category: 'utility',
+    }
+    return validateImageSearchQuery(payload)
   }
 }
 
