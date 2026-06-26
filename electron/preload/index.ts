@@ -52,6 +52,11 @@ const api: MeshNestApi = {
     ipcRenderer.invoke('database:searchByEmbedding', embedding, options),
   countEmbeddings: () => ipcRenderer.invoke('database:countEmbeddings'),
 
+  worldSearch: (query) => ipcRenderer.invoke('world-search:search', query),
+  describeImageWorldSearchQuery: (imageBase64Png) =>
+    ipcRenderer.invoke('world-search:describeImageQuery', imageBase64Png),
+  openWorldSearchSourceUrl: (url) => ipcRenderer.invoke('world-search:openSourceUrl', url),
+
   getProviderSettings: () => ipcRenderer.invoke('settings:getProviderSettings'),
   saveProviderSettings: (settings) => ipcRenderer.invoke('settings:saveProviderSettings', settings),
   syncProviderSettings: (settings) => ipcRenderer.invoke('settings:syncProviderSettings', settings),

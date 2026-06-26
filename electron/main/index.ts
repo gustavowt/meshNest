@@ -7,6 +7,7 @@ import { registerModelActionsIpc } from './ipc/modelActionsIpc'
 import { registerRenderingIpc } from './ipc/renderingIpc'
 import { registerLlmIpc } from './ipc/llmIpc'
 import { registerSettingsIpc } from './ipc/settingsIpc'
+import { registerWorldSearchIpc } from './ipc/worldSearchIpc'
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 
@@ -51,6 +52,7 @@ app.whenReady().then(() => {
   registerModelActionsIpc()
   registerSettingsIpc()
   registerLlmIpc()
+  registerWorldSearchIpc()
   createWindow()
 
   app.on('activate', () => {
