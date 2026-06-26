@@ -133,6 +133,10 @@
             <ion-icon slot="start" :icon="refreshOutline" />
             <ion-label>{{ $t('library.forceReindex') }}</ion-label>
           </ion-item>
+          <ion-item button :detail="false" router-link="/world-search" lines="none">
+            <ion-icon slot="start" :icon="globeOutline" />
+            <ion-label>{{ $t('worldSearch.title') }}</ion-label>
+          </ion-item>
           <ion-item button :detail="false" router-link="/settings" lines="none">
             <ion-icon slot="start" :icon="settingsOutline" />
             <ion-label>{{ $t('common.settings') }}</ion-label>
@@ -253,6 +257,10 @@
           <div class="hero-content">
             <img class="hero-logo" src="/meshNest_logo_name.png" :alt="$t('common.meshNest')" />
             <p class="hero-subtitle">{{ $t('library.heroSubtitle') }}</p>
+            <ion-button router-link="/world-search" fill="outline" size="small" class="world-search-link">
+              <ion-icon slot="start" :icon="globeOutline" />
+              {{ $t('worldSearch.title') }}
+            </ion-button>
             <div class="hero-search-container">
               <model-search-bar v-model="searchQuery" @search="handleSearch" class="hero-search-bar" />
             </div>
@@ -320,6 +328,7 @@ import {
   cubeOutline,
   ellipsisVerticalOutline,
   folderOutline,
+  globeOutline,
   refreshOutline,
   searchOutline,
   settingsOutline,
@@ -515,6 +524,7 @@ async function showSuccessToast(message: string): Promise<void> {
 }
 
 function resetBulkRenameProgress(): void {
+  bulkRenaming.value = false
   bulkRenameProgress.phase = 'idle'
   bulkRenameProgress.total = 0
   bulkRenameProgress.processed = 0

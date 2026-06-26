@@ -49,6 +49,10 @@
               <ion-icon :icon="languageOutline" />
               <ion-label>{{ $t('settings.tabs.language') }}</ion-label>
             </ion-segment-button>
+            <ion-segment-button value="worldSearch">
+              <ion-icon :icon="globeOutline" />
+              <ion-label>{{ $t('settings.tabs.worldSearch') }}</ion-label>
+            </ion-segment-button>
           </ion-segment>
         </div>
 
@@ -95,6 +99,14 @@
               >
                 <ion-icon :icon="languageOutline" />
                 <span>{{ $t('settings.tabs.language') }}</span>
+              </button>
+              <button
+                class="nav-item"
+                :class="{ active: activeSection === 'worldSearch' }"
+                @click="activeSection = 'worldSearch'"
+              >
+                <ion-icon :icon="globeOutline" />
+                <span>{{ $t('settings.tabs.worldSearch') }}</span>
               </button>
             </nav>
           </aside>
@@ -538,6 +550,12 @@
                 </button>
               </div>
             </section>
+
+            <world-search-settings-section
+              v-if="activeSection === 'worldSearch' && draft?.worldSearch"
+              v-model="draft.worldSearch"
+              @dirty="settings.markDirty()"
+            />
           </main>
         </div>
       </div>
@@ -572,8 +590,9 @@ import {
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { folderOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline } from 'ionicons/icons'
+import { folderOutline, globeOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline } from 'ionicons/icons'
 import ProviderTestBanner from '@/components/settings/ProviderTestBanner.vue'
+import WorldSearchSettingsSection from '@/components/settings/WorldSearchSettingsSection.vue'
 import type { VisionProviderId, EmbeddingProviderId } from '@/types/providerSettings'
 import {
   EMBEDDING_PROVIDERS,
@@ -586,7 +605,7 @@ const { t } = useI18n()
 const settings = useSettingsStore()
 const draft = computed(() => settings.state.draft)
  
-const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language'>('library')
+const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language' | 'worldSearch'>('library')
 
 const visionInfo = computed(() => VISION_PROVIDERS[draft.value!.vision.provider as Exclude<VisionProviderId, 'mock'>])
 const embeddingInfo = computed(() => EMBEDDING_PROVIDERS[draft.value!.embedding.provider as Exclude<EmbeddingProviderId, 'mock'>])
