@@ -24,6 +24,11 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('../views/SettingsPage.vue')
   },
   {
+    path: '/world-search',
+    name: 'WorldSearch',
+    component: () => import('../views/WorldSearchPage.vue')
+  },
+  {
     path: '/home',
     name: 'Home',
     component: HomePage
