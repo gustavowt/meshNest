@@ -2,6 +2,7 @@ import {
   DEFAULT_PROVIDER_SETTINGS,
   validateProviderSettings,
 } from '../../../src/services/settings/providerSettings'
+import { mergeWorldSearchSettings } from '../../../src/services/settings/worldSearchSettings'
 import { clearEmbeddings, ensureEmbeddingTable } from '../../../src/services/database/embeddingTable'
 import type { EmbeddingSettings, ProviderSettings, VisionSettings } from '../../../src/types/providerSettings'
 import { getDatabaseClient } from './database'
@@ -26,6 +27,7 @@ function mergeProviderSettings(stored: Partial<ProviderSettings>): ProviderSetti
   return {
     vision: mergeVisionSettings(stored.vision),
     embedding: { ...DEFAULT_PROVIDER_SETTINGS.embedding, ...stored.embedding },
+    worldSearch: mergeWorldSearchSettings(stored.worldSearch),
     libraryFolder: stored.libraryFolder ?? DEFAULT_PROVIDER_SETTINGS.libraryFolder,
     appearance: stored.appearance ?? DEFAULT_PROVIDER_SETTINGS.appearance,
     language: stored.language ?? DEFAULT_PROVIDER_SETTINGS.language,

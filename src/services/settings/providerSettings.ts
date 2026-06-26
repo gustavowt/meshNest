@@ -5,6 +5,10 @@ import type {
   VisionProviderId,
   VisionSettings,
 } from '@/types/providerSettings'
+import {
+  DEFAULT_WORLD_SEARCH_SETTINGS,
+  validateWorldSearchSettings,
+} from '@/services/settings/worldSearchSettings'
 
 /** Built-in local embedding model (downloaded from Hugging Face on first use). */
 export const BUILTIN_EMBEDDING_MODEL = 'Xenova/paraphrase-multilingual-MiniLM-L12-v2'
@@ -45,6 +49,10 @@ export const VISION_PROVIDERS: Record<Exclude<VisionProviderId, 'mock'>, Provide
     defaultModel: 'llava',
     defaultBaseUrl: 'http://localhost:11434',
   },
+}
+
+export function isRealVisionProviderId(provider: VisionProviderId): boolean {
+  return provider === 'openai' || provider === 'gemini' || provider === 'ollama'
 }
 
 export const EMBEDDING_PROVIDERS: Record<Exclude<EmbeddingProviderId, 'mock'>, ProviderInfo & { defaultDimensions: number }> = {
@@ -104,6 +112,7 @@ export const DEFAULT_PROVIDER_SETTINGS: ProviderSettings = {
     dimensions: BUILTIN_EMBEDDING_DIMENSIONS,
     useCloud: false,
   },
+  worldSearch: DEFAULT_WORLD_SEARCH_SETTINGS,
   libraryFolder: '',
   appearance: 'system',
   language: 'en',
@@ -173,6 +182,10 @@ export function validateProviderSettings(settings: ProviderSettings): string[] {
     if (settings.embedding.provider !== 'none' && (!Number.isInteger(settings.embedding.dimensions) || settings.embedding.dimensions <= 0)) {
       problems.push('Embedding dimensions must be a positive integer.')
     }
+  }
+
+  if (settings.worldSearch) {
+    problems.push(...validateWorldSearchSettings(settings.worldSearch))
   }
 
   return problems

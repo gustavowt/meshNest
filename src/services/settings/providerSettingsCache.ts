@@ -2,6 +2,7 @@ import {
   DEFAULT_PROVIDER_SETTINGS,
   validateProviderSettings,
 } from '@/services/settings/providerSettings'
+import { mergeWorldSearchSettings } from '@/services/settings/worldSearchSettings'
 import type { ProviderSettings } from '@/types/providerSettings'
 
 const CACHE_VERSION = 1
@@ -22,6 +23,7 @@ function normalizeSettings(settings: Partial<ProviderSettings>): ProviderSetting
   return {
     vision: { ...DEFAULT_PROVIDER_SETTINGS.vision, ...settings.vision },
     embedding: { ...DEFAULT_PROVIDER_SETTINGS.embedding, ...settings.embedding },
+    worldSearch: mergeWorldSearchSettings(settings.worldSearch),
     libraryFolder: settings.libraryFolder ?? DEFAULT_PROVIDER_SETTINGS.libraryFolder,
     appearance: settings.appearance ?? DEFAULT_PROVIDER_SETTINGS.appearance,
     language: settings.language ?? DEFAULT_PROVIDER_SETTINGS.language,
