@@ -34,6 +34,9 @@ export function createVisionProvider(
         normalizeName: async (rawName: string) => rawName,
         normalizeNames: async (items) =>
           items.map((item) => ({ id: item.id, normalizedName: item.rawName })),
+        analyzeImageForSearch: async () => {
+          throw new Error('Vision provider is disabled.')
+        },
       }
     case 'mock':
       return new MockVisionProvider()

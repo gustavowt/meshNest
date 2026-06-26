@@ -2,6 +2,7 @@ import type { AIModelDescription, VisionImageInput } from '@/types/llm'
 import type { SupportedModelExtension } from '@/types/modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from '@/types/modelMetadata'
 import type { AppLanguage } from '@/types/providerSettings'
+import type { ImageSearchQuery, ImageWebResearchResult } from '@/types/worldSearch'
 
 /**
  * Everything a vision provider receives to describe one model.
@@ -59,4 +60,12 @@ export interface VisionProvider {
    * the corresponding input id so callers can keep file records aligned.
    */
   normalizeNames(items: NameNormalizationInput[]): Promise<NameNormalizationResult[]>
+  /**
+   * Converts one or more reference images into search keywords for world search.
+   */
+  analyzeImageForSearch(
+    images: VisionImageInput[],
+    language?: AppLanguage,
+    webResearch?: ImageWebResearchResult,
+  ): Promise<ImageSearchQuery>
 }

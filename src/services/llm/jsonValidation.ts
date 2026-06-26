@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { AIModelDescription } from '@/types/llm'
+import type { ImageSearchQuery } from '@/types/worldSearch'
 
 export class VisionValidationError extends Error {
   constructor(message: string, cause?: unknown) {
@@ -44,6 +45,32 @@ export function validateVisionResponse(response: unknown): AIModelDescription {
       .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
       .join('; ')
     throw new VisionValidationError(`Vision response failed validation: ${issues}`)
+  }
+  return result.data
+}
+
+export const imageSearchQuerySchema = z.object({
+  query: z.string().min(1),
+  tags: z.array(z.string()),
+  category: z.string().optional(),
+})
+
+export function validateImageSearchQuery(response: unknown): ImageSearchQuery {
+  let value = response
+  if (typeof response === 'string') {
+    try {
+      value = JSON.parse(response)
+    } catch (error) {
+      throw new VisionValidationError('Vision provider returned invalid JSON', error)
+    }
+  }
+
+  const result = imageSearchQuerySchema.safeParse(value)
+  if (!result.success) {
+    const issues = result.error.issues
+      .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+      .join('; ')
+    throw new VisionValidationError(`Image search response failed validation: ${issues}`)
   }
   return result.data
 }

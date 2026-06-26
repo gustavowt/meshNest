@@ -76,6 +76,24 @@ export function buildLanguageInstruction(language?: 'en' | 'pt' | 'es'): string 
   return `Write all human-readable text values (shortName, description, likelyCategory, tags, objectsDetected, printUse, style, searchPhrases) in ${languageName}. Keep the JSON keys and overall structure exactly as specified, in English.`
 }
 
+/** Prompt for converting a reference photo into world-search keywords. */
+export const IMAGE_WORLD_SEARCH_PROMPT = `Look at this image and infer what 3D printable model the user is trying to find online.
+
+Return only valid JSON with this shape:
+{
+  "query": string,
+  "tags": string[],
+  "category": string
+}
+
+Rules:
+- "query" should be a concise search phrase (2-6 words) suitable for STL/3MF repositories.
+- Prefer words a maker would use to find a printable STL/3MF file, not a generic render/game asset.
+- Add "STL", "3MF", "printable", or "3D print" when those words would improve repository search.
+- "tags" should list 3-8 practical printing keywords (object type, style, function, character, support-free, articulated, etc.).
+- "category" should be one practical 3D printing category when possible.
+- Focus on the object itself, not the photo background.`
+
 export const SUGGESTED_CATEGORIES = [
   'toys',
   'tools',

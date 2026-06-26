@@ -5,7 +5,9 @@ import type {
   VisionProvider,
   VisionProviderResult,
 } from './visionProvider'
+import type { VisionImageInput } from '@/types/llm'
 import type { VisionSettings } from '@/types/providerSettings'
+import type { ImageSearchQuery } from '@/types/worldSearch'
 
 /**
  * Renderer-side VisionProvider that forwards to the Electron main
@@ -38,6 +40,19 @@ export class BridgeVisionProvider implements VisionProvider {
       throw new Error('Vision provider bridge is only available in the desktop app.')
     }
     return window.meshNest.normalizeNames(items, this.settings)
+  }
+
+  async analyzeImageForSearch(
+    images: VisionImageInput[],
+  ): Promise<ImageSearchQuery> {
+    if (!window.meshNest) {
+      throw new Error('Vision provider bridge is only available in the desktop app.')
+    }
+    const image = images[0]
+    if (!image) {
+      throw new Error('At least one image is required for image search.')
+    }
+    return window.meshNest.describeImageWorldSearchQuery(image.base64Png)
   }
 }
 
