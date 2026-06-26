@@ -1,3 +1,5 @@
+import type { WorldSearchSettings } from './worldSearch'
+
 export type VisionProviderId = 'none' | 'mock' | 'openai' | 'gemini' | 'ollama'
 
 export type EmbeddingProviderId = 'none' | 'builtin' | 'mock' | 'openai' | 'gemini' | 'ollama'
@@ -32,6 +34,7 @@ export type EmbeddingSettings = {
 export type ProviderSettings = {
   vision: VisionSettings
   embedding: EmbeddingSettings
+  worldSearch?: WorldSearchSettings
   libraryFolder?: string
   appearance?: 'clear' | 'dark' | 'system'
   language?: AppLanguage

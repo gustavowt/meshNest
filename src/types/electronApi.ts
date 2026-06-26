@@ -13,6 +13,11 @@ import type {
 } from './providerSettings'
 import type { SearchResult } from './search'
 import type {
+  ImageSearchQuery,
+  WorldSearchQuery,
+  WorldSearchResponse,
+} from './worldSearch'
+import type {
   NameNormalizationInput,
   NameNormalizationResult,
   VisionAnalysisInput,
@@ -100,6 +105,11 @@ export type MeshNestApi = {
     options?: { limit?: number; projectId?: string; queryText?: string },
   ): Promise<SearchResult[]>
   countEmbeddings(): Promise<number>
+
+  // Worldwide 3D model search (external repositories).
+  worldSearch(query: WorldSearchQuery): Promise<WorldSearchResponse>
+  describeImageWorldSearchQuery(imageBase64Png: string): Promise<ImageSearchQuery>
+  openWorldSearchSourceUrl(url: string): Promise<void>
 
   // Provider settings.
   getProviderSettings(): Promise<ProviderSettings>
