@@ -99,6 +99,25 @@
     "searchModelsDesc": "Describa un modelo en lenguaje sencillo. Por ejemplo:",
     "cosineDistance": "Distancia de coseno {distance}"
   },
+  "worldSearch": {
+    "title": "Búsqueda Global",
+    "searching": "Buscando repositorios online…",
+    "searchByImage": "Buscar por imagen",
+    "clearImage": "Limpiar imagen",
+    "configureVisionProvider": "Configurar IA de Visión",
+    "imageSearchRequiresVision": "La búsqueda por imagen necesita un proveedor real de IA de Visión (OpenAI, Gemini u Ollama) configurado en Ajustes.",
+    "derivedQuery": "Búsqueda sugerida por IA:",
+    "heroKicker": "Descubrimiento para impresión 3D",
+    "heroTitle": "Encuentre modelos imprimibles más allá de su biblioteca",
+    "heroDesc": "Busque repositorios STL y 3MF desde un solo lugar, o empiece con una imagen y deje que meshNest la convierta en palabras clave para makers.",
+    "initialTitle": "Busque modelos para impresión 3D online",
+    "initialDesc": "Encuentre listados STL, 3MF y otros modelos imprimibles en los principales repositorios de impresión 3D. Los resultados se abren en el sitio original.",
+    "noMatchesTitle": "Sin coincidencias online",
+    "noMatchesDesc": "Nada coincidió con \"{query}\" en los proveedores activos. Pruebe otras palabras o active más fuentes en Ajustes.",
+    "partialErrors": "{count} proveedor(es) devolvieron error; mostrando resultados del resto.",
+    "providerErrorsTitle": "Estado de los proveedores",
+    "openOnSource": "Toque para abrir en el sitio de origen"
+  },
   "detail": {
     "model": "Modelo",
     "reveal": "Mostrar en carpeta",
@@ -151,7 +170,8 @@
       "vision": "IA de Visión",
       "embedding": "Embeddings",
       "appearance": "Apariencia",
-      "language": "Idioma"
+      "language": "Idioma",
+      "worldSearch": "Búsqueda Global"
     },
     "librarySection": {
       "title": "Ubicación de la Biblioteca",
@@ -223,6 +243,34 @@
       "ptDesc": "Portugués",
       "esTitle": "Español",
       "esDesc": "Español"
+    },
+    "worldSearchSection": {
+      "title": "Proveedores de Búsqueda Global",
+      "desc": "Elija qué repositorios online de modelos 3D consulta meshNest. Las credenciales se guardan localmente en este dispositivo.",
+      "limitPerProvider": "Resultados por proveedor",
+      "imageResearchTitle": "Investigación por imagen",
+      "imageResearchDesc": "Usa comprensión de imágenes en internet antes de que meshNest pida a la IA palabras clave para modelos imprimibles.",
+      "imageResearchKicker": "Enriquecimiento opcional",
+      "googleVisionWebDetection": "Google Cloud Vision Web Detection",
+      "googleVisionApiKey": "Clave de API de Google Cloud Vision",
+      "googleVisionApiLink": "Abrir configuración de la API Google Cloud Vision",
+      "googleVisionDesc": "Busca etiquetas probables, entidades web relacionadas y títulos de páginas con imágenes coincidentes antes de generar términos de búsqueda STL/3MF.",
+      "googleVisionStep1": "Crea o selecciona un proyecto de Google Cloud.",
+      "googleVisionStep2": "Activa la Cloud Vision API para ese proyecto.",
+      "googleVisionStep3": "Crea una clave de API con acceso a Cloud Vision.",
+      "googleVisionStep4": "Pega la clave aquí, activa la investigación por imagen y guarda Configuración.",
+      "apiKeyRequired": "Clave de API requerida",
+      "modelProviders": "Repositorios de modelos",
+      "modelProvidersDesc": "Busque modelos imprimibles en los principales repositorios de impresión 3D. Todas las fuentes listadas funcionan sin credenciales de repositorio.",
+      "modelRepositoryKicker": "Repositorio de modelos",
+      "tokenRequiredProviders": "Repositorios con token requerido",
+      "tokenRequiredProvidersDesc": "Estas fuentes están separadas porque sus endpoints anónimos de metadatos están bloqueados desde Electron. Actívelas solo si tiene un token de API.",
+      "tokenRequiredRepositoryKicker": "Repositorio con token requerido",
+      "tokenOptional": "Token opcional",
+      "tokenRequired": "Token requerido",
+      "noToken": "Sin token",
+      "setupSteps": "Pasos de configuración",
+      "apiToken": "Token de API"
     }
   }
 }

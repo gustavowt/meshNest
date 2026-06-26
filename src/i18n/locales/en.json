@@ -99,6 +99,25 @@
     "searchModelsDesc": "Describe a model in plain language. For example:",
     "cosineDistance": "Cosine distance {distance}"
   },
+  "worldSearch": {
+    "title": "World Search",
+    "searching": "Searching online repositories…",
+    "searchByImage": "Search by image",
+    "clearImage": "Clear image",
+    "configureVisionProvider": "Configure Vision AI",
+    "imageSearchRequiresVision": "Image search needs a real Vision AI provider (OpenAI, Gemini, or Ollama) configured in Settings.",
+    "derivedQuery": "AI suggested search:",
+    "heroKicker": "3D print discovery",
+    "heroTitle": "Find printable models beyond your library",
+    "heroDesc": "Search STL and 3MF repositories from one place, or start with an image and let meshNest translate it into maker-friendly keywords.",
+    "initialTitle": "Search online 3D print models",
+    "initialDesc": "Find STL, 3MF, and other printable model listings across major 3D-print repositories. Results open on the original site.",
+    "noMatchesTitle": "No online matches",
+    "noMatchesDesc": "Nothing matched \"{query}\" on the enabled providers. Try different words or enable more sources in Settings.",
+    "partialErrors": "{count} provider(s) returned errors; showing results from the rest.",
+    "providerErrorsTitle": "Provider status",
+    "openOnSource": "Tap to open on the source website"
+  },
   "detail": {
     "model": "Model",
     "reveal": "Reveal",
@@ -151,7 +170,8 @@
       "vision": "Vision AI",
       "embedding": "Embeddings",
       "appearance": "Appearance",
-      "language": "Language"
+      "language": "Language",
+      "worldSearch": "World Search"
     },
     "librarySection": {
       "title": "Library Location",
@@ -223,6 +243,34 @@
       "ptDesc": "Portuguese",
       "esTitle": "Español",
       "esDesc": "Spanish"
+    },
+    "worldSearchSection": {
+      "title": "World Search Providers",
+      "desc": "Choose which online 3D model repositories meshNest queries. Credentials are stored locally on this device.",
+      "limitPerProvider": "Results per provider",
+      "imageResearchTitle": "Image research",
+      "imageResearchDesc": "Use internet image understanding before meshNest asks AI for printable search keywords.",
+      "imageResearchKicker": "Optional enrichment",
+      "googleVisionWebDetection": "Google Cloud Vision Web Detection",
+      "googleVisionApiKey": "Google Cloud Vision API key",
+      "googleVisionApiLink": "Open Google Cloud Vision API setup",
+      "googleVisionDesc": "Looks up best-guess labels, related web entities, and matching page titles for the uploaded image before generating STL/3MF search terms.",
+      "googleVisionStep1": "Create or select a Google Cloud project.",
+      "googleVisionStep2": "Enable the Cloud Vision API for that project.",
+      "googleVisionStep3": "Create an API key with access to Cloud Vision.",
+      "googleVisionStep4": "Paste the key here, enable image research, and save Settings.",
+      "apiKeyRequired": "API key required",
+      "modelProviders": "Model repositories",
+      "modelProvidersDesc": "Search printable models across major 3D-print repositories. All listed sources work without repository credentials.",
+      "modelRepositoryKicker": "Model repository",
+      "tokenRequiredProviders": "Token-required repositories",
+      "tokenRequiredProvidersDesc": "These sources are kept separate because their anonymous metadata endpoints are blocked from Electron. Enable them only if you have an API token.",
+      "tokenRequiredRepositoryKicker": "Token-required repository",
+      "tokenOptional": "Token optional",
+      "tokenRequired": "Token required",
+      "noToken": "No token",
+      "setupSteps": "Setup steps",
+      "apiToken": "API token"
     }
   }
 }

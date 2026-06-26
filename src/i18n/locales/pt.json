@@ -99,6 +99,25 @@
     "searchModelsDesc": "Descreva um modelo em linguagem simples. Por exemplo:",
     "cosineDistance": "Distância de cosseno {distance}"
   },
+  "worldSearch": {
+    "title": "Busca Global",
+    "searching": "Buscando repositórios online…",
+    "searchByImage": "Buscar por imagem",
+    "clearImage": "Limpar imagem",
+    "configureVisionProvider": "Configurar IA de Visão",
+    "imageSearchRequiresVision": "A busca por imagem precisa de um provedor real de IA de Visão (OpenAI, Gemini ou Ollama) configurado em Configurações.",
+    "derivedQuery": "Busca sugerida pela IA:",
+    "heroKicker": "Descoberta para impressão 3D",
+    "heroTitle": "Encontre modelos imprimíveis além da sua biblioteca",
+    "heroDesc": "Busque repositórios STL e 3MF em um só lugar, ou comece com uma imagem e deixe o meshNest transformar isso em palavras-chave para makers.",
+    "initialTitle": "Busque modelos para impressão 3D online",
+    "initialDesc": "Encontre listagens STL, 3MF e outros modelos imprimíveis nos principais repositórios de impressão 3D. Os resultados abrem no site original.",
+    "noMatchesTitle": "Nenhum resultado online",
+    "noMatchesDesc": "Nada correspondeu a \"{query}\" nos provedores ativos. Tente outras palavras ou ative mais fontes em Configurações.",
+    "partialErrors": "{count} provedor(es) retornaram erro; mostrando resultados dos demais.",
+    "providerErrorsTitle": "Status dos provedores",
+    "openOnSource": "Toque para abrir no site de origem"
+  },
   "detail": {
     "model": "Modelo",
     "reveal": "Revelar",
@@ -151,7 +170,8 @@
       "vision": "IA de Visão",
       "embedding": "Embeddings",
       "appearance": "Aparência",
-      "language": "Idioma"
+      "language": "Idioma",
+      "worldSearch": "Busca Global"
     },
     "librarySection": {
       "title": "Local da Biblioteca",
@@ -223,6 +243,34 @@
       "ptDesc": "Português",
       "esTitle": "Español",
       "esDesc": "Espanhol"
+    },
+    "worldSearchSection": {
+      "title": "Provedores de Busca Global",
+      "desc": "Escolha quais repositórios online de modelos 3D o meshNest consulta. As credenciais ficam armazenadas localmente neste dispositivo.",
+      "limitPerProvider": "Resultados por provedor",
+      "imageResearchTitle": "Pesquisa por imagem",
+      "imageResearchDesc": "Use entendimento de imagem na internet antes de o meshNest pedir à IA termos de busca para impressão.",
+      "imageResearchKicker": "Enriquecimento opcional",
+      "googleVisionWebDetection": "Google Cloud Vision Web Detection",
+      "googleVisionApiKey": "Chave da API do Google Cloud Vision",
+      "googleVisionApiLink": "Abrir configuração da API Google Cloud Vision",
+      "googleVisionDesc": "Busca rótulos prováveis, entidades relacionadas na web e títulos de páginas com imagens parecidas antes de gerar termos de busca para STL/3MF.",
+      "googleVisionStep1": "Crie ou selecione um projeto no Google Cloud.",
+      "googleVisionStep2": "Ative a Cloud Vision API nesse projeto.",
+      "googleVisionStep3": "Crie uma chave de API com acesso ao Cloud Vision.",
+      "googleVisionStep4": "Cole a chave aqui, ative a pesquisa por imagem e salve as Configurações.",
+      "apiKeyRequired": "Chave de API obrigatória",
+      "modelProviders": "Repositórios de modelos",
+      "modelProvidersDesc": "Busque modelos imprimíveis nos principais repositórios de impressão 3D. Todas as fontes listadas funcionam sem credenciais de repositório.",
+      "modelRepositoryKicker": "Repositório de modelos",
+      "tokenRequiredProviders": "Repositórios com token obrigatório",
+      "tokenRequiredProvidersDesc": "Essas fontes ficam separadas porque seus endpoints anônimos de metadados são bloqueados pelo Electron. Ative-as somente se você tiver um token de API.",
+      "tokenRequiredRepositoryKicker": "Repositório com token obrigatório",
+      "tokenOptional": "Token opcional",
+      "tokenRequired": "Token obrigatório",
+      "noToken": "Sem token",
+      "setupSteps": "Passos de configuração",
+      "apiToken": "Token da API"
     }
   }
 }
