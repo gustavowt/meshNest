@@ -184,7 +184,7 @@ async function retryFailedLibrary(
 
   try {
     const deps = await createDesktopIndexingDeps()
-    let entries = [...failedEntries]
+    const entries = [...failedEntries]
 
     if (libraryFolder) {
       const files = await reconcileScannedDirectory(libraryFolder)
