@@ -70,48 +70,18 @@
     <h3 class="subsection-title">{{ $t('settings.worldSearchSection.modelProviders') }}</h3>
     <p class="section-description">{{ $t('settings.worldSearchSection.modelProvidersDesc') }}</p>
     <ion-list inset class="provider-list">
-      <template v-for="providerId in mainProviderIds" :key="providerId">
-        <ion-item class="provider-header">
-          <ion-toggle
-            :checked="worldSearch.providers[providerId].enabled"
-            @ion-change="setEnabled(providerId, $event.detail.checked === true)"
-          >
-            {{ WORLD_SEARCH_PROVIDERS[providerId].label }}
-          </ion-toggle>
-        </ion-item>
-        <ion-item v-if="worldSearch.providers[providerId].enabled && WORLD_SEARCH_PROVIDERS[providerId].needsApiToken">
-          <ion-input
-            :label="$t('settings.worldSearchSection.apiToken')"
-            label-placement="fixed"
-            type="password"
-            :value="worldSearch.providers[providerId].credentials?.apiToken ?? ''"
-            @ion-input="setCredential(providerId, 'apiToken', $event.detail.value ?? '')"
-          />
-        </ion-item>
-        <ion-item v-if="worldSearch.providers[providerId].enabled" lines="none" class="setup-item">
-          <div class="provider-guide">
-            <div class="guide-header">
-              <div>
-                <p class="guide-kicker">{{ $t('settings.worldSearchSection.modelRepositoryKicker') }}</p>
-                <h4>{{ WORLD_SEARCH_PROVIDERS[providerId].label }}</h4>
-              </div>
-              <ion-badge :color="authBadgeColor(providerId)" class="auth-badge">
-                {{ authSummary(providerId) }}
-              </ion-badge>
-            </div>
-            <p class="provider-description">{{ WORLD_SEARCH_PROVIDERS[providerId].description }}</p>
-            <p class="setup-title">{{ $t('settings.worldSearchSection.setupSteps') }}</p>
-            <ol class="setup-steps">
-              <li
-                v-for="step in WORLD_SEARCH_PROVIDERS[providerId].setupDocumentation"
-                :key="`${providerId}-${step}`"
-              >
-                {{ step }}
-              </li>
-            </ol>
-          </div>
-        </ion-item>
-      </template>
+      <ion-item
+        v-for="providerId in mainProviderIds"
+        :key="providerId"
+        class="provider-header"
+      >
+        <ion-toggle
+          :checked="worldSearch.providers[providerId].enabled"
+          @ion-change="setEnabled(providerId, $event.detail.checked === true)"
+        >
+          {{ WORLD_SEARCH_PROVIDERS[providerId].label }}
+        </ion-toggle>
+      </ion-item>
     </ion-list>
 
     <h3 class="subsection-title">{{ $t('settings.worldSearchSection.tokenRequiredProviders') }}</h3>
@@ -147,6 +117,15 @@
               </ion-badge>
             </div>
             <p class="provider-description">{{ WORLD_SEARCH_PROVIDERS[providerId].description }}</p>
+            <p v-if="WORLD_SEARCH_PROVIDERS[providerId].tokenSetupUrl" class="provider-link">
+              <a
+                :href="WORLD_SEARCH_PROVIDERS[providerId].tokenSetupUrl"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {{ tokenSetupLinkLabel(providerId) }}
+              </a>
+            </p>
             <p class="setup-title">{{ $t('settings.worldSearchSection.setupSteps') }}</p>
             <ol class="setup-steps">
               <li
@@ -185,10 +164,10 @@ const emit = defineEmits<{
   dirty: []
 }>()
 
-const { t } = useI18n()
 const worldSearch = computed(() => props.modelValue)
 const mainProviderIds = MAIN_WORLD_SEARCH_PROVIDER_IDS
 const tokenRequiredProviderIds = TOKEN_REQUIRED_WORLD_SEARCH_PROVIDER_IDS
+const { t } = useI18n()
 
 function clone(): WorldSearchSettings {
   return JSON.parse(JSON.stringify(props.modelValue ?? DEFAULT_WORLD_SEARCH_SETTINGS))
@@ -243,22 +222,14 @@ function setImageResearchApiKey(value: string): void {
   emitUpdate(next)
 }
 
-function authSummary(providerId: WorldSearchProviderId): string {
-  const provider = WORLD_SEARCH_PROVIDERS[providerId]
-  if (provider.needsApiToken) {
-    return providerId === 'sketchfab'
-      ? t('settings.worldSearchSection.tokenOptional')
-      : t('settings.worldSearchSection.tokenRequired')
-  }
-  return t('settings.worldSearchSection.noToken')
+const TOKEN_SETUP_LINK_KEYS: Partial<Record<WorldSearchProviderId, string>> = {
+  thingiverse: 'settings.worldSearchSection.thingiverseTokenSetupLink',
+  thangs: 'settings.worldSearchSection.thangsTokenSetupLink',
 }
 
-function authBadgeColor(providerId: WorldSearchProviderId): string {
-  const provider = WORLD_SEARCH_PROVIDERS[providerId]
-  if (provider.needsApiToken) {
-    return 'primary'
-  }
-  return 'success'
+function tokenSetupLinkLabel(providerId: WorldSearchProviderId): string {
+  const key = TOKEN_SETUP_LINK_KEYS[providerId]
+  return key ? t(key) : WORLD_SEARCH_PROVIDERS[providerId].label
 }
 </script>
 

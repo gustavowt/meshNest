@@ -59,8 +59,10 @@ Notes: Creality Cloud is a print-focused model library. meshNest queries Crealit
 
 Auth required: API token.
 
+Direct setup link: https://www.thingiverse.com/apps/create
+
 1. Create or sign in to a Thingiverse account.
-2. Create a Thingiverse app/API token.
+2. Create a Thingiverse app and copy its App Token or OAuth access token.
 3. In meshNest, open Settings -> World Search, enable Thingiverse in Token-required repositories, paste the token into API token, and save.
 
 Notes: Thingiverse anonymous metadata requests return Cloudflare challenge pages from Electron/Node. meshNest therefore keeps Thingiverse disabled by default and only queries it when an API token is configured. Results open on Thingiverse; meshNest does not download Thingiverse files in this phase.
@@ -69,8 +71,10 @@ Notes: Thingiverse anonymous metadata requests return Cloudflare challenge pages
 
 Auth required: API token.
 
+Direct setup link: https://thangs.com/
+
 1. Create or sign in to a Thangs account.
-2. Create or obtain a Thangs API token.
+2. Obtain a Thangs API bearer token from your account or Thangs support.
 3. In meshNest, open Settings -> World Search, enable Thangs in Token-required repositories, paste the token into API token, and save.
 
 Notes: Thangs anonymous metadata requests return Cloudflare challenge pages from Electron/Node. meshNest therefore keeps Thangs disabled by default and only queries it when an API token is configured. Results open on Thangs; meshNest does not download Thangs files in this phase.
