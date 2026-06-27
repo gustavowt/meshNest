@@ -262,13 +262,12 @@
       "apiKeyRequired": "Chave de API obrigatória",
       "modelProviders": "Repositórios de modelos",
       "modelProvidersDesc": "Busque modelos imprimíveis nos principais repositórios de impressão 3D. Todas as fontes listadas funcionam sem credenciais de repositório.",
-      "modelRepositoryKicker": "Repositório de modelos",
       "tokenRequiredProviders": "Repositórios com token obrigatório",
       "tokenRequiredProvidersDesc": "Essas fontes ficam separadas porque seus endpoints anônimos de metadados são bloqueados pelo Electron. Ative-as somente se você tiver um token de API.",
       "tokenRequiredRepositoryKicker": "Repositório com token obrigatório",
-      "tokenOptional": "Token opcional",
       "tokenRequired": "Token obrigatório",
-      "noToken": "Sem token",
+      "thingiverseTokenSetupLink": "Abrir configuração de app do Thingiverse",
+      "thangsTokenSetupLink": "Abrir Thangs",
       "setupSteps": "Passos de configuração",
       "apiToken": "Token da API"
     }

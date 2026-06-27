@@ -43,6 +43,7 @@ describe('world search provider metadata', () => {
       const provider = WORLD_SEARCH_PROVIDERS[providerId]
       expect(provider.needsApiToken, providerId).toBe(true)
       expect(provider.description, providerId).toContain('token')
+      expect(provider.tokenSetupUrl, providerId).toMatch(/^https:\/\//)
     }
   })
 

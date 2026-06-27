@@ -10,6 +10,8 @@ export type WorldSearchProviderInfo = {
   linkOnly: boolean
   description: string
   setupDocumentation: string[]
+  /** Public page where users create or obtain an API token. */
+  tokenSetupUrl?: string
 }
 
 export const WORLD_SEARCH_PROVIDERS: Record<WorldSearchProviderId, WorldSearchProviderInfo> = {
@@ -81,10 +83,11 @@ export const WORLD_SEARCH_PROVIDERS: Record<WorldSearchProviderId, WorldSearchPr
     needsOAuth: false,
     linkOnly: false,
     description: 'Printable STL repository available when a Thingiverse API token is configured.',
+    tokenSetupUrl: 'https://www.thingiverse.com/apps/create',
     setupDocumentation: [
       'Create or sign in to a Thingiverse account.',
-      'Create a Thingiverse app/API token and paste it into API token.',
-      'Enable this provider, save Settings, then run a World Search query.',
+      'Create a Thingiverse app and copy its App Token or OAuth access token.',
+      'Enable this provider, paste the token into API token, save Settings, then search.',
       'Results open on Thingiverse; meshNest does not download Thingiverse files in this phase.',
     ],
   },
@@ -96,10 +99,11 @@ export const WORLD_SEARCH_PROVIDERS: Record<WorldSearchProviderId, WorldSearchPr
     needsOAuth: false,
     linkOnly: true,
     description: 'Thangs printable model search available when a Thangs API token is configured.',
+    tokenSetupUrl: 'https://thangs.com/',
     setupDocumentation: [
       'Create or sign in to a Thangs account.',
-      'Create or obtain a Thangs API token and paste it into API token.',
-      'Enable this provider, save Settings, then run a World Search query.',
+      'Obtain a Thangs API bearer token from your account or Thangs support.',
+      'Enable this provider, paste the token into API token, save Settings, then search.',
       'Results open on Thangs; meshNest does not download Thangs files in this phase.',
     ],
   },
