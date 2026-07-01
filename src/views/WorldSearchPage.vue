@@ -290,14 +290,25 @@ onIonViewWillEnter(() => {
 }
 
 .hero-search-bar {
-  --background: transparent;
-  --border-radius: 18px;
-  --box-shadow: none;
-  --color: var(--ion-text-color);
-  --placeholder-color: var(--ion-color-medium);
+  --background: transparent !important;
+  --border-radius: 18px !important;
+  --box-shadow: none !important;
+  --color: var(--ion-text-color) !important;
+  --placeholder-color: var(--ion-color-medium) !important;
+  --placeholder-opacity: 1 !important;
+  background: transparent !important;
   flex: 1 1 auto;
   min-width: 0;
   padding: 0;
+}
+
+.hero-search-bar::part(container),
+.hero-search-bar::part(input) {
+  border: 0 !important;
+  border-radius: 18px !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 .inline-image-action {

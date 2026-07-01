@@ -257,12 +257,20 @@
           <div class="hero-content">
             <img class="hero-logo" src="/meshNest_logo_name.png" :alt="$t('common.meshNest')" />
             <p class="hero-subtitle">{{ $t('library.heroSubtitle') }}</p>
-            <ion-button router-link="/world-search" fill="outline" size="small" class="world-search-link">
-              <ion-icon slot="start" :icon="globeOutline" />
-              {{ $t('worldSearch.title') }}
-            </ion-button>
             <div class="hero-search-container">
-              <model-search-bar v-model="searchQuery" @search="handleSearch" class="hero-search-bar" />
+              <div class="hero-search-frame">
+                <model-search-bar v-model="searchQuery" @search="handleSearch" class="hero-search-bar" />
+                <ion-button
+                  router-link="/world-search"
+                  fill="clear"
+                  size="small"
+                  class="hero-world-search-button"
+                  :aria-label="$t('worldSearch.title')"
+                  :title="$t('worldSearch.title')"
+                >
+                  <ion-icon slot="icon-only" :icon="globeOutline" />
+                </ion-button>
+              </div>
             </div>
           </div>
         </div>
@@ -1338,6 +1346,22 @@ onMounted(async () => {
   .hero-logo {
     height: 64px;
   }
+
+  .hero-search-container {
+    max-width: 100%;
+  }
+
+  .hero-search-frame {
+    min-height: 54px;
+    border-radius: 24px;
+    padding-right: 7px;
+  }
+
+  .hero-world-search-button {
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+  }
 }
 
 .hero-subtitle {
@@ -1386,28 +1410,71 @@ onMounted(async () => {
 
 .hero-search-container {
   width: 100%;
-  max-width: 520px;
+  max-width: 560px;
   margin: 0 auto;
 }
 
-.hero-search-bar {
-  --background: rgba(255, 255, 255, 0.09);
-  --color: #ffffff;
-  --placeholder-color: rgba(255, 255, 255, 0.55);
-  --border-radius: 28px;
-  --box-shadow: none;
-  background: transparent;
-  padding: 0;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 28px;
-  overflow: hidden;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+.hero-search-frame {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 58px;
+  padding: 4px 8px 4px 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.13);
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.22);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 
-.hero-search-bar:focus-within {
-  border-color: rgba(129, 140, 248, 0.7);
-  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.25), 0 12px 40px 0 rgba(0, 0, 0, 0.3);
+.hero-search-frame:focus-within {
+  border-color: rgba(199, 210, 254, 0.72);
+  background: rgba(255, 255, 255, 0.17);
+  box-shadow: 0 0 0 4px rgba(129, 140, 248, 0.24), 0 20px 48px rgba(15, 23, 42, 0.28);
+}
+
+.hero-search-bar {
+  --background: transparent !important;
+  --box-shadow: none !important;
+  --color: #ffffff !important;
+  --placeholder-color: rgba(255, 255, 255, 0.62) !important;
+  --placeholder-opacity: 1 !important;
+  --icon-color: rgba(255, 255, 255, 0.68) !important;
+  --clear-button-color: rgba(255, 255, 255, 0.68) !important;
+  --border-radius: 24px !important;
+  background: transparent !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+}
+
+.hero-search-bar::part(container),
+.hero-search-bar::part(input) {
+  border: 0 !important;
+  border-radius: 24px !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+}
+
+.hero-world-search-button {
+  --background: rgba(255, 255, 255, 0.14);
+  --background-hover: rgba(255, 255, 255, 0.22);
+  --background-focused: rgba(255, 255, 255, 0.22);
+  --color: #ffffff;
+  --border-radius: 999px;
+  --box-shadow: none;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  flex: 0 0 auto;
+  margin: 0;
+}
+
+.hero-world-search-button ion-icon {
+  font-size: 20px;
 }
 </style>
