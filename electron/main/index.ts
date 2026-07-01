@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { BrowserWindow, Menu, app, nativeImage } from 'electron'
+import { BrowserWindow, Menu, app, nativeImage, shell } from 'electron'
 import { registerDatabaseIpc } from './ipc/databaseIpc'
 import { registerFilesystemIpc } from './ipc/filesystemIpc'
 import { registerModelActionsIpc } from './ipc/modelActionsIpc'
@@ -17,6 +17,49 @@ function resolveAppIcon(): string {
     : path.join(currentDir, '../dist/meshNest_logo.png')
 }
 
+function resolveAppOrigin(): string | null {
+  if (!process.env.VITE_DEV_SERVER_URL) {
+    return null
+  }
+  try {
+    return new URL(process.env.VITE_DEV_SERVER_URL).origin
+  } catch {
+    return null
+  }
+}
+
+function isExternalHttpNavigation(url: string, appOrigin: string | null): boolean {
+  try {
+    const parsedUrl = new URL(url)
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return false
+    }
+    return appOrigin ? parsedUrl.origin !== appOrigin : true
+  } catch {
+    return false
+  }
+}
+
+function registerExternalNavigationHandlers(window: BrowserWindow): void {
+  const appOrigin = resolveAppOrigin()
+
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (isExternalHttpNavigation(url, appOrigin)) {
+      void shell.openExternal(url)
+      return { action: 'deny' }
+    }
+    return { action: 'allow' }
+  })
+
+  window.webContents.on('will-navigate', (event, url) => {
+    if (!isExternalHttpNavigation(url, appOrigin)) {
+      return
+    }
+    event.preventDefault()
+    void shell.openExternal(url)
+  })
+}
+
 function createWindow(): void {
   const window = new BrowserWindow({
     width: 1280,
@@ -29,6 +72,8 @@ function createWindow(): void {
       nodeIntegration: false,
     },
   })
+
+  registerExternalNavigationHandlers(window)
 
   if (process.env.VITE_DEV_SERVER_URL) {
     window.loadURL(process.env.VITE_DEV_SERVER_URL)
