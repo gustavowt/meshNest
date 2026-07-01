@@ -57,7 +57,7 @@ function wrapRecoveringClient(client: DuckDbClient, generation: number): DuckDbC
       if (!isFatalDatabaseError(error)) {
         throw error
       }
-      await recoverDatabase(error)
+      await recoverDatabase()
       return (await getDatabaseClient()).run(...args)
     }
   }
@@ -72,7 +72,7 @@ function wrapRecoveringClient(client: DuckDbClient, generation: number): DuckDbC
       if (!isFatalDatabaseError(error)) {
         throw error
       }
-      await recoverDatabase(error)
+      await recoverDatabase()
       return (await getDatabaseClient()).all<T>(...args)
     }
   }
@@ -80,7 +80,7 @@ function wrapRecoveringClient(client: DuckDbClient, generation: number): DuckDbC
   return client
 }
 
-async function recoverDatabase(error: unknown): Promise<void> {
+async function recoverDatabase(): Promise<void> {
   if (recoveryPromise) {
     return recoveryPromise
   }
@@ -99,7 +99,7 @@ async function recoverDatabase(error: unknown): Promise<void> {
       }
     }
 
-    await backupCorruptDatabaseFiles(error)
+    await backupCorruptDatabaseFiles()
     await getDatabaseClient()
   })().finally(() => {
     recoveryPromise = null
@@ -108,7 +108,7 @@ async function recoverDatabase(error: unknown): Promise<void> {
   return recoveryPromise
 }
 
-async function backupCorruptDatabaseFiles(_error: unknown): Promise<void> {
+async function backupCorruptDatabaseFiles(): Promise<void> {
   const databasePath = getDatabasePath()
   const suffix = `.corrupt-${formatDatabaseBackupTimestamp(new Date())}`
 

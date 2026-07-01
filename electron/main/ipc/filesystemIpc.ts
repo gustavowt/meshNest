@@ -5,7 +5,7 @@ import path from 'node:path'
 import { BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import type { DirectoryWatchEvent, ScanProgressEvent } from '../../../src/types/electronApi'
 import type { ScannedFile } from '../../../src/types/modelFile'
-import { ScanCancelledError, scanDirectory } from '../../../src/services/filesystem/directoryScanner'
+import { scanDirectory } from '../../../src/services/filesystem/directoryScanner'
 import { hashFile } from '../../../src/services/filesystem/fileHash'
 import { mapWithConcurrency } from '../../../src/services/filesystem/mapWithConcurrency'
 import {
