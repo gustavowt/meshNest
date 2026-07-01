@@ -11,8 +11,6 @@ import type { FetchLike } from './httpUtils'
 import { searchMakerWorld } from './makerWorldProvider'
 import { searchPrintables } from './printablesProvider'
 import { searchSketchfab } from './sketchfabProvider'
-import { searchThangs } from './thangsProvider'
-import { searchThingiverse } from './thingiverseProvider'
 
 type ProviderRunner = (
   ctx: import('./httpUtils').ProviderSearchContext,
@@ -23,16 +21,12 @@ const PROVIDER_RUNNERS: Record<WorldSearchProviderId, ProviderRunner> = {
   printables: searchPrintables,
   makerworld: searchMakerWorld,
   crealitycloud: searchCrealityCloud,
-  thingiverse: searchThingiverse,
-  thangs: searchThangs,
 }
 
 const PRINT_NATIVE_PROVIDER_IDS = new Set<WorldSearchProviderId>([
   'printables',
   'makerworld',
   'crealitycloud',
-  'thingiverse',
-  'thangs',
 ])
 
 function clampLimit(limit: number | undefined, settings: WorldSearchSettings): number {

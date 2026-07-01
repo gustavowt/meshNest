@@ -20,8 +20,6 @@ export const DEFAULT_WORLD_SEARCH_SETTINGS: WorldSearchSettings = {
     printables: providerDefaults(true),
     makerworld: providerDefaults(true),
     crealitycloud: providerDefaults(true),
-    thingiverse: providerDefaults(false),
-    thangs: providerDefaults(false),
   },
 }
 
@@ -74,14 +72,6 @@ export function validateWorldSearchSettings(settings: WorldSearchSettings): stri
 
   if (settings.imageResearch.enabled && !settings.imageResearch.credentials.apiKey?.trim()) {
     problems.push('Google Cloud Vision requires an API key when image research is enabled.')
-  }
-
-  if (settings.providers.thingiverse.enabled && !settings.providers.thingiverse.credentials?.apiToken?.trim()) {
-    problems.push('Thingiverse requires an API token when enabled.')
-  }
-
-  if (settings.providers.thangs.enabled && !settings.providers.thangs.credentials?.apiToken?.trim()) {
-    problems.push('Thangs requires an API token when enabled.')
   }
 
   return problems

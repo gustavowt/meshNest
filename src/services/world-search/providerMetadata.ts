@@ -75,38 +75,6 @@ export const WORLD_SEARCH_PROVIDERS: Record<WorldSearchProviderId, WorldSearchPr
       'Results open on Creality Cloud; meshNest does not download Creality Cloud files in this phase.',
     ],
   },
-  thingiverse: {
-    label: 'Thingiverse',
-    needsApiToken: true,
-    needsApiKey: false,
-    needsUsername: false,
-    needsOAuth: false,
-    linkOnly: false,
-    description: 'Printable STL repository available when a Thingiverse API token is configured.',
-    tokenSetupUrl: 'https://www.thingiverse.com/apps/create',
-    setupDocumentation: [
-      'Create or sign in to a Thingiverse account.',
-      'Create a Thingiverse app and copy its App Token or OAuth access token.',
-      'Enable this provider, paste the token into API token, save Settings, then search.',
-      'Results open on Thingiverse; meshNest does not download Thingiverse files in this phase.',
-    ],
-  },
-  thangs: {
-    label: 'Thangs',
-    needsApiToken: true,
-    needsApiKey: false,
-    needsUsername: false,
-    needsOAuth: false,
-    linkOnly: true,
-    description: 'Thangs printable model search available when a Thangs API token is configured.',
-    tokenSetupUrl: 'https://thangs.com/',
-    setupDocumentation: [
-      'Create or sign in to a Thangs account.',
-      'Obtain a Thangs API bearer token from your account or Thangs support.',
-      'Enable this provider, paste the token into API token, save Settings, then search.',
-      'Results open on Thangs; meshNest does not download Thangs files in this phase.',
-    ],
-  },
 }
 
 export const MAIN_WORLD_SEARCH_PROVIDER_IDS: WorldSearchProviderId[] = [
@@ -116,12 +84,6 @@ export const MAIN_WORLD_SEARCH_PROVIDER_IDS: WorldSearchProviderId[] = [
   'crealitycloud',
 ]
 
-export const TOKEN_REQUIRED_WORLD_SEARCH_PROVIDER_IDS: WorldSearchProviderId[] = [
-  'thingiverse',
-  'thangs',
-]
-
 export const WORLD_SEARCH_PROVIDER_IDS: WorldSearchProviderId[] = [
   ...MAIN_WORLD_SEARCH_PROVIDER_IDS,
-  ...TOKEN_REQUIRED_WORLD_SEARCH_PROVIDER_IDS,
 ]

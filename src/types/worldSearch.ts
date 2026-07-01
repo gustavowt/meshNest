@@ -4,8 +4,6 @@ export type WorldSearchProviderId =
   | 'printables'
   | 'makerworld'
   | 'crealitycloud'
-  | 'thingiverse'
-  | 'thangs'
 
 export type ImageResearchProviderId = 'googleCloudVision'
 
