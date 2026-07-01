@@ -6,37 +6,17 @@ import {
 } from '@/services/settings/worldSearchSettings'
 
 describe('worldSearchSettings', () => {
-  test('enables main providers and disables token-required providers by default', () => {
+  test('enables only supported model providers by default', () => {
     expect(DEFAULT_WORLD_SEARCH_SETTINGS.providers.sketchfab.enabled).toBe(true)
     expect(DEFAULT_WORLD_SEARCH_SETTINGS.providers.printables.enabled).toBe(true)
     expect(DEFAULT_WORLD_SEARCH_SETTINGS.providers.makerworld.enabled).toBe(true)
     expect(DEFAULT_WORLD_SEARCH_SETTINGS.providers.crealitycloud.enabled).toBe(true)
-    expect(DEFAULT_WORLD_SEARCH_SETTINGS.providers.thingiverse.enabled).toBe(false)
-    expect(DEFAULT_WORLD_SEARCH_SETTINGS.providers.thangs.enabled).toBe(false)
-  })
-
-  test('requires API tokens when token-required providers are enabled', () => {
-    const settings = JSON.parse(JSON.stringify(DEFAULT_WORLD_SEARCH_SETTINGS))
-    settings.providers.thingiverse.enabled = true
-    settings.providers.thangs.enabled = true
-
-    const problems = validateWorldSearchSettings(settings)
-
-    expect(problems.some((problem) => problem.includes('Thingiverse'))).toBe(true)
-    expect(problems.some((problem) => problem.includes('Thangs'))).toBe(true)
-  })
-
-  test('accepts enabled token-required providers when API tokens are present', () => {
-    const settings = JSON.parse(JSON.stringify(DEFAULT_WORLD_SEARCH_SETTINGS))
-    settings.providers.thingiverse.enabled = true
-    settings.providers.thingiverse.credentials.apiToken = 'thingiverse-token'
-    settings.providers.thangs.enabled = true
-    settings.providers.thangs.credentials.apiToken = 'thangs-token'
-
-    const problems = validateWorldSearchSettings(settings)
-
-    expect(problems.some((problem) => problem.includes('Thingiverse'))).toBe(false)
-    expect(problems.some((problem) => problem.includes('Thangs'))).toBe(false)
+    expect(Object.keys(DEFAULT_WORLD_SEARCH_SETTINGS.providers)).toEqual([
+      'sketchfab',
+      'printables',
+      'makerworld',
+      'crealitycloud',
+    ])
   })
 
   test('merges stored provider toggles with defaults', () => {
@@ -57,6 +37,8 @@ describe('worldSearchSettings', () => {
       providers: {
         myminifactory: { enabled: true, credentials: { apiKey: 'old-key' } },
         cults3d: { enabled: true, credentials: { apiKey: 'old-key', username: 'user' } },
+        thingiverse: { enabled: true, credentials: { apiToken: 'old-token' } },
+        thangs: { enabled: true, credentials: { apiToken: 'old-token' } },
         sketchfab: { enabled: false },
       },
     } as unknown as Partial<typeof DEFAULT_WORLD_SEARCH_SETTINGS>)
@@ -67,8 +49,6 @@ describe('worldSearchSettings', () => {
       'printables',
       'makerworld',
       'crealitycloud',
-      'thingiverse',
-      'thangs',
     ])
   })
 

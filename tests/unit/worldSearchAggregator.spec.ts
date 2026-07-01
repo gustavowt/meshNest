@@ -20,28 +20,6 @@ function settingsWithMainProvidersOnly() {
   return settings
 }
 
-function settingsWithProviderToken(providerId: 'thingiverse' | 'thangs', token: string) {
-  const settings = JSON.parse(JSON.stringify(DEFAULT_WORLD_SEARCH_SETTINGS))
-  for (const id of Object.keys(settings.providers) as Array<keyof typeof settings.providers>) {
-    settings.providers[id].enabled = id === providerId
-  }
-  settings.providers[providerId].credentials.apiToken = token
-  return settings
-}
-
-function headerValue(headers: HeadersInit | undefined, name: string): string | undefined {
-  if (!headers) {
-    return undefined
-  }
-  if (headers instanceof Headers) {
-    return headers.get(name) ?? undefined
-  }
-  if (Array.isArray(headers)) {
-    return headers.find(([key]) => key.toLowerCase() === name.toLowerCase())?.[1]
-  }
-  return headers[name] ?? headers[name.toLowerCase()]
-}
-
 describe('aggregateWorldSearch', () => {
   test('returns empty results for blank query', async () => {
     const response = await aggregateWorldSearch(settingsWithSketchfabOnly(), { query: '   ' })
@@ -115,84 +93,6 @@ describe('aggregateWorldSearch', () => {
     )
 
     expect(response.results).toHaveLength(1)
-  })
-
-  test('searches Thingiverse with the configured API token', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      const href = String(url)
-      expect(href).toContain('thingiverse.com/api/v2/search/things')
-      const searchUrl = new URL(href)
-      expect(searchUrl.searchParams.get('term')).toBe('benchy')
-      expect(headerValue(init?.headers, 'Authorization')).toBe('Bearer thingiverse-token')
-      return new Response(
-        JSON.stringify({
-          hits: [
-            {
-              id: 763622,
-              name: '#3DBenchy - The jolly 3D printing torture-test',
-              public_url: 'https://www.thingiverse.com/thing:763622',
-              thumbnail: 'https://cdn.thingiverse.com/benchy.jpg',
-              creator: { name: 'CreativeTools' },
-              like_count: 90875,
-              is_premium: false,
-            },
-          ],
-        }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      )
-    }) as FetchLike
-
-    const response = await aggregateWorldSearch(
-      settingsWithProviderToken('thingiverse', 'thingiverse-token'),
-      { query: 'benchy' },
-      fetchImpl,
-    )
-
-    expect(response.providerErrors).toEqual([])
-    expect(response.results[0]).toMatchObject({
-      providerId: 'thingiverse',
-      sourceId: '763622',
-      title: '#3DBenchy - The jolly 3D printing torture-test',
-    })
-  })
-
-  test('searches Thangs with the configured API token', async () => {
-    const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      const href = String(url)
-      expect(href).toContain('thangs.com/api/search/v5/search-by-text')
-      const searchUrl = new URL(href)
-      expect(searchUrl.searchParams.get('searchTerm')).toBe('benchy')
-      expect(headerValue(init?.headers, 'Authorization')).toBe('Bearer thangs-token')
-      return new Response(
-        JSON.stringify({
-          items: [
-            {
-              modelId: '56337',
-              name: "Benchy #Benchy'sLegacy",
-              ownerUsername: 'Mandalorian',
-              modelPageUrl: 'https://thangs.com/m/56337',
-              thumbnailUrl: 'https://storage.googleapis.com/thangs-thumbnails/benchy.png',
-              likesCount: 425,
-              downloadCount: 8992,
-            },
-          ],
-        }),
-        { status: 200, headers: { 'content-type': 'application/json' } },
-      )
-    }) as FetchLike
-
-    const response = await aggregateWorldSearch(
-      settingsWithProviderToken('thangs', 'thangs-token'),
-      { query: 'benchy' },
-      fetchImpl,
-    )
-
-    expect(response.providerErrors).toEqual([])
-    expect(response.results[0]).toMatchObject({
-      providerId: 'thangs',
-      sourceId: '56337',
-      title: "Benchy #Benchy'sLegacy",
-    })
   })
 
   test('searches main providers and maps Creality Cloud results', async () => {

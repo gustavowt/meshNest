@@ -262,14 +262,7 @@
       "apiKeyRequired": "API key required",
       "modelProviders": "Model repositories",
       "modelProvidersDesc": "Search printable models across major 3D-print repositories. All listed sources work without repository credentials.",
-      "tokenRequiredProviders": "Token-required repositories",
-      "tokenRequiredProvidersDesc": "These sources are kept separate because their anonymous metadata endpoints are blocked from Electron. Enable them only if you have an API token.",
-      "tokenRequiredRepositoryKicker": "Token-required repository",
-      "tokenRequired": "Token required",
-      "thingiverseTokenSetupLink": "Open Thingiverse app setup",
-      "thangsTokenSetupLink": "Open Thangs",
-      "setupSteps": "Setup steps",
-      "apiToken": "API token"
+      "setupSteps": "Setup steps"
     }
   }
 }
