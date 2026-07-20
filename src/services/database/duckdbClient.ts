@@ -5,6 +5,23 @@ export type SqlParams = Record<string, DuckDBValue>
 /** Optional explicit DuckDB types, needed e.g. for empty list parameters. */
 export type SqlParamTypes = Record<string, DuckDBType>
 
+export type DuckDbOpenOptions = {
+  /**
+   * When true, INSTALL/LOAD the VSS extension and enable HNSW persistence.
+   * Defaults to false on Mac App Store builds (`process.mas`), true otherwise.
+   * MAS must skip VSS: runtime INSTALL downloads an unsigned extension that
+   * Gatekeeper/sandbox rejects.
+   */
+  enableVss?: boolean
+}
+
+function isMacAppStoreBuild(): boolean {
+  return (
+    typeof process !== 'undefined' &&
+    (process as NodeJS.Process & { mas?: boolean }).mas === true
+  )
+}
+
 /**
  * Thin wrapper around @duckdb/node-api. Owns one instance/connection pair.
  *
@@ -15,18 +32,31 @@ export class DuckDbClient {
   private constructor(
     private readonly instance: DuckDBInstance,
     private readonly connection: DuckDBConnection,
+    /** True when VSS was loaded; HNSW index DDL is only safe when this is true. */
+    readonly vssAvailable: boolean,
   ) {}
 
   /**
    * Opens (or creates) a database at the given path. Use ':memory:' for tests.
-   * Loads the VSS extension and enables HNSW index persistence.
+   *
+   * By default loads the VSS extension and enables HNSW index persistence.
+   * Mac App Store builds (`process.mas`) skip VSS so Gatekeeper does not
+   * reject the unsigned downloaded `vss.duckdb_extension`; semantic search
+   * still works via brute-force `array_cosine_distance`.
    */
-  static async open(databasePath: string): Promise<DuckDbClient> {
+  static async open(
+    databasePath: string,
+    options?: DuckDbOpenOptions,
+  ): Promise<DuckDbClient> {
+    const enableVss = options?.enableVss ?? !isMacAppStoreBuild()
     const instance = await DuckDBInstance.create(databasePath)
     const connection = await instance.connect()
+    if (!enableVss) {
+      return new DuckDbClient(instance, connection, false)
+    }
     await connection.run('INSTALL vss; LOAD vss;')
     await connection.run('SET hnsw_enable_experimental_persistence = true;')
-    return new DuckDbClient(instance, connection)
+    return new DuckDbClient(instance, connection, true)
   }
 
   async run(sql: string, params?: SqlParams, types?: SqlParamTypes): Promise<void> {

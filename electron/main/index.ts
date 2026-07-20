@@ -108,7 +108,7 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit()
-  }
+  // Single-window app: quit when the main window closes (MAS Guideline 4).
+  // The app ships without a menu bar, so there is no Window menu to reopen it.
+  app.quit()
 })

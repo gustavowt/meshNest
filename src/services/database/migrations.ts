@@ -66,6 +66,13 @@ export async function runMigrations(client: DuckDbClient): Promise<string[]> {
     if (applied.has(migration.id)) {
       continue
     }
+    // Without VSS the HNSW index type is unavailable. Still record the
+    // migration so MAS / enableVss:false clients do not retry forever.
+    if (migration.id === '002_embeddings_hnsw_index' && !client.vssAvailable) {
+      await client.run('INSERT INTO schema_migrations (id) VALUES ($id)', { id: migration.id })
+      newlyApplied.push(migration.id)
+      continue
+    }
     for (const statement of migration.statements) {
       await client.run(statement)
     }

@@ -1,4 +1,6 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { arrayValue } from '@duckdb/node-api'
 import { DuckDbClient } from '@/services/database/duckdbClient'
 import { runMigrations } from '@/services/database/migrations'
 import { EmbeddingRepository } from '@/services/database/embeddingRepository'
@@ -11,15 +13,6 @@ import { SearchRepository } from '@/services/database/searchRepository'
 import type { ScannedFile } from '@/types/modelFile'
 
 let client: DuckDbClient
-
-beforeEach(async () => {
-  client = await DuckDbClient.open(':memory:')
-  await runMigrations(client)
-})
-
-afterEach(async () => {
-  await client.close()
-})
 
 function scannedFile(name: string): ScannedFile {
   return {
@@ -40,6 +33,15 @@ function vector(dimensions: number, seed: number): number[] {
 }
 
 describe('embedding table dimensions', () => {
+  beforeEach(async () => {
+    client = await DuckDbClient.open(':memory:')
+    await runMigrations(client)
+  })
+
+  afterEach(async () => {
+    await client.close()
+  })
+
   test('initial migration creates the default 1536-wide table', async () => {
     expect(await getEmbeddingTableDimensions(client)).toBe(1536)
   })
@@ -146,5 +148,45 @@ describe('embedding table dimensions', () => {
     await expect(new SearchRepository(client).searchByEmbedding(vector(1536, 5))).rejects.toThrow(
       /database table expects 384/,
     )
+  })
+})
+
+describe('embedding table without VSS', () => {
+  let noVssClient: DuckDbClient
+
+  beforeEach(async () => {
+    noVssClient = await DuckDbClient.open(':memory:', { enableVss: false })
+    await runMigrations(noVssClient)
+  })
+
+  afterEach(async () => {
+    await noVssClient.close()
+  })
+
+  test('ensureEmbeddingTable rebuilds without creating HNSW', async () => {
+    expect(noVssClient.vssAvailable).toBe(false)
+
+    const { rebuilt } = await ensureEmbeddingTable(noVssClient, 384)
+    expect(rebuilt).toBe(true)
+    expect(await getEmbeddingTableDimensions(noVssClient)).toBe(384)
+
+    const indexes = await noVssClient.all<{ index_name: string }>(
+      'SELECT index_name FROM duckdb_indexes()',
+    )
+    expect(indexes.map((row) => row.index_name)).not.toContain('idx_model_embeddings_hnsw')
+
+    const embedding = vector(384, 1)
+    await noVssClient.run(
+      `INSERT INTO model_embeddings (model_file_id, provider, model, dimensions, embedding, source_text)
+       VALUES ('f1', 'mock', 'mock', 384, $emb, 'text')`,
+      { emb: arrayValue(embedding) },
+    )
+    const results = await noVssClient.all<{ distance: number }>(
+      `SELECT array_cosine_distance(embedding, $query::FLOAT[384]) AS distance
+       FROM model_embeddings ORDER BY distance LIMIT 1`,
+      { query: arrayValue(embedding) },
+    )
+    expect(results).toHaveLength(1)
+    expect(Number(results[0].distance)).toBeCloseTo(0)
   })
 })

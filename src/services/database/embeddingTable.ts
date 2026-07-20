@@ -2,11 +2,15 @@ import type { DuckDbClient } from './duckdbClient'
 
 /**
  * The model_embeddings table stores fixed-size FLOAT arrays (required by
- * the HNSW index), so its column type depends on the active embedding
- * provider. This module inspects and rebuilds the table when the
- * configured dimensions change. Rebuilding drops all stored embeddings:
- * vectors from different providers/models live in different spaces and
- * must be regenerated anyway.
+ * the HNSW index when VSS is available), so its column type depends on the
+ * active embedding provider. This module inspects and rebuilds the table
+ * when the configured dimensions change. Rebuilding drops all stored
+ * embeddings: vectors from different providers/models live in different
+ * spaces and must be regenerated anyway.
+ *
+ * HNSW is optional: when `client.vssAvailable` is false (e.g. Mac App Store),
+ * the table is created without an HNSW index and search uses brute-force
+ * `array_cosine_distance`.
  */
 
 export function buildEmbeddingTableSql(dimensions: number): string {
@@ -44,8 +48,8 @@ export async function getEmbeddingTableDimensions(
 
 /**
  * Makes sure model_embeddings stores vectors of the given size,
- * dropping and recreating the table (and its HNSW index) when the
- * size differs. Returns whether a rebuild happened.
+ * dropping and recreating the table (and its HNSW index when VSS is
+ * available) when the size differs. Returns whether a rebuild happened.
  */
 export async function ensureEmbeddingTable(
   client: DuckDbClient,
@@ -59,10 +63,15 @@ export async function ensureEmbeddingTable(
     return { rebuilt: false }
   }
 
-  await client.run('DROP INDEX IF EXISTS idx_model_embeddings_hnsw')
+  // HNSW index type requires VSS; skip DROP/CREATE without it.
+  if (client.vssAvailable) {
+    await client.run('DROP INDEX IF EXISTS idx_model_embeddings_hnsw')
+  }
   await client.run('DROP TABLE IF EXISTS model_embeddings')
   await client.run(buildEmbeddingTableSql(dimensions))
-  await client.run(HNSW_INDEX_SQL)
+  if (client.vssAvailable) {
+    await client.run(HNSW_INDEX_SQL)
+  }
   return { rebuilt: current !== undefined }
 }
 

@@ -14,7 +14,7 @@ Execution follows `roadmap.md` phase by phase. Completed phases are marked `[x]`
 - **Desktop shell**: Electron (main + preload). All filesystem and database access stays in the Electron main process and is exposed to the UI through a typed preload bridge.
 - **3D**: Three.js (`STLLoader`, `ThreeMFLoader`) for loading, preview, and offscreen multi-view rendering.
 - **3MF package parsing**: `fflate` (ZIP) + `fast-xml-parser` (XML), independent from the Three.js loader.
-- **Database**: DuckDB via `@duckdb/node-api` with the VSS extension (HNSW index) for vector search.
+- **Database**: DuckDB via `@duckdb/node-api` with the VSS extension (HNSW index) for vector search. Mac App Store builds skip VSS (see Sandbox compliance) and use brute-force `array_cosine_distance`.
 - **Validation**: `zod` for LLM JSON output.
 - **Tests**: Vitest (`tests/unit`), Cypress (`tests/e2e`).
 
@@ -55,7 +55,7 @@ The target structure for services, types, Electron main/preload, and components 
 ### Phase 1 - Install Dependencies
 
 - Installed `three`, `fflate`, `fast-xml-parser`, `zod`, `@duckdb/node-api` (runtime) and `@types/three`, `electron`, `vite-plugin-electron` (dev).
-- Verified DuckDB VSS extension loads and an HNSW index can be created (`INSTALL vss; LOAD vss;`).
+- Verified DuckDB VSS extension loads and an HNSW index can be created (`INSTALL vss; LOAD vss;`). MAS builds skip VSS (see Sandbox compliance).
 - File hashing will use Node's built-in `crypto`; no extra dependency.
 - `tests/unit/dependencies.spec.ts` smoke-tests that all Phase 1 libraries import and work.
 - Dependency rationale table lives in `README.md`.
@@ -73,12 +73,12 @@ The target structure for services, types, Electron main/preload, and components 
 
 ### Phase 3 - Database Schema and Migrations
 
-- `src/services/database/duckdbClient.ts`: `DuckDbClient` wrapper around `@duckdb/node-api`. `DuckDbClient.open(path)` loads the VSS extension and enables HNSW persistence. `run()` executes statements, `all()` returns JSON-compatible row objects. Node-context only (Electron main / tests).
+- `src/services/database/duckdbClient.ts`: `DuckDbClient` wrapper around `@duckdb/node-api`. `DuckDbClient.open(path, options?)` loads the VSS extension and enables HNSW persistence by default (`vssAvailable: true`); MAS (`process.mas`) or `{ enableVss: false }` skips INSTALL/LOAD. `run()` executes statements, `all()` returns JSON-compatible row objects. Node-context only (Electron main / tests).
 - `src/services/database/schema.ts`: idempotent DDL for `model_files`, `geometry_metadata`, `three_mf_metadata`, `model_render_assets`, `ai_model_descriptions`, `model_embeddings`, `indexing_jobs`, secondary indexes, and the HNSW cosine index. `EMBEDDING_DIMENSIONS = 1536` is the single source of truth for the vector dimension.
-- `src/services/database/migrations.ts`: ordered `MIGRATIONS` list tracked in a `schema_migrations` table; `runMigrations(client)` applies pending migrations and is safe to call repeatedly.
+- `src/services/database/migrations.ts`: ordered `MIGRATIONS` list tracked in a `schema_migrations` table; `runMigrations(client)` applies pending migrations and is safe to call repeatedly. Migration `002_embeddings_hnsw_index` is recorded without running when `!client.vssAvailable`.
 - `electron/main/services/database.ts`: lazy shared DuckDB client for Electron main. Fatal DuckDB invalidation errors (`database has been invalidated`, `Failed to delete all rows from index`, `FATAL Error`) close the current client, move `meshnest.duckdb` and its WAL to timestamped `.corrupt-*` backups, recreate a fresh DB with migrations, and retry the failed query against the new client. Library/index data starts empty rather than leaving the app stuck on a poisoned DuckDB connection, but provider settings are protected by a renderer localStorage mirror plus a main-process last-known settings fallback.
 - DuckDB binding notes: named parameters use `$name`; `TEXT[]` values must be wrapped with `listValue(...)` and `FLOAT[n]` vectors with `arrayValue(...)` from `@duckdb/node-api`.
-- Tests: `tests/unit/migrations.spec.ts` (fresh DB, double-run safety, embedding dimension, HNSW index + cosine search on a persisted DB). Database tests use `// @vitest-environment node`.
+- Tests: `tests/unit/migrations.spec.ts` (fresh DB, double-run safety, embedding dimension, HNSW index + cosine search on a persisted DB, VSS-off path). Database tests use `// @vitest-environment node`.
 
 ### Phase 4 - Filesystem Access and Directory Scanner
 
@@ -264,10 +264,10 @@ The target structure for services, types, Electron main/preload, and components 
 
 - **Built-in local model is the default embedding service**: `electron/main/services/builtinEmbedding.ts` runs `Xenova/all-MiniLM-L6-v2` (384 dims) via `@huggingface/transformers` (transformers.js) in the Electron main process. ONNX weights (~25 MB) download from Hugging Face on first use into `userData/hf-models` and work fully offline afterwards. Pipelines are cached per model name. The dependency is marked `external` in the Electron main rollup config (like DuckDB).
 - Remote providers (`src/services/llm/`): `httpEmbeddingProvider.ts` (shared base: POST/error mapping + validation that the returned vector matches the configured dimensions), `openaiEmbeddingProvider.ts` (`/embeddings`, custom baseUrl), `geminiEmbeddingProvider.ts` (`:embedContent`), `ollamaEmbeddingProvider.ts` (`/api/embeddings`). `embeddingProviderFactory.ts` selects by settings; the builtin case requires an injected `builtinFactory` (main process only).
-- **Dimension-flexible embeddings table** (`src/services/database/embeddingTable.ts`): `getEmbeddingTableDimensions` reads the `FLOAT[N]` column type from information_schema; `ensureEmbeddingTable(client, dims)` drops and recreates `model_embeddings` + HNSW index when the size differs (embeddings from different providers live in different vector spaces and must be regenerated anyway). The initial migration still creates the table at 1536; `getDatabaseClient()` reconciles it with the saved settings at startup. `EmbeddingRepository`/`SearchRepository` validate against the live table width (no more fixed `EMBEDDING_DIMENSIONS` checks); `EmbeddingDimensionError` now reports actual vs expected.
+- **Dimension-flexible embeddings table** (`src/services/database/embeddingTable.ts`): `getEmbeddingTableDimensions` reads the `FLOAT[N]` column type from information_schema; `ensureEmbeddingTable(client, dims)` drops and recreates `model_embeddings` (and HNSW when `vssAvailable`) when the size differs (embeddings from different providers live in different vector spaces and must be regenerated anyway). The initial migration still creates the table at 1536; `getDatabaseClient()` reconciles it with the saved settings at startup. `EmbeddingRepository`/`SearchRepository` validate against the live table width (no more fixed `EMBEDDING_DIMENSIONS` checks); `EmbeddingDimensionError` now reports actual vs expected.
 - **Provider-switch flow**: `saveProviderSettings` (main) compares old/new embedding config; when provider/model/dimensions change it resizes the table or clears embeddings and returns `{ embeddingsCleared: true }`. The Settings page then shows a warning and a "Re-embed library" button. `reembedAllModels` (`electron/main/services/embeddingService.ts`) regenerates embeddings for every stored AI description with the active provider — no re-render or vision calls needed (`AiDescriptionRepository.listAll`).
 - IPC: `llm:embedText`, `llm:getActiveEmbeddingProvider`, `llm:reembedAll`. Renderer uses `BridgeEmbeddingProvider` (`src/services/llm/bridgeEmbeddingProvider.ts`); both `createDesktopIndexingDeps()` and the search store now embed through the bridge, so indexing and search always use the configured service.
-- Tests: `tests/unit/embeddingTable.spec.ts` (default width, keep/rebuild semantics, 384-dim round-trip + search, mismatch rejections), `tests/unit/embeddingProviders.spec.ts` (payload shapes per API with fake fetch, dimension validation, 401 mapping, factory selection incl. builtin injection). Verified in Electron with the real model: first `reembedAll` downloaded MiniLM and embedded 7 models in ~13 s; "weekly pill organizer with compartments" ranked the Pill Organizer first at 0.84 and "toy to fidget with" ranked the fidget toy first at 0.74.
+- Tests: `tests/unit/embeddingTable.spec.ts` (default width, keep/rebuild semantics, 384-dim round-trip + search, mismatch rejections, VSS-off rebuild without HNSW), `tests/unit/embeddingProviders.spec.ts` (payload shapes per API with fake fetch, dimension validation, 401 mapping, factory selection incl. builtin injection). Verified in Electron with the real model: first `reembedAll` downloaded MiniLM and embedded 7 models in ~13 s; "weekly pill organizer with compartments" ranked the Pill Organizer first at 0.84 and "toy to fidget with" ranked the fidget toy first at 0.74.
 
 ### Model actions menu (detail page)
 
@@ -313,18 +313,39 @@ Packaging output includes `meshNest Setup <version>.exe` plus `win-unpacked/mesh
 The app is packaged for the **Mac App Store** with `electron-builder` (`npm run dist:mas`). Config lives in the `build` block of `package.json`.
 
 - **Identity**: appId `app.meshnest.desktop`, productName `meshNest`, category `public.app-category.utilities`, Apple Team ID `P5VE23TX58`.
-- **Targets/output**: `mac.target: ["mas"]`; artifacts go to `release/`. `npmRebuild: false` because DuckDB and onnxruntime ship prebuilt binaries. Native modules (`@duckdb/**`, `onnxruntime-node`, `@huggingface/**`) are `asarUnpack`ed so the `.node`/dylibs load and can be deep-signed.
+- **Targets/output**: `mac.target: ["mas"]`; artifacts go to `release/`. `npmRebuild: false` because DuckDB and onnxruntime ship prebuilt binaries. Native modules (`@duckdb/**`, `onnxruntime-node` darwin binaries only, `@huggingface/**`) are `asarUnpack`ed so the `.node`/dylibs load and can be deep-signed.
 - **Icon**: `build/icon.icns`.
-- **Entitlements** (`build/`): `entitlements.mas.plist` (app-sandbox, `network.client`, `files.user-selected.read-write`, app-scope bookmarks, application-identifier/team-identifier) and `entitlements.mas.inherit.plist` (sandbox + inherit) for helper processes.
-- **Provisioning profile**: `mas.provisioningProfile` points at `build/meshnest_mas.provisionprofile` — a Mac App Store distribution profile for the bundle ID that must be downloaded from the Apple Developer portal and placed there before building. Signing also requires the MAS certs (**Apple Distribution** + **Mac Installer Distribution**), which are separate from the Developer ID cert used for direct distribution.
-- **Upload**: the signed `.pkg` in `release/` is uploaded to App Store Connect via Xcode or the Transporter app.
+- **Entitlements** (`build/`):
+  - `entitlements.mas.plist` — app-sandbox, **application-groups** (`P5VE23TX58.app.meshnest.desktop`), `network.client`, `files.user-selected.read-write`, app-scope bookmarks, application-identifier/team-identifier. Electron requires `application-groups` for MAS sandbox.
+  - `entitlements.mas.inherit.plist` — sandbox + inherit for Chromium helper processes.
+  - `entitlements.mas.loginhelper.plist` — sandbox only (**no** inherit). The Login Helper is a standalone executable; signing it with inherit causes Gatekeeper-style launch failures. Wired via `mas.entitlementsLoginHelper`.
+- **ElectronTeamID**: set via `mac.extendInfo.ElectronTeamID = P5VE23TX58` (must be under `mac`, not only `mas` — electron-builder's `applyCommonInfo` reads extendInfo from the mac options). Required by Electron for MAS sandbox container setup. `mas.preAutoEntitlements` stays `false` so we control entitlements/`ElectronTeamID` explicitly instead of letting `@electron/osx-sign` auto-inject them.
+- **Provisioning profile**: `mas.provisioningProfile` → `build/meshnest_mas.provisionprofile`. The App ID **must** have the **App Groups** capability enabled with group `P5VE23TX58.app.meshnest.desktop`, and the profile must be regenerated after enabling it — otherwise Apple rejects with "developer cannot be verified" (unsatisfied `application-groups`). Signing also needs **Apple Distribution** + **Mac Installer Distribution** certs.
+- **Upload**: the signed `.pkg` in `release/` is uploaded to App Store Connect via Transporter (or Xcode Organizer). You do **not** open the Electron `.app` in Xcode to set a Team — signing is entirely electron-builder + the portal profile/certs.
+- **Packaged native binaries**: `files` excludes `@rollup/**` and Linux/Windows `onnxruntime-node` prebuilds; only darwin natives are unpacked.
+
+#### Gatekeeper rejection: "developer cannot be verified" (MAS)
+
+Apple's review message is a generic launch failure. For this Electron MAS build the causes were:
+
+1. Missing `ElectronTeamID` in `Info.plist` (broke Electron's sandbox container setup after `preAutoEntitlements` was disabled).
+2. Login Helper signed with `com.apple.security.inherit` (invalid for a standalone Login Item — fixed with `entitlements.mas.loginhelper.plist`).
+3. `com.apple.security.application-groups` required by Electron but not authorized by the provisioning profile until App Groups is enabled on the App ID in the Developer Portal.
+
+After rebuilding, verify:
+- `codesign -d --entitlements - --xml release/mas-arm64/meshNest.app` includes `application-groups`.
+- Login Helper entitlements are sandbox-only (no inherit).
+- `/usr/libexec/PlistBuddy -c 'Print :ElectronTeamID' release/mas-arm64/meshNest.app/Contents/Info.plist` prints `P5VE23TX58`.
+- `security cms -D -i build/meshnest_mas.provisionprofile | plutil -extract Entitlements xml1 -o - -` includes the same application-groups entry.
 
 ### Sandbox compliance (App Store requirement)
 
 The Mac App Store mandates App Sandbox. Two areas are handled so the sandboxed build behaves correctly; outside the sandbox (dev, any direct build) all of this is a no-op and behavior is unchanged.
 
 - **Security-scoped bookmarks** (`electron/main/services/securityScopedBookmarks.ts`): a sandboxed app loses access to user-selected folders after a restart unless it persists a bookmark. `filesystem:pickDirectory` requests `securityScopedBookmarks: true` and `storeDirectoryBookmark` saves the returned bookmark (keyed by directory) to `userData/security-bookmarks.json`. Every main-process file access — `scanDirectory`, `readModelFile`, `scanFile`, `revealInFolder`, plus `model:renameModel` / `model:deleteModel` — is wrapped in `withSecurityScopedAccess(targetPath, fn)`, which resolves the nearest-ancestor bookmark and brackets the work in `app.startAccessingSecurityScopedResource` / stop. The guard is keyed on `process.mas`, so it only activates in the MAS build.
+- **DuckDB VSS skipped on MAS**: `DuckDbClient.open` defaults `enableVss` to false when `process.mas === true` because runtime `INSTALL vss` downloads an unsigned `vss.duckdb_extension` that Gatekeeper/sandbox rejects (`library load disallowed by system policy`). With `vssAvailable: false`, migration `002` is recorded without creating HNSW, and `ensureEmbeddingTable` skips HNSW DDL. Semantic search still works via brute-force `array_cosine_distance`; library listing and other DB ops are unaffected. Non-MAS/dev keeps VSS+HNSW.
 - **External app launching**: `filesystem:openWithSlicer` always hands the file to its default handler via `shell.openPath`, which is allowed by the Mac App Store sandbox. The app no longer stores a default slicer preference or launches named slicer applications directly.
+- **Single-window quit on close**: meshNest is a single-window app with no menu bar (`Menu.setApplicationMenu(null)`). On all platforms, closing the main window calls `app.quit()` in `window-all-closed` (MAS Guideline 4 — no orphaned menuless process). Data is persisted in the local DuckDB database before quit.
 
 ## Conventions
 

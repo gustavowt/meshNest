@@ -21,8 +21,8 @@ const EXPECTED_TABLES = [
 
 const openClients: DuckDbClient[] = []
 
-async function openClient(path = ':memory:') {
-  const client = await DuckDbClient.open(path)
+async function openClient(path = ':memory:', options?: { enableVss?: boolean }) {
+  const client = await DuckDbClient.open(path, options)
   openClients.push(client)
   return client
 }
@@ -164,5 +164,40 @@ describe('database migrations', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }
+  })
+
+  test('without VSS: migrations complete, 002 recorded, cosine search works, no HNSW', async () => {
+    const client = await openClient(':memory:', { enableVss: false })
+    expect(client.vssAvailable).toBe(false)
+
+    const applied = await runMigrations(client)
+    expect(applied).toEqual(MIGRATIONS.map((m) => m.id))
+
+    const migrationRows = await client.all<{ id: string }>(
+      'SELECT id FROM schema_migrations ORDER BY id',
+    )
+    expect(migrationRows.map((row) => row.id)).toContain('002_embeddings_hnsw_index')
+
+    // Idempotent: second run must not re-apply or fail on missing HNSW.
+    expect(await runMigrations(client)).toEqual([])
+
+    const indexes = await client.all<{ index_name: string }>(
+      'SELECT index_name FROM duckdb_indexes()',
+    )
+    expect(indexes.map((row) => row.index_name)).not.toContain('idx_model_embeddings_hnsw')
+
+    const embedding = Array.from({ length: EMBEDDING_DIMENSIONS }, () => 0.5)
+    await client.run(
+      `INSERT INTO model_embeddings (model_file_id, provider, model, dimensions, embedding, source_text)
+       VALUES ('f1', 'mock', 'mock', $dims, $emb, 'text')`,
+      { dims: EMBEDDING_DIMENSIONS, emb: arrayValue(embedding) },
+    )
+    const results = await client.all<{ distance: number }>(
+      `SELECT array_cosine_distance(embedding, $query::FLOAT[${EMBEDDING_DIMENSIONS}]) AS distance
+       FROM model_embeddings ORDER BY distance LIMIT 1`,
+      { query: arrayValue(embedding) },
+    )
+    expect(results).toHaveLength(1)
+    expect(Number(results[0].distance)).toBeCloseTo(0)
   })
 })

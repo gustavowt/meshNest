@@ -1,7 +1,7 @@
 {
   "name": "meshNest",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.4",
   "type": "module",
   "main": "dist-electron/main.js",
   "author": "Gustavo Warmling Teixeira",
@@ -25,11 +25,16 @@
     "files": [
       "dist/**/*",
       "dist-electron/**/*",
-      "package.json"
+      "package.json",
+      "!**/node_modules/@rollup/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**"
     ],
     "asarUnpack": [
       "**/node_modules/@duckdb/**",
-      "**/node_modules/onnxruntime-node/**",
+      "**/node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
+      "**/node_modules/onnxruntime-node/dist/**",
+      "**/node_modules/onnxruntime-node/package.json",
       "**/node_modules/@huggingface/**"
     ],
     "mac": {
@@ -37,12 +42,17 @@
       "icon": "build/icon.icns",
       "target": [
         "mas"
-      ]
+      ],
+      "extendInfo": {
+        "ElectronTeamID": "P5VE23TX58"
+      }
     },
     "mas": {
       "entitlements": "build/entitlements.mas.plist",
       "entitlementsInherit": "build/entitlements.mas.inherit.plist",
-      "provisioningProfile": "build/meshnest_mas.provisionprofile"
+      "entitlementsLoginHelper": "build/entitlements.mas.loginhelper.plist",
+      "provisioningProfile": "build/meshnest_mas.provisionprofile",
+      "preAutoEntitlements": false
     }
   },
   "dependencies": {
