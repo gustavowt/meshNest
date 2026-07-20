@@ -1,14 +1,16 @@
 # App Review sample library
 
-Small STL and 3MF files for verifying meshNest indexing, previews, and search.
+STL and 3MF files for verifying meshNest indexing, previews, metadata, and search.
 
 ## Files
 
-| File | Format |
-|------|--------|
-| `box.stl` | ASCII STL |
-| `box-binary.stl` | Binary STL |
-| `simple.3mf` | 3MF package |
+| File | Format | Description |
+|------|--------|-------------|
+| `sample-box.stl` | ASCII STL | 30 mm subdivided cube (~768 triangles) |
+| `sample-box-binary.stl` | Binary STL | Same geometry as `sample-box.stl` |
+| `sample-cylinder.stl` | ASCII STL | 32-sided cylinder with caps (~192 triangles) |
+| `storage-box-with-lid.3mf` | 3MF | Two-part subdivided model (body + lid), PLA colors, metadata, thumbnail (~6 KB) |
+| `simple-cube.3mf` | 3MF | Single-object cube with title metadata |
 
 ## How to use (App Review)
 

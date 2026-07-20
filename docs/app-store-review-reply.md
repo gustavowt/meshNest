@@ -12,4 +12,4 @@ Thank you for the feedback.
 
 https://github.com/gustavowt/meshNest/releases/download/app-review-samples-v1/meshNest-app-review-samples.zip
 
-Unzip the archive, open meshNest, go to Library (or Settings), choose that folder, and wait for indexing to finish. No account or API keys are required to verify library listing, previews, and built-in semantic search. Supported formats in the zip: `.stl` and `.3mf`.
+Unzip the archive, open meshNest, go to Library (or Settings), choose that folder, and wait for indexing to finish. The zip includes subdivided STL models, a cylinder, and multi-part 3MF files with materials and metadata. No account or API keys are required to verify library listing, previews, and built-in semantic search. Supported formats in the zip: `.stl` and `.3mf`.
