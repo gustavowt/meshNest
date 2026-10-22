@@ -120,7 +120,7 @@ if (!gotTheLock) {
 }
 
 app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
+  if (gotTheLock && BrowserWindow.getAllWindows().length === 0) {
     createWindow()
   }
 })

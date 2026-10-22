@@ -139,16 +139,19 @@ describe('Electron single-instance lock', () => {
     )
   })
 
-  test('quits without booting when the lock is denied', async () => {
+  test('quits without booting or activating when the lock is denied', async () => {
     requestSingleInstanceLockFn.mockReturnValue(false)
     whenReady.mockReturnValue(new Promise(() => {}))
 
     await import('../../electron/main/index')
     await vi.dynamicImportSettled()
 
+    findAppEventHandler('activate')?.()
+
     expect(appQuit).toHaveBeenCalledTimes(1)
     expect(createdWindows).toHaveLength(0)
     expect(findAppEventHandler('second-instance')).toBeUndefined()
     expect(whenReady).not.toHaveBeenCalled()
+    expect(registerDatabaseIpc).not.toHaveBeenCalled()
   })
 })
