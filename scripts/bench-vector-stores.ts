@@ -29,13 +29,9 @@
  *     exactly the shape the app pays for per row.
  *   - DuckDB VSS extension is deliberately NOT loaded: that is the MAS-real
  *     brute-force mode (duckdbClient.ts skips INSTALL/LOAD on Mac App Store builds).
- *   - sqlite-vec: vec0 float32 BLOB binding (little-endian float32 bytes; safe on
- *     all supported darwin/linux platforms, all little-endian). KNN uses the
- *     sqlite-vec v0.1.9 README form: SELECT rowid, distance FROM v
- *     WHERE embedding MATCH ? ORDER BY distance LIMIT ?. sqlite-vec 0.1.9
- *     documents no distance-metric option — its `distance` column is L2, but for
- *     unit-normalized vectors L2 ranking is identical to cosine ranking, so the
- *     top-20 is comparable.
+ *   - sqlite-vec: vec0 float32 BLOB binding with distance_metric=cosine.
+ *     KNN uses SELECT rowid, distance FROM v WHERE embedding MATCH ?
+ *     ORDER BY distance LIMIT ?. All three stores compute cosine distance.
  *   - LanceDB: pinned to 0.22.3 because every stable release after it (0.23.0+)
  *     ships no darwin-x64 native binding (platform packages exist only for
  *     darwin-arm64; no universal package) — 0.40.0 cannot even load on this
@@ -186,7 +182,7 @@ function percentile(sortedSamples: number[], p: number): number {
  * Runs `runOnce` WARMUP_QUERIES times (discarded), then times N_QUERIES calls.
  * Accepts sync or async runOnce so all three stores can share the loop.
  */
-async function collectQuerySamples(runOnce: () => void | Promise<void>): Promise<number[]> {
+async function collectQuerySamples(runOnce: () => unknown | Promise<unknown>): Promise<number[]> {
   for (let i = 0; i < WARMUP_QUERIES; i++) {
     await runOnce()
   }
@@ -287,7 +283,7 @@ async function runSqliteVec(dataset: Dataset, storeDir: string): Promise<StoreTi
   const db = new Database(path.join(storeDir, 'bench.db'))
   try {
     sqliteVec.load(db)
-    db.exec(`CREATE VIRTUAL TABLE model_embeddings_vec USING vec0(embedding float[${dims}])`)
+    db.exec(`CREATE VIRTUAL TABLE model_embeddings_vec USING vec0(embedding float[${dims}] distance_metric=cosine)`)
 
     const insertStmt = db.prepare('INSERT INTO model_embeddings_vec (embedding) VALUES (?)')
     /**
