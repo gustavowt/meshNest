@@ -35,6 +35,7 @@ vi.mock('electron', () => ({
     },
     on: vi.fn(),
     quit: vi.fn(),
+    requestSingleInstanceLock: vi.fn(() => true),
     whenReady: vi.fn(() => Promise.resolve()),
   },
   BrowserWindow: MockBrowserWindow,
