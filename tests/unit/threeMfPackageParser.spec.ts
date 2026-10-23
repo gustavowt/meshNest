@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { strToU8, zipSync } from 'fflate'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { runMigrations } from '@/services/database/migrations'
 import { ThreeMfMetadataRepository } from '@/services/database/threeMfMetadataRepository'
 import { ModelParseError } from '@/services/model-parsing/modelScene'
@@ -60,11 +60,11 @@ describe('parseThreeMfPackage', () => {
 })
 
 describe('ThreeMfMetadataRepository', () => {
-  let client: DuckDbClient
+  let client: SqliteClient
   let repository: ThreeMfMetadataRepository
 
   beforeEach(async () => {
-    client = await DuckDbClient.open(':memory:')
+    client = await SqliteClient.open(':memory:')
     await runMigrations(client)
     repository = new ThreeMfMetadataRepository(client)
   })
