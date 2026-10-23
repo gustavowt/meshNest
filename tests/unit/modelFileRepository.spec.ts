@@ -203,7 +203,7 @@ describe('ModelFileRepository', () => {
   })
 
   test('deletes failed model files and their child rows without touching indexed files', async () => {
-    const geometry = new GeometryMetadataRepository(client as any)
+    const geometry = new GeometryMetadataRepository(client)
     const failed = await repository.upsertModelFile(
       scannedFile({ absolutePath: '/models/bad.stl', relativePath: 'bad.stl', filename: 'bad.stl' }),
       PROJECT_ID,
