@@ -4,6 +4,7 @@ import type { DuckDbClient } from './duckdbClient'
 import { GeometryMetadataRepository } from './geometryMetadataRepository'
 import { ModelFileRepository } from './modelFileRepository'
 import { RenderAssetRepository } from './renderAssetRepository'
+import type { SqliteClient } from './sqliteClient'
 import { ThreeMfMetadataRepository } from './threeMfMetadataRepository'
 
 /**
@@ -11,7 +12,7 @@ import { ThreeMfMetadataRepository } from './threeMfMetadataRepository'
  * Returns undefined when the file record does not exist.
  */
 export async function getModelDetail(
-  client: DuckDbClient,
+  client: SqliteClient | DuckDbClient,
   modelFileId: string,
 ): Promise<ModelDetail | undefined> {
   const file = await new ModelFileRepository(client).findById(modelFileId)
