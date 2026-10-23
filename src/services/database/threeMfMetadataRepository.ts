@@ -1,6 +1,4 @@
-import { LIST, listValue, VARCHAR } from '@duckdb/node-api'
 import type { ThreeMfPackageMetadata } from '@/types/modelMetadata'
-import type { DuckDbClient } from './duckdbClient'
 import type { SqliteClient } from './sqliteClient'
 
 type ThreeMfMetadataRow = {
@@ -35,40 +33,11 @@ function toMetadata(row: ThreeMfMetadataRow): ThreeMfPackageMetadata {
 }
 
 export class ThreeMfMetadataRepository {
-  constructor(private readonly client: SqliteClient | DuckDbClient) {}
-
-  private get isSqlite(): boolean {
-    return 'rawDb' in this.client
-  }
+  constructor(private readonly client: SqliteClient) {}
 
   /** Replaces any existing 3MF metadata for the model file. */
   async upsert(modelFileId: string, metadata: ThreeMfPackageMetadata): Promise<void> {
-    if (this.isSqlite) {
-      await this.client.run('DELETE FROM three_mf_metadata WHERE model_file_id = @modelFileId', {
-        modelFileId,
-      })
-      await this.client.run(
-        `INSERT INTO three_mf_metadata (
-           model_file_id, object_names, material_names, color_values,
-           has_thumbnail, thumbnail_internal_path, raw_metadata_json
-         ) VALUES (
-           @modelFileId, @objectNames, @materialNames, @colorValues,
-           @hasThumbnail, @thumbnailInternalPath, @rawMetadataJson
-         )`,
-        {
-          modelFileId,
-          objectNames: JSON.stringify(metadata.objectNames ?? []),
-          materialNames: JSON.stringify(metadata.materialNames ?? []),
-          colorValues: JSON.stringify(metadata.colorValues ?? []),
-          hasThumbnail: metadata.hasThumbnail ? 1 : 0,
-          thumbnailInternalPath: metadata.thumbnailInternalPath ?? null,
-          rawMetadataJson: metadata.rawMetadataJson,
-        },
-      )
-      return
-    }
-
-    await this.client.run('DELETE FROM three_mf_metadata WHERE model_file_id = $modelFileId', {
+    await this.client.run('DELETE FROM three_mf_metadata WHERE model_file_id = @modelFileId', {
       modelFileId,
     })
     await this.client.run(
@@ -76,34 +45,25 @@ export class ThreeMfMetadataRepository {
          model_file_id, object_names, material_names, color_values,
          has_thumbnail, thumbnail_internal_path, raw_metadata_json
        ) VALUES (
-         $modelFileId, $objectNames, $materialNames, $colorValues,
-         $hasThumbnail, $thumbnailInternalPath, $rawMetadataJson
+         @modelFileId, @objectNames, @materialNames, @colorValues,
+         @hasThumbnail, @thumbnailInternalPath, @rawMetadataJson
        )`,
       {
         modelFileId,
-        objectNames: listValue(metadata.objectNames),
-        materialNames: listValue(metadata.materialNames),
-        colorValues: listValue(metadata.colorValues),
-        hasThumbnail: metadata.hasThumbnail,
+        objectNames: JSON.stringify(metadata.objectNames ?? []),
+        materialNames: JSON.stringify(metadata.materialNames ?? []),
+        colorValues: JSON.stringify(metadata.colorValues ?? []),
+        hasThumbnail: metadata.hasThumbnail ? 1 : 0,
         thumbnailInternalPath: metadata.thumbnailInternalPath ?? null,
         rawMetadataJson: metadata.rawMetadataJson,
-      },
-      {
-        objectNames: LIST(VARCHAR),
-        materialNames: LIST(VARCHAR),
-        colorValues: LIST(VARCHAR),
       },
     )
   }
 
   async getByModelFileId(modelFileId: string): Promise<ThreeMfPackageMetadata | undefined> {
-    const query = this.isSqlite
-      ? `SELECT object_names, material_names, color_values, has_thumbnail,
+    const query = `SELECT object_names, material_names, color_values, has_thumbnail,
               thumbnail_internal_path, raw_metadata_json
          FROM three_mf_metadata WHERE model_file_id = @modelFileId`
-      : `SELECT object_names, material_names, color_values, has_thumbnail,
-              thumbnail_internal_path, raw_metadata_json
-         FROM three_mf_metadata WHERE model_file_id = $modelFileId`
     const rows = await this.client.all<ThreeMfMetadataRow>(query, { modelFileId })
     return rows.length > 0 ? toMetadata(rows[0]) : undefined
   }

@@ -1,6 +1,5 @@
 import type { LibraryEntry } from '@/types/library'
 import type { ModelFileStatus, SupportedModelExtension } from '@/types/modelFile'
-import type { DuckDbClient } from './duckdbClient'
 import type { SqliteClient } from './sqliteClient'
 
 type LibraryRow = {
@@ -59,11 +58,7 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
  * description summary and thumbnail render asset.
  */
 export class LibraryRepository {
-  constructor(private readonly client: SqliteClient | DuckDbClient) {}
-
-  private get isSqlite(): boolean {
-    return 'rawDb' in this.client
-  }
+  constructor(private readonly client: SqliteClient) {}
 
   async listLibraryEntries(projectId?: string): Promise<LibraryEntry[]> {
     const baseQuery = `
@@ -77,19 +72,9 @@ export class LibraryRepository {
       LEFT JOIN model_render_assets r
         ON r.model_file_id = f.id AND r.view_name = 'thumbnail'`
 
-    if (this.isSqlite) {
-      const rows = projectId
-        ? await this.client.all<LibraryRow>(
-            `${baseQuery} WHERE f.project_id = @projectId ORDER BY f.relative_path`,
-            { projectId },
-          )
-        : await this.client.all<LibraryRow>(`${baseQuery} ORDER BY f.relative_path`)
-      return rows.map(toLibraryEntry)
-    }
-
     const rows = projectId
       ? await this.client.all<LibraryRow>(
-          `${baseQuery} WHERE f.project_id = $projectId ORDER BY f.relative_path`,
+          `${baseQuery} WHERE f.project_id = @projectId ORDER BY f.relative_path`,
           { projectId },
         )
       : await this.client.all<LibraryRow>(`${baseQuery} ORDER BY f.relative_path`)
@@ -108,16 +93,8 @@ export class LibraryRepository {
       LEFT JOIN model_render_assets r
         ON r.model_file_id = f.id AND r.view_name = 'thumbnail'`
 
-    if (this.isSqlite) {
-      const rows = await this.client.all<LibraryRow>(
-        `${baseQuery} WHERE f.id = @modelFileId`,
-        { modelFileId },
-      )
-      return rows.length > 0 ? toLibraryEntry(rows[0]) : undefined
-    }
-
     const rows = await this.client.all<LibraryRow>(
-      `${baseQuery} WHERE f.id = $modelFileId`,
+      `${baseQuery} WHERE f.id = @modelFileId`,
       { modelFileId },
     )
     return rows.length > 0 ? toLibraryEntry(rows[0]) : undefined

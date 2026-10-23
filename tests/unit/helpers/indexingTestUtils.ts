@@ -2,7 +2,6 @@ import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { expect } from 'vitest'
 import { AiDescriptionRepository } from '@/services/database/aiDescriptionRepository'
-import type { DuckDbClient } from '@/services/database/duckdbClient'
 import { EmbeddingRepository } from '@/services/database/embeddingRepository'
 import { GeometryMetadataRepository } from '@/services/database/geometryMetadataRepository'
 import { IndexingJobRepository } from '@/services/database/indexingJobRepository'
@@ -31,7 +30,7 @@ export function fakeRenderViews(model: NormalizedModel): RenderedView[] {
 }
 
 /** In-process IndexingBackend wired to real repositories (no IPC). */
-export function createTestBackend(db: SqliteClient | DuckDbClient, rendersRoot: string): IndexingBackend {
+export function createTestBackend(db: SqliteClient, rendersRoot: string): IndexingBackend {
   const files = new ModelFileRepository(db)
   const geometry = new GeometryMetadataRepository(db)
   const threeMf = new ThreeMfMetadataRepository(db)
@@ -72,7 +71,7 @@ export function createTestBackend(db: SqliteClient | DuckDbClient, rendersRoot: 
 }
 
 /** In-process IndexingJobTracker backed by the real repository. */
-export function createTestJobTracker(db: SqliteClient | DuckDbClient): IndexingJobTracker {
+export function createTestJobTracker(db: SqliteClient): IndexingJobTracker {
   const jobs = new IndexingJobRepository(db)
   return {
     createJob: (job) => jobs.create(job),

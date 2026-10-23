@@ -1,6 +1,4 @@
-import { LIST, listValue, VARCHAR } from '@duckdb/node-api'
 import type { AIModelDescription } from '@/types/llm'
-import type { DuckDbClient } from './duckdbClient'
 import type { SqliteClient } from './sqliteClient'
 
 type AiDescriptionRow = {
@@ -45,11 +43,7 @@ function toDescription(row: AiDescriptionRow): StoredAIDescription {
 }
 
 export class AiDescriptionRepository {
-  constructor(private readonly client: SqliteClient | DuckDbClient) {}
-
-  private get isSqlite(): boolean {
-    return 'rawDb' in this.client
-  }
+  constructor(private readonly client: SqliteClient) {}
 
   /** Replaces any existing description for the model file. */
   async upsert(
@@ -57,63 +51,29 @@ export class AiDescriptionRepository {
     description: AIModelDescription,
     rawResponseJson: string,
   ): Promise<void> {
-    if (this.isSqlite) {
-      await this.client.run('DELETE FROM ai_model_descriptions WHERE model_file_id = @modelFileId', {
-        modelFileId,
-      })
-      await this.client.run(
-        `INSERT INTO ai_model_descriptions (
-          model_file_id, short_name, description, likely_category, tags,
-          objects_detected, print_use, style, confidence, search_phrases, raw_response_json
-        ) VALUES (
-          @modelFileId, @shortName, @description, @likelyCategory, @tags,
-          @objectsDetected, @printUse, @style, @confidence, @searchPhrases, @rawResponseJson
-        )`,
-        {
-          modelFileId,
-          shortName: description.shortName,
-          description: description.description,
-          likelyCategory: description.likelyCategory,
-          tags: JSON.stringify(description.tags ?? []),
-          objectsDetected: JSON.stringify(description.objectsDetected ?? []),
-          printUse: description.printUse ?? null,
-          style: description.style ?? null,
-          confidence: description.confidence,
-          searchPhrases: JSON.stringify(description.searchPhrases ?? []),
-          rawResponseJson,
-        },
-      )
-      return
-    }
-
-    await this.client.run('DELETE FROM ai_model_descriptions WHERE model_file_id = $modelFileId', {
+    await this.client.run('DELETE FROM ai_model_descriptions WHERE model_file_id = @modelFileId', {
       modelFileId,
     })
     await this.client.run(
       `INSERT INTO ai_model_descriptions (
-         model_file_id, short_name, description, likely_category, tags,
-         objects_detected, print_use, style, confidence, search_phrases, raw_response_json
-       ) VALUES (
-         $modelFileId, $shortName, $description, $likelyCategory, $tags,
-         $objectsDetected, $printUse, $style, $confidence, $searchPhrases, $rawResponseJson
-       )`,
+        model_file_id, short_name, description, likely_category, tags,
+        objects_detected, print_use, style, confidence, search_phrases, raw_response_json
+      ) VALUES (
+        @modelFileId, @shortName, @description, @likelyCategory, @tags,
+        @objectsDetected, @printUse, @style, @confidence, @searchPhrases, @rawResponseJson
+      )`,
       {
         modelFileId,
         shortName: description.shortName,
         description: description.description,
         likelyCategory: description.likelyCategory,
-        tags: listValue(description.tags),
-        objectsDetected: listValue(description.objectsDetected),
+        tags: JSON.stringify(description.tags ?? []),
+        objectsDetected: JSON.stringify(description.objectsDetected ?? []),
         printUse: description.printUse ?? null,
         style: description.style ?? null,
         confidence: description.confidence,
-        searchPhrases: listValue(description.searchPhrases),
+        searchPhrases: JSON.stringify(description.searchPhrases ?? []),
         rawResponseJson,
-      },
-      {
-        tags: LIST(VARCHAR),
-        objectsDetected: LIST(VARCHAR),
-        searchPhrases: LIST(VARCHAR),
       },
     )
   }
@@ -124,49 +84,29 @@ export class AiDescriptionRepository {
    * shows its new name everywhere. No-op when there is no description.
    */
   async updateShortName(modelFileId: string, shortName: string): Promise<void> {
-    if (this.isSqlite) {
-      await this.client.run(
-        `UPDATE ai_model_descriptions SET short_name = @shortName WHERE model_file_id = @modelFileId`,
-        { modelFileId, shortName },
-      )
-      return
-    }
     await this.client.run(
-      `UPDATE ai_model_descriptions SET short_name = $shortName WHERE model_file_id = $modelFileId`,
+      `UPDATE ai_model_descriptions SET short_name = @shortName WHERE model_file_id = @modelFileId`,
       { modelFileId, shortName },
     )
   }
 
   async getByModelFileId(modelFileId: string): Promise<StoredAIDescription | undefined> {
-    const rows = this.isSqlite
-      ? await this.client.all<AiDescriptionRow>(
-          `SELECT short_name, description, likely_category, tags, objects_detected,
-                  print_use, style, confidence, search_phrases, raw_response_json
-           FROM ai_model_descriptions WHERE model_file_id = @modelFileId`,
-          { modelFileId },
-        )
-      : await this.client.all<AiDescriptionRow>(
-          `SELECT short_name, description, likely_category, tags, objects_detected,
-                  print_use, style, confidence, search_phrases, raw_response_json
-           FROM ai_model_descriptions WHERE model_file_id = $modelFileId`,
-          { modelFileId },
-        )
+    const rows = await this.client.all<AiDescriptionRow>(
+      `SELECT short_name, description, likely_category, tags, objects_detected,
+              print_use, style, confidence, search_phrases, raw_response_json
+       FROM ai_model_descriptions WHERE model_file_id = @modelFileId`,
+      { modelFileId },
+    )
     return rows.length > 0 ? toDescription(rows[0]) : undefined
   }
 
   /** All stored descriptions keyed by model file id (used for re-embedding). */
   async listAll(): Promise<Array<{ modelFileId: string; description: StoredAIDescription }>> {
-    const rows = this.isSqlite
-      ? await this.client.all<AiDescriptionRow & { model_file_id: string }>(
-          `SELECT model_file_id, short_name, description, likely_category, tags, objects_detected,
-                  print_use, style, confidence, search_phrases, raw_response_json
-           FROM ai_model_descriptions ORDER BY model_file_id`,
-        )
-      : await this.client.all<AiDescriptionRow & { model_file_id: string }>(
-          `SELECT model_file_id, short_name, description, likely_category, tags, objects_detected,
-                  print_use, style, confidence, search_phrases, raw_response_json
-           FROM ai_model_descriptions ORDER BY model_file_id`,
-        )
+    const rows = await this.client.all<AiDescriptionRow & { model_file_id: string }>(
+      `SELECT model_file_id, short_name, description, likely_category, tags, objects_detected,
+              print_use, style, confidence, search_phrases, raw_response_json
+       FROM ai_model_descriptions ORDER BY model_file_id`,
+    )
     return rows.map((row) => ({ modelFileId: row.model_file_id, description: toDescription(row) }))
   }
 }

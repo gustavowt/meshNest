@@ -1,10 +1,10 @@
-// Uses jsdom (default): the 3MF loader needs DOMParser. DuckDB still runs natively.
+// Uses jsdom (default): the 3MF loader needs DOMParser.
 import { existsSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { AiDescriptionRepository } from '@/services/database/aiDescriptionRepository'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { EmbeddingRepository } from '@/services/database/embeddingRepository'
 import { GeometryMetadataRepository } from '@/services/database/geometryMetadataRepository'
 import { runMigrations } from '@/services/database/migrations'
@@ -29,7 +29,7 @@ const PROJECT_ID = 'project-1'
 
 let filesDir: string
 let rendersDir: string
-let client: DuckDbClient
+let client: SqliteClient
 let backend: IndexingBackend
 let modelFiles: ModelFileRepository
 
@@ -57,7 +57,7 @@ afterAll(() => {
 })
 
 beforeEach(async () => {
-  client = await DuckDbClient.open(':memory:')
+  client = await SqliteClient.open(':memory:')
   await runMigrations(client)
   backend = createTestBackend(client, rendersDir)
   modelFiles = new ModelFileRepository(client)
