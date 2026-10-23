@@ -18,7 +18,7 @@ function isEmptyParams(params?: SqliteParams): boolean {
 
 /**
  * SQLite client wrapper around better-sqlite3 with sqlite-vec extension support.
- * Matches the call shape of DuckDbClient for repository compatibility.
+ * Matches the standard database client call shape for repository compatibility.
  *
  * Must only be used from a Node context (Electron main process or tests),
  * never from UI code.

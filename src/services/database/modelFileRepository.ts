@@ -433,7 +433,7 @@ export class ModelFileRepository {
 
   /**
    * Older databases may still have a stale path index entry. Use a temporary
-   * path so DuckDB refreshes the indexed absolute_path value before continuing.
+   * path so the indexed absolute_path value is refreshed before continuing.
    */
   private async updateAbsolutePath(id: string, absolutePath: string): Promise<void> {
     const current = await this.findById(id)
