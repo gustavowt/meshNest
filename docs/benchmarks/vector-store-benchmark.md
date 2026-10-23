@@ -162,3 +162,44 @@ exercise the full path: open temp DB -> load extension -> create small `vec0` ta
 - Note: the Electron spike run printed an unrelated macOS `os_crypt`/Keychain warning
   (`errKCInteractionNotAllowed`) from going headless without a user session — the spike
   itself exits 0 with `ok: true`.
+
+## Packaging evidence (PLAN.md Step 6)
+
+Packaging and native-load verification executed on macOS (darwin, x64) under Electron 42.4.0 (Node 24.16.0, ABI 146).
+
+### 1. Unpacked build and native-load probe (fallback evidence)
+
+The unpacked packaging was built via:
+```bash
+npx electron-builder --mac --dir
+```
+- **Exit code:** 0
+- **App bundle produced:** `release/mac/meshNest.app`
+- **Native modules unpacked:** `release/mac/meshNest.app/Contents/Resources/app.asar.unpacked/node_modules/` verified to contain `better-sqlite3`, `sqlite-vec`, and `sqlite-vec-darwin-x64` per `asarUnpack` patterns configured in `package.json`.
+
+The packaged artifact was probed via the packaged Electron binary using the probe script [`scripts/probe-packaged-sqlite.cjs`](../../scripts/probe-packaged-sqlite.cjs):
+```bash
+ELECTRON_RUN_AS_NODE=1 ./release/mac/meshNest.app/Contents/MacOS/meshNest scripts/probe-packaged-sqlite.cjs
+```
+- **Exit code:** 0
+- **Probe JSON output:**
+```json
+{"abi":"146","electron":"42.4.0","ok":true,"betterSqlite3":{"loaded":true,"val":1},"sqliteVec":{"loaded":true,"error":null},"error":null}
+```
+- **Verdict on `npmRebuild`:** `npmRebuild: false` is retained. The prebuilt binaries for `better-sqlite3` and `sqlite-vec` already match Electron 42.4.0 (ABI 146) on darwin-x64 out-of-the-box. The probe cleanly opened an in-memory database, executed a query, dynamically loaded `sqlite-vec`, and created a `vec0` virtual table with zero errors. No recompilation or flip to `npmRebuild: true` was required.
+
+### 2. Mac App Store build (`npm run dist:mas`) attempt
+
+Command attempted:
+```bash
+npm run dist:mas
+```
+- **Exit code:** 1
+- **Exact failure reason (as recorded from builder output):**
+```text
+⨯ skipped macOS application code signing  reason=cannot find valid "Apple Distribution, 3rd Party Mac Developer Application" identity, see https://electron.build/code-signing allIdentities=     0 identities found
+                                            Valid identities only
+     0 valid identities found  failedTask=build stackTrace=Error: skipped macOS application code signing  reason=cannot find valid "Apple Distribution, 3rd Party Mac Developer Application" identity
+```
+- **Conclusion:** As expected on a local non-CI developer workstation without Apple Developer Team distribution certificates installed in the keychain, the packaging pipeline successfully compiles renderer assets (`vue-tsc && vite build`), main and preload scripts, packages dependencies, and resolves native unpack directives, halting honestly and exclusively at the code signing identity verification gate. The fallback native-load probe in the unpacked `--dir` artifact provides concrete verification that runtime native dependencies load without ABI or dynamic linking errors.
+
