@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
 import { AiDescriptionRepository } from '@/services/database/aiDescriptionRepository'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { runMigrations } from '@/services/database/migrations'
 import {
   aiModelDescriptionSchema,
@@ -104,11 +104,11 @@ describe('MockVisionProvider', () => {
 })
 
 describe('AiDescriptionRepository', () => {
-  let client: DuckDbClient
+  let client: SqliteClient
   let repository: AiDescriptionRepository
 
   beforeEach(async () => {
-    client = await DuckDbClient.open(':memory:')
+    client = await SqliteClient.open(':memory:')
     await runMigrations(client)
     repository = new AiDescriptionRepository(client)
   })
