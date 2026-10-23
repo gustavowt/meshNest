@@ -125,6 +125,12 @@ Interpretation recorded for the owner:
 committing Phase 2 to a store — the gate outcome there decides sqlite-vec vs LanceDB per plan.
 If no decision is made, Phase 2 stays blocked on Step 3 by definition (it depends on Step 1).
 
+## Owner decision override (2026-10-23)
+
+Step 1's benchmark gate returned NO-GO on this machine (2015 MacBook Air, below the "commodity hardware" baseline): sqlite-vec p95 961.77 ms, DuckDB 622.16 ms, LanceDB 1288.29 ms @ 100k x 1536. The OWNER HAS OVERRIDDEN the budget: the 200 ms / 100k x 1536 cell is deemed unrealistic (no consumer library will hold 100k models; real scale is thousands of rows, and the real embeddings are 384/768 dims). The migration proceeds to REMOVE DuckDB regardless of that cell.
+
+**Confirmed primary: sqlite-vec (better-sqlite3 + sqlite-vec `vec0`).** LanceDB is overruled — on the measured machine it is strictly slower than BOTH sqlite-vec and DuckDB at every (rows x dims) cell. sqlite-vec wins on: (1) owner requires leaving DuckDB; (2) insert throughput 56x DuckDB at the decision cell (6,730 vs 121 rows/s — re-indexing story); (3) PLAN.md Steps 3–7 are already written for sqlite-vec = lowest-risk port; (4) measured search latency scales down roughly linearly with row count, so at realistic scale it is fine.
+
 ## Electron main-process load spike (PLAN.md Step 1 evidence)
 
 Two spikes committed in `4b04707`; both dynamically import better-sqlite3 + sqlite-vec
