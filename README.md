@@ -26,8 +26,10 @@ Each dependency exists to serve a planned service of the indexing/search pipelin
 | `fflate` | Opens `.3mf` files as ZIP packages to extract internal metadata, thumbnails, and model XML. |
 | `fast-xml-parser` | Parses 3MF model XML (`3D/3dmodel.model`, `[Content_Types].xml`) for object names, materials, and colors. |
 | `zod` | Validates structured JSON returned by the vision LLM before it is persisted. |
-| `@duckdb/node-api` | Local DuckDB database storing model files, geometry metadata, AI descriptions, and embeddings. The VSS extension provides HNSW vector indexes for semantic search. Runs in the Electron main process. |
-| `electron` (dev) | Desktop shell providing local filesystem access, the DuckDB host process, and the IPC bridge to the UI. |
+| `better-sqlite3` | Local SQLite database storing model files, geometry metadata, AI descriptions, and embeddings in WAL mode with busy retry handling. Runs in the Electron main process. |
+| `sqlite-vec` | Vector search extension (`vec0`) providing fast cosine KNN search over float32 embedding vectors across providers and dimensions. |
+| `@duckdb/node-api` | Legacy data migration only: one-shot migrator streaming pre-existing `meshnest.duckdb` files to SQLite upon initial launch. |
+| `electron` (dev) | Desktop shell providing local filesystem access, the SQLite host process, and the IPC bridge to the UI. |
 | `vite-plugin-electron` (dev) | Builds and runs the Electron main/preload code alongside the existing Vite setup. |
 
 File hashing uses Node's built-in `crypto` module (in the Electron main process), so no extra hashing library is needed.

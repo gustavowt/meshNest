@@ -8,7 +8,7 @@
 
 ## Goal
 
-Build a local-first 3D model library where the user selects a directory containing STL and 3MF files, the app scans and indexes those files, renders visual previews, asks a configurable vision-capable LLM to describe each model, generates embeddings from those descriptions, and stores everything in DuckDB for semantic search.
+Build a local-first 3D model library where the user selects a directory containing STL and 3MF files, the app scans and indexes those files, renders visual previews, asks a configurable vision-capable LLM to describe each model, generates embeddings from those descriptions, and stores everything in SQLite (with sqlite-vec) for semantic search.
 
 The final user experience should support searches like:
 
@@ -31,7 +31,7 @@ STL/3MF file
   -> multi-view rendering
   -> vision LLM description
   -> text embedding
-  -> DuckDB storage
+  -> SQLite storage
   -> vector search + hybrid search UI
 ```
 
@@ -52,7 +52,7 @@ Electron Main / Preload
   ├── Local filesystem access
   ├── Directory scanner
   ├── File hashing
-  ├── DuckDB access
+  ├── SQLite database access
   ├── Indexing queue
   └── IPC bridge
 
@@ -73,7 +73,7 @@ AI Layer
   └── Mock providers for development
 
 Persistence Layer
-  ├── DuckDB schema
+  ├── SQLite schema
   ├── Migrations
   ├── Model file repository
   ├── Render asset repository
@@ -92,8 +92,8 @@ Persistence Layer
 - [ ] Keep filesystem access inside Electron main/preload boundaries.
 - [ ] Keep UI components separate from persistence and indexing services.
 - [ ] Use Three.js for STL/3MF preview and rendering.
-- [ ] Use DuckDB as the local database.
-- [ ] Use DuckDB VSS/HNSW for semantic vector search.
+- [ ] Use SQLite as the local database.
+- [ ] Use sqlite-vec for semantic vector search.
 - [ ] Use a configurable vision-capable LLM to describe rendered model views.
 - [ ] Use text embeddings generated from the LLM description for the MVP.
 - [ ] Make indexing idempotent: unchanged files should not be reprocessed.
@@ -152,7 +152,7 @@ For MVP:
 - Send rendered images to a vision-capable LLM.
 - Ask for structured JSON.
 - Generate text embeddings from the structured description.
-- Store the embedding in DuckDB.
+- Store the embedding in SQLite.
 
 Do not start with direct image embeddings. Add image embeddings later only if text-based semantic search is not enough.
 
@@ -183,7 +183,7 @@ src/
 
   services/
     database/
-      duckdbClient.ts
+      sqliteClient.ts
       schema.ts
       migrations.ts
       modelFileRepository.ts
@@ -278,18 +278,18 @@ Install the required libraries for 3D file loading, rendering, ZIP/XML parsing, 
 - [x] Install a ZIP parser for reading `.3mf` packages.
 - [x] Install an XML parser for reading 3MF model metadata.
 - [x] Install a schema validation library for LLM JSON output.
-- [x] Install or verify DuckDB support in the existing app.
-- [x] Install or verify DuckDB VSS extension support.
+- [x] Install or verify SQLite / sqlite-vec support in the existing app.
+- [x] Install or verify sqlite-vec extension support.
 - [x] Install utility libraries for hashing files if the project does not already have one. (Node built-in `crypto` is used; no extra dependency.)
 - [x] Add a short dependency note in the project README explaining why each dependency exists.
 
 ## Suggested Dependencies
 
 ```bash
-npm install three fflate fast-xml-parser zod
+npm install three fflate fast-xml-parser zod better-sqlite3 sqlite-vec
 ```
 
-Depending on the existing project setup, DuckDB may already be installed. If not, install the correct DuckDB package for the current architecture used by the app.
+Depending on the existing project setup, SQLite and sqlite-vec may already be installed. If not, install the correct package for the current architecture used by the app.
 
 ## Success Criteria
 
@@ -383,7 +383,7 @@ export type AIModelDescription = {
 
 ## Goal
 
-Create the DuckDB schema for model files, geometry metadata, render assets, AI descriptions, embeddings, indexing jobs, and settings.
+Create the SQLite schema for model files, geometry metadata, render assets, AI descriptions, embeddings, indexing jobs, and settings.
 
 ## Tasks
 
@@ -594,7 +594,7 @@ Load STL files and extract basic geometry metadata.
 - [x] Extract mesh count.
 - [x] Add placeholders for volume and surface area if not implemented yet.
 - [x] Handle invalid STL files gracefully.
-- [x] Store geometry metadata in DuckDB.
+- [x] Store geometry metadata in SQLite.
 
 ## Success Criteria
 
@@ -625,7 +625,7 @@ Read 3MF files as ZIP/XML packages and extract useful metadata before rendering.
 - [x] Detect internal thumbnails where available.
 - [x] Extract thumbnail path where available.
 - [x] Store raw metadata JSON for debugging.
-- [x] Store parsed 3MF metadata in DuckDB.
+- [x] Store parsed 3MF metadata in SQLite.
 - [x] Handle malformed 3MF files gracefully.
 
 ## Success Criteria
@@ -740,7 +740,7 @@ Create a safe location for generated thumbnails and multi-view render images.
 - [x] Save PNG render assets to disk.
 - [x] Generate stable paths for views.
 - [x] Clean stale render assets when a file is reindexed.
-- [x] Store render asset records in DuckDB.
+- [x] Store render asset records in SQLite.
 
 ## Suggested Structure
 
@@ -788,7 +788,7 @@ Generate deterministic preview images that can be used in the UI and sent to a v
 - [x] Use deterministic camera positions.
 - [x] Ensure transparent or neutral backgrounds are supported.
 - [x] Save render assets to disk.
-- [x] Store render asset metadata in DuckDB.
+- [x] Store render asset metadata in SQLite.
 
 ## Notes
 
@@ -867,7 +867,7 @@ Prefer practical 3D printing categories such as toys, tools, organizers, miniatu
 - [x] Indexing can call a vision provider without knowing whether it is mock or real.
 - [x] Mock provider returns valid structured data.
 - [x] Invalid provider output fails validation cleanly.
-- [x] AI descriptions are persisted in DuckDB.
+- [x] AI descriptions are persisted in SQLite.
 
 ---
 
@@ -886,7 +886,7 @@ Build the embedding interface and a deterministic mock implementation for local 
 - [x] Create a function that builds embedding source text from AI descriptions.
 - [x] Store embedding provider name and model name.
 - [x] Store embedding source text.
-- [x] Store embedding vector in DuckDB.
+- [x] Store embedding vector in SQLite.
 
 ## Embedding Source Text Format
 
@@ -1043,14 +1043,14 @@ Create a detail page that shows preview, metadata, AI description, tags, render 
 
 ## Goal
 
-Implement vector search against embeddings stored in DuckDB.
+Implement vector search against embeddings stored in SQLite via sqlite-vec.
 
 ## Tasks
 
 - [x] Create `semanticSearch.ts`.
 - [x] Accept a natural language query.
 - [x] Generate query embedding using the embedding provider.
-- [x] Query DuckDB using cosine distance.
+- [x] Query SQLite using cosine distance via sqlite-vec.
 - [x] Return top matching model files.
 - [x] Include distance/score in results.
 - [x] Join model metadata, thumbnails, descriptions, and tags.
@@ -1416,7 +1416,7 @@ Prepare the app for desktop usage while protecting local data and avoiding broke
 ## Tasks
 
 - [ ] Verify render asset paths work after packaging.
-- [ ] Verify DuckDB database path works after packaging.
+- [ ] Verify SQLite database path works after packaging.
 - [ ] Verify directory selection works after packaging.
 - [ ] Verify preview works after packaging.
 - [ ] Verify offscreen/hidden rendering works after packaging.
@@ -1518,7 +1518,7 @@ The project reaches MVP done when:
 
 - [ ] User can select a directory.
 - [ ] App scans for STL and 3MF files.
-- [ ] App stores discovered files in DuckDB.
+- [ ] App stores discovered files in SQLite.
 - [ ] App loads STL files.
 - [ ] App loads 3MF files.
 - [ ] App extracts basic geometry metadata.
@@ -1526,7 +1526,7 @@ The project reaches MVP done when:
 - [ ] App sends renders to a configurable vision-capable LLM.
 - [ ] App stores structured AI descriptions.
 - [ ] App generates text embeddings from descriptions.
-- [ ] App stores embeddings in DuckDB.
+- [ ] App stores embeddings in SQLite.
 - [ ] App performs semantic vector search.
 - [ ] App shows results with thumbnails and metadata.
 - [ ] User can open a model detail page.

@@ -4,7 +4,7 @@ Developer reference for meshNest. Keep this file updated when features are added
 
 ## What the project is
 
-A local-first desktop app that scans user-selected directories for `.stl` and `.3mf` files, extracts geometry/package metadata, renders deterministic preview images, asks a vision-capable LLM for a structured description, embeds that description, and stores everything in DuckDB for semantic search.
+A local-first desktop app that scans user-selected directories for `.stl` and `.3mf` files, extracts geometry/package metadata, renders deterministic preview images, asks a vision-capable LLM for a structured description, embeds that description, and stores everything in SQLite (with sqlite-vec) for semantic search. Legacy data from earlier `meshnest.duckdb` releases is automatically migrated on first launch.
 
 Execution follows `roadmap.md` phase by phase. Completed phases are marked `[x]` in the roadmap.
 
@@ -14,7 +14,7 @@ Execution follows `roadmap.md` phase by phase. Completed phases are marked `[x]`
 - **Desktop shell**: Electron (main + preload). All filesystem and database access stays in the Electron main process and is exposed to the UI through a typed preload bridge.
 - **3D**: Three.js (`STLLoader`, `ThreeMFLoader`) for loading, preview, and offscreen multi-view rendering.
 - **3MF package parsing**: `fflate` (ZIP) + `fast-xml-parser` (XML), independent from the Three.js loader.
-- **Database**: DuckDB via `@duckdb/node-api` with the VSS extension (HNSW index) for vector search. Mac App Store builds skip VSS (see Sandbox compliance) and use brute-force `array_cosine_distance`.
+- **Database**: SQLite via `better-sqlite3` in WAL mode with the `sqlite-vec` extension (`vec0`) for vector search across providers and dimensions. Legacy `meshnest.duckdb` data is migrated once automatically on first boot via `duckdbMigration.ts`.
 - **Validation**: `zod` for LLM JSON output.
 - **Tests**: Vitest (`tests/unit`), Cypress (`tests/e2e`).
 
@@ -27,7 +27,7 @@ src/
   theme/            Ionic theme variables
   types/            Shared domain types (barrel: src/types/index.ts)
   services/
-    database/       DuckDB client, schema, migrations (Node-context only)
+    database/       SQLite client, schema, migrations (Node-context only)
     filesystem/     Directory scanner, file hashing, supported file helpers (Node-context only)
 electron/
   main/             Electron main process entry + IPC handlers
@@ -44,7 +44,7 @@ roadmap.md          Phase-by-phase execution plan (source of truth for scope)
 - `vite-plugin-electron/simple` builds `electron/main/index.ts` to `dist-electron/main.js` (ESM) and `electron/preload/index.ts` to `dist-electron/preload.cjs` (CJS — the preload must stay CJS because the root package is `"type": "module"` and sandboxed preloads cannot run ESM).
 - The Electron plugin is disabled when `process.env.VITEST` is set so unit tests don't launch Electron.
 - `npm run dev` starts Vite and launches Electron against the dev server; `npm run build` also produces `dist-electron/`.
-- Native modules (`@duckdb/node-api`) are externalized in the main-process bundle.
+- Native modules (`better-sqlite3`, `sqlite-vec`, plus legacy `@duckdb/node-api` for one release) are externalized in the main-process bundle.
 - The preload exposes a typed `window.meshNest` API; its contract lives in `src/types/electronApi.ts`. UI must feature-detect `window.meshNest` (it is undefined in a plain browser).
 - `electron/main/index.ts` registers external-navigation guards on the main `BrowserWindow`: HTTP(S) links that do not belong to the app's dev-server origin are denied inside the Electron window and opened with `shell.openExternal`, so World Search/source links go to the user's default browser.
 
@@ -54,8 +54,8 @@ The target structure for services, types, Electron main/preload, and components 
 
 ### Phase 1 - Install Dependencies
 
-- Installed `three`, `fflate`, `fast-xml-parser`, `zod`, `@duckdb/node-api` (runtime) and `@types/three`, `electron`, `vite-plugin-electron` (dev).
-- Verified DuckDB VSS extension loads and an HNSW index can be created (`INSTALL vss; LOAD vss;`). MAS builds skip VSS (see Sandbox compliance).
+- Installed `three`, `fflate`, `fast-xml-parser`, `zod`, `better-sqlite3`, `sqlite-vec`, and retained `@duckdb/node-api` for one release for legacy data migration (runtime), alongside `@types/three`, `electron`, `vite-plugin-electron` (dev).
+- Live storage uses SQLite with the sqlite-vec extension loaded dynamically without runtime downloads, sandbox-safe on Mac App Store builds.
 - File hashing will use Node's built-in `crypto`; no extra dependency.
 - `tests/unit/dependencies.spec.ts` smoke-tests that all Phase 1 libraries import and work.
 - Dependency rationale table lives in `README.md`.
@@ -73,12 +73,11 @@ The target structure for services, types, Electron main/preload, and components 
 
 ### Phase 3 - Database Schema and Migrations
 
-- `src/services/database/duckdbClient.ts`: `DuckDbClient` wrapper around `@duckdb/node-api`. `DuckDbClient.open(path, options?)` loads the VSS extension and enables HNSW persistence by default (`vssAvailable: true`); MAS (`process.mas`) or `{ enableVss: false }` skips INSTALL/LOAD. `run()` executes statements, `all()` returns JSON-compatible row objects. Node-context only (Electron main / tests).
-- `src/services/database/schema.ts`: idempotent DDL for `model_files`, `geometry_metadata`, `three_mf_metadata`, `model_render_assets`, `ai_model_descriptions`, `model_embeddings`, `indexing_jobs`, secondary indexes, and the HNSW cosine index. `EMBEDDING_DIMENSIONS = 1536` is the single source of truth for the vector dimension.
-- `src/services/database/migrations.ts`: ordered `MIGRATIONS` list tracked in a `schema_migrations` table; `runMigrations(client)` applies pending migrations and is safe to call repeatedly. Migration `002_embeddings_hnsw_index` is recorded without running when `!client.vssAvailable`.
-- `electron/main/services/database.ts`: lazy shared DuckDB client for Electron main. Fatal DuckDB invalidation errors (`database has been invalidated`, `Failed to delete all rows from index`, `FATAL Error`) close the current client, move `meshnest.duckdb` and its WAL to timestamped `.corrupt-*` backups, recreate a fresh DB with migrations, and retry the failed query against the new client. Library/index data starts empty rather than leaving the app stuck on a poisoned DuckDB connection, but provider settings are protected by a renderer localStorage mirror plus a main-process last-known settings fallback.
-- DuckDB binding notes: named parameters use `$name`; `TEXT[]` values must be wrapped with `listValue(...)` and `FLOAT[n]` vectors with `arrayValue(...)` from `@duckdb/node-api`.
-- Tests: `tests/unit/migrations.spec.ts` (fresh DB, double-run safety, embedding dimension, HNSW index + cosine search on a persisted DB, VSS-off path). Database tests use `// @vitest-environment node`.
+- `src/services/database/sqliteClient.ts`: `SqliteClient` wrapper around `better-sqlite3` with `sqlite-vec` extension loading. Opens in WAL mode with `busy_timeout = 5000` for concurrent read access and retriable busy states. `run()` executes statements, `all()` returns JSON-compatible row objects. Node-context only (Electron main / tests, with `:memory:` support).
+- `src/services/database/schema.ts`: idempotent DDL for `model_files`, `geometry_metadata`, `three_mf_metadata`, `model_render_assets`, `ai_model_descriptions`, `model_embeddings` (storing JSON vector blobs for multi-provider coexistence), `indexing_jobs`, and secondary indexes.
+- `src/services/database/migrations.ts`: ordered `MIGRATIONS` list tracked in `schema_migrations`; migrations are prefixed `sqlite_001_initial_schema`, `sqlite_002_vec_extension` (creates per-dimension `vec0` shadow tables keyed by model file ID).
+- `electron/main/services/database.ts`: shared SQLite client for Electron main (`meshnest.sqlite`). On initial boot, if `meshnest.duckdb` exists and `meshnest.sqlite` does not, it runs `migrateDuckDbToSqlite` (`electron/main/services/duckdbMigration.ts`) to stream all tables and vectors into SQLite, verifying row counts and backing up old files to `.migrated-<timestamp>`. Corruption recovery moves damaged database files to `.corrupt-*` and recreates a fresh store.
+- Tests: `tests/unit/sqliteClient.spec.ts`, `tests/unit/migrations.spec.ts`, `tests/unit/duckdbMigration.spec.ts`.
 
 ### Phase 4 - Filesystem Access and Directory Scanner
 
@@ -93,9 +92,9 @@ The target structure for services, types, Electron main/preload, and components 
 
 ### Phase 5 - Model File Repository
 
-- `src/services/database/modelFileRepository.ts`: `ModelFileRepository` class wrapping a `DuckDbClient`. Methods: `upsertModelFile` (insert as pending / reset changed files to pending / return unchanged as-is; same-path upserts are serialized in-process, and `absolute_path` is indexed but not DB-unique so overlapping cancelled/restarted scans cannot surface unique-constraint errors; when a scan finds an existing content hash at a new path, `relocateModelFile` updates the stored location instead of creating a duplicate unless the caller disables hash relocation for re-scan reconciliation), `findByPath`, `findById`, `findByHash`, `listModelFiles`, `listPendingFiles`, `deleteFailedModelFiles`, `markIndexed`, `markFailed`, `shouldReindexFile`, `resetToPending` (one file), `resetAllToPending` (every file, optionally scoped to a project — used by the library "Re-index all models" action to force a full reprocess even when nothing changed).
+- `src/services/database/modelFileRepository.ts`: `ModelFileRepository` class wrapping a `SqliteClient`. Methods: `upsertModelFile` (insert as pending / reset changed files to pending / return unchanged as-is; same-path upserts are serialized in-process, and `absolute_path` is indexed but not DB-unique so overlapping cancelled/restarted scans cannot surface unique-constraint errors; when a scan finds an existing content hash at a new path, `relocateModelFile` updates the stored location instead of creating a duplicate unless the caller disables hash relocation for re-scan reconciliation), `findByPath`, `findById`, `findByHash`, `listModelFiles`, `listPendingFiles`, `deleteFailedModelFiles`, `markIndexed`, `markFailed`, `shouldReindexFile`, `resetToPending` (one file), `resetAllToPending` (every file, optionally scoped to a project — used by the library "Re-index all models" action to force a full reprocess even when nothing changed).
 - Change detection compares content hash, modified timestamp, and size. `shouldReindexFile` also returns true for any non-`indexed` status.
-- Timestamps are stored as DuckDB TIMESTAMP (UTC, no timezone suffix) and mapped back to ISO strings in `ModelFile`.
+- Timestamps are stored as ISO 8601 strings in SQLite and mapped back to ISO strings in `ModelFile`.
 - Tests: `tests/unit/modelFileRepository.spec.ts`.
 
 ### Phase 6 - STL Loading and Geometry Metadata
@@ -110,7 +109,7 @@ The target structure for services, types, Electron main/preload, and components 
 
 - `src/services/model-parsing/threeMfPackageParser.ts`: `parseThreeMfPackage(bytes)` opens the `.3mf` as ZIP (fflate), resolves the model part via `_rels/.rels` (falling back to `3D/3dmodel.model`), and extracts object names, material names, display colors, thumbnail path (relationship or `model@thumbnail`), plus a raw-metadata JSON blob for debugging. Missing optional metadata never throws; invalid ZIP or missing model part throws `ModelParseError`. Independent from `ThreeMFLoader`.
 - `src/services/database/threeMfMetadataRepository.ts`: `ThreeMfMetadataRepository.upsert/getByModelFileId`.
-- `DuckDbClient.run/all` now accept an optional `types` record (e.g. `LIST(VARCHAR)`) — required when binding empty list parameters.
+- `SqliteClient.run/all` executes statements with SQLite query parameters natively.
 - Tests: `tests/unit/threeMfPackageParser.spec.ts` with the package builder in `tests/unit/helpers/threeMfFixtures.ts` (generates valid in-memory 3MF packages, also used by later phases).
 
 ### Phase 8 - 3MF Scene Loading
@@ -142,7 +141,7 @@ The target structure for services, types, Electron main/preload, and components 
 
 ### Phase 11 - Render Asset Storage
 
-- `electron/main/services/appDataPaths.ts`: app-data locations under Electron `userData` — `getDatabasePath()` (`meshnest.duckdb`) and `getModelRendersRoot()` (`model-renders/`). Generated data never lives next to source models.
+- `electron/main/services/appDataPaths.ts`: app-data locations under Electron `userData` — `getDatabasePath()` (`meshnest.sqlite`, with `getLegacyDuckDbPath()` returning `meshnest.duckdb` for migration) and `getModelRendersRoot()` (`model-renders/`). Generated data never lives next to source models.
 - `src/services/rendering/renderAssetStorage.ts`: `RenderAssetStorage(rendersRoot)` saves PNGs at `<root>/<model-file-id>/<view>.png` (deterministic, stable paths), `clearModelRenders` removes a model's folder before reindexing, `listModelRenderFiles` for consistency checks. Takes the root as a constructor argument so it is testable without Electron.
 - `src/services/database/renderAssetRepository.ts`: `RenderAssetRepository.replaceForModelFile` (delete+insert keeps DB aligned with disk), `listByModelFileId`, `findThumbnail`, `deleteByModelFileId`.
 - Tests: `tests/unit/renderAssetStorage.spec.ts` (stable paths, restart survival, clearing, overwrite, DB/disk alignment).
@@ -153,7 +152,7 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/services/rendering/modelRenderer.ts`: `renderModelViews(normalizedModel, options)` renders all views offscreen with `WebGLRenderer` (pixelRatio 1, antialias, preserveDrawingBuffer), neutral `#f1f2f4` background (configurable, `'transparent'` supported), ambient + camera-following key light, returns PNG bytes per view. `renderModelViewsAsync(...)` is the non-blocking variant (identical output) used by the indexing pipeline: it yields a frame before each view render and encodes PNGs via async `canvas.toBlob`. Renders are byte-deterministic across app restarts (verified). Runs only in a WebGL context (Electron renderer); isolated so the host can change later.
 - `src/services/rendering/thumbnailService.ts`: `renderAndStoreModelViews(modelFileId, filePath, extension)` — renderer-process orchestrator (read via bridge -> load -> normalize -> render -> persist via IPC).
 - `electron/main/ipc/renderingIpc.ts`: `rendering:saveRenderAssets` clears stale renders, writes PNGs through `RenderAssetStorage`, replaces DB records. Exposed as `window.meshNest.saveRenderAssets`.
-- `electron/main/services/database.ts`: lazy singleton app DB (userData/meshnest.duckdb) with migrations on first use.
+- `electron/main/services/database.ts`: lazy singleton app SQLite database (`userData/meshnest.sqlite`) with migrations on first use and automatic one-shot migration from legacy `meshnest.duckdb`.
 - Architecture note: parsing + rendering run in the renderer process (DOMParser + WebGL); main owns FS/DB. The indexing pipeline therefore also runs renderer-side and talks through IPC.
 - Fixes required for packaged loading: removed `<base href="/">` from `index.html` and switched the router to hash history (file:// compatible).
 - `src/main.ts` exposes `window.__meshNestDiagnostics.renderAndStoreModelViews` in the desktop shell for integration checks.
@@ -230,8 +229,8 @@ The target structure for services, types, Electron main/preload, and components 
 - `src/services/search/semanticSearch.ts` (renderer-safe): `semanticSearch(query, deps, options)` trims the query (blank -> `[]`), embeds it via the provider, and delegates to the injected `searchByEmbedding` executor with the trimmed query attached as `queryText`. `createDesktopSearchDeps(provider)` wires the IPC executor for production.
 - IPC: `database:searchByEmbedding`, `database:countEmbeddings`.
 - Diagnostics hook gained `semanticSearch(query, limit)`.
-- IMPORTANT DuckDB gotcha (fixed here): `arrayValue(...)` without an explicit type lets DuckDB infer the list element type from leading values; sparse embedding vectors starting with `0` were inferred as integer lists and **silently stored as all zeros**. Both the embedding upsert and the search query now bind with `ARRAY(FLOAT, EMBEDDING_DIMENSIONS)`. When binding any float list/array parameter, always pass the explicit DuckDB type.
-- Tests: `tests/unit/semanticSearch.spec.ts` (relevance ranking with mock providers, joined metadata + score bounds, limit, blank query, NoEmbeddingsError, dimension validation, project filter); embedding persistence test now asserts stored values roundtrip (would have caught the zero-truncation bug). Verified in Electron: empty index raises the error; after indexing three fixtures, "dragon phone stand" ranks the matching file first (score 0.92 vs 0.51).
+- Storage binding notes: embeddings are bound as Float32Array little-endian BLOB buffers into sqlite-vec's `vec0` virtual tables, avoiding text array parsing overhead and ensuring deterministic cosine distance calculations across all providers and dimensions.
+- Tests: `tests/unit/semanticSearch.spec.ts` (relevance ranking with mock providers, joined metadata + score bounds, limit, blank query, NoEmbeddingsError, dimension validation, project filter); embedding persistence test now asserts stored values roundtrip. Verified in Electron: empty index raises the error; after indexing three fixtures, "dragon phone stand" ranks the matching file first (score 0.92 vs 0.51).
 
 ### Phase 20 - Search UI
 
@@ -244,7 +243,7 @@ The target structure for services, types, Electron main/preload, and components 
 
 - `src/types/providerSettings.ts`: `VisionSettings` (provider, model, apiKey?, baseUrl?), `EmbeddingSettings` (adds `dimensions`), `ProviderSettings`, `ProviderTestResult`. Provider ids: vision `mock | openai | gemini | ollama`; embedding `builtin | mock | openai | gemini | ollama`.
 - `src/services/settings/providerSettings.ts`: `VISION_PROVIDERS` / `EMBEDDING_PROVIDERS` metadata maps (label, needsApiKey, needsBaseUrl, default model/baseUrl/dimensions), `DEFAULT_PROVIDER_SETTINGS` (**no vision provider by default** + **built-in local embedding** `Xenova/paraphrase-multilingual-MiniLM-L12-v2`, 384 dims, downloaded from Hugging Face on first use), `defaultVisionSettings` / `defaultEmbeddingSettings` (provider-switch defaults), `validateProviderSettings` (human-readable problem list).
-- Provider settings are stored in renderer `localStorage` via `src/services/settings/providerSettingsCache.ts`; DuckDB no longer has or uses a `settings` table. On app load/save the renderer syncs the localStorage snapshot to Electron main (`settings:syncProviderSettings` / `settings:saveProviderSettings`) so main-process LLM, embedding, rename, re-embed, and model-action IPC handlers use the current settings without owning persistence. `settings:saveProviderSettings` still performs embedding-table cleanup when the embedding provider/model/dimensions change.
+- Provider settings are stored in renderer `localStorage` via `src/services/settings/providerSettingsCache.ts`; the SQLite database does not have or use a `settings` table. On app load/save the renderer syncs the localStorage snapshot to Electron main (`settings:syncProviderSettings` / `settings:saveProviderSettings`) so main-process LLM, embedding, rename, re-embed, and model-action IPC handlers use the current settings without owning persistence.
 - `src/services/settings/providerTester.ts`: connectivity checks for providers. Vision test runs a lightweight text-only LLM call through the configured provider (`normalizeName`) to verify auth, model availability, and a usable response (uses a few tokens). Embedding test still uses list/info endpoints only (OpenAI `GET /models`, Gemini models list, Ollama `GET /api/tags`; mock/builtin always pass). Takes an injectable `fetch` for tests. The Settings store tracks dirty provider drafts and warns after a successful test when the tested config has not been saved yet, because indexing/search use the persisted settings from Electron main.
 - Main process: `electron/main/services/providerSettings.ts` (load with default merge / validated save), `electron/main/ipc/settingsIpc.ts` (`settings:getProviderSettings`, `settings:saveProviderSettings`, `settings:testVisionProvider`, `settings:testEmbeddingProvider`).
 - UI: `src/stores/settingsStore.ts` (editable draft + explicit save; provider switch resets model/baseUrl to that provider's defaults but keeps the API key; state intentionally not `readonly` because the draft is a form), `src/views/SettingsPage.vue` (route `/settings`, gear icon in library header; Vision and Embedding sections with provider select, model, API key, base URL, dimensions, non-technical enabled/disabled benefit explainers with small visual cards, a Vision-disabled file-data search fallback note, an Embeddings dimensions tradeoff note, per-section Test connection buttons, validation problems list, re-embed warning footnote), `src/components/settings/ProviderTestBanner.vue`. Vision model selection is always a free-form model name; cloud vision providers are selected by `vision.provider` (`openai`/`gemini`) rather than an Ollama cloud/local model toggle.
@@ -262,12 +261,12 @@ The target structure for services, types, Electron main/preload, and components 
 
 ### Phase 24 - Real Embedding Providers (built-in local default)
 
-- **Built-in local model is the default embedding service**: `electron/main/services/builtinEmbedding.ts` runs `Xenova/all-MiniLM-L6-v2` (384 dims) via `@huggingface/transformers` (transformers.js) in the Electron main process. ONNX weights (~25 MB) download from Hugging Face on first use into `userData/hf-models` and work fully offline afterwards. Pipelines are cached per model name. The dependency is marked `external` in the Electron main rollup config (like DuckDB).
+- **Built-in local model is the default embedding service**: `electron/main/services/builtinEmbedding.ts` runs `Xenova/all-MiniLM-L6-v2` (384 dims) via `@huggingface/transformers` (transformers.js) in the Electron main process. ONNX weights (~25 MB) download from Hugging Face on first use into `userData/hf-models` and work fully offline afterwards. Pipelines are cached per model name. The dependency is marked `external` in the Electron main rollup config (along with `better-sqlite3` and `sqlite-vec`).
 - Remote providers (`src/services/llm/`): `httpEmbeddingProvider.ts` (shared base: POST/error mapping + validation that the returned vector matches the configured dimensions), `openaiEmbeddingProvider.ts` (`/embeddings`, custom baseUrl), `geminiEmbeddingProvider.ts` (`:embedContent`), `ollamaEmbeddingProvider.ts` (`/api/embeddings`). `embeddingProviderFactory.ts` selects by settings; the builtin case requires an injected `builtinFactory` (main process only).
-- **Dimension-flexible embeddings table** (`src/services/database/embeddingTable.ts`): `getEmbeddingTableDimensions` reads the `FLOAT[N]` column type from information_schema; `ensureEmbeddingTable(client, dims)` drops and recreates `model_embeddings` (and HNSW when `vssAvailable`) when the size differs (embeddings from different providers live in different vector spaces and must be regenerated anyway). The initial migration still creates the table at 1536; `getDatabaseClient()` reconciles it with the saved settings at startup. `EmbeddingRepository`/`SearchRepository` validate against the live table width (no more fixed `EMBEDDING_DIMENSIONS` checks); `EmbeddingDimensionError` now reports actual vs expected.
-- **Provider-switch flow**: `saveProviderSettings` (main) compares old/new embedding config; when provider/model/dimensions change it resizes the table or clears embeddings and returns `{ embeddingsCleared: true }`. The Settings page then shows a warning and a "Re-embed library" button. `reembedAllModels` (`electron/main/services/embeddingService.ts`) regenerates embeddings for every stored AI description with the active provider — no re-render or vision calls needed (`AiDescriptionRepository.listAll`).
+- **Dimension-flexible vector tables** (`src/services/database/embeddingTable.ts`): embeddings are stored across multiple providers and dimensions without data loss. `model_embeddings` retains source vector data while per-dimension `vec_model_embeddings_{dims}` `vec0` shadow tables provide KNN cosine search for each dimension. Switching providers reuses previously computed embeddings when returning to earlier models.
+- **Provider-switch flow**: `saveProviderSettings` (main) compares old/new embedding config; switching providers no longer wipes previous embeddings. The Settings page allows re-embedding the library with the newly selected provider when desired.
 - IPC: `llm:embedText`, `llm:getActiveEmbeddingProvider`, `llm:reembedAll`. Renderer uses `BridgeEmbeddingProvider` (`src/services/llm/bridgeEmbeddingProvider.ts`); both `createDesktopIndexingDeps()` and the search store now embed through the bridge, so indexing and search always use the configured service.
-- Tests: `tests/unit/embeddingTable.spec.ts` (default width, keep/rebuild semantics, 384-dim round-trip + search, mismatch rejections, VSS-off rebuild without HNSW), `tests/unit/embeddingProviders.spec.ts` (payload shapes per API with fake fetch, dimension validation, 401 mapping, factory selection incl. builtin injection). Verified in Electron with the real model: first `reembedAll` downloaded MiniLM and embedded 7 models in ~13 s; "weekly pill organizer with compartments" ranked the Pill Organizer first at 0.84 and "toy to fidget with" ranked the fidget toy first at 0.74.
+- Tests: `tests/unit/embeddingTable.spec.ts` (default width, multi-dimension vec table creation, 384-dim round-trip + search, mismatch rejections), `tests/unit/embeddingProviders.spec.ts` (payload shapes per API with fake fetch, dimension validation, 401 mapping, factory selection incl. builtin injection).
 
 ### Model actions menu (detail page)
 
@@ -275,7 +274,7 @@ The target structure for services, types, Electron main/preload, and components 
 - **Rename with AI**: only enabled when a real vision provider is active (`openai`/`gemini`/`ollama`); the menu item is grayed out for `none`/`mock`. On click it makes a text-only LLM call (`window.meshNest.normalizeName`) that asks the active vision model to normalize the raw file name into a clean title (passing the AI description as context when available), shows the result in an editable `alertController` prompt, then renames the file on disk in the same folder (keeping the original extension), updates the `model_files` row, and syncs the AI description's `short_name` to the new name so the displayed title updates everywhere. The detail page reloads (`loadDetail` + library refresh) after the rename, so the header title, metadata, and 3D preview reflect the new name. A header spinner shows while the LLM call runs.
 - Name-normalization plumbing: `NAME_NORMALIZATION_PROMPT` and `BULK_NAME_NORMALIZATION_PROMPT` (`prompts.ts`); `VisionProvider.normalizeName(rawName, context?)` and `normalizeNames(items)` live on the interface. `HttpVisionProvider` implements both generically via an abstract `requestTextOnce(prompt, expectJson?)` (text-only, no images, reusing `postJson` + error mapping) plus `buildNameNormalizationPrompt` / `buildBulkNameNormalizationPrompt` / `cleanNormalizedName` helpers. When `expectJson` is set the providers request a strict JSON answer (Ollama `format: 'json'`, OpenAI `response_format: json_object`, Gemini `responseMimeType: application/json`); the bulk path passes it, single normalization does not. `normalizeNames` is resilient: it makes one bulk JSON request, then recovers any omitted/mis-keyed ids with focused single-file `normalizeName` calls, returns only the names it could resolve (callers map by id), and throws only when nothing at all could be normalized (a real provider/connectivity failure). `MockVisionProvider` returns deterministic trivial values. IPC `llm:normalizeName` and `llm:normalizeNames` reject `none`/`mock` and run the active provider in main.
 - **Delete**: confirmation dialog, then moves the file to the OS trash and removes every record for the model.
-- `ModelFileRepository.renameModelFile` / `relocateModelFile` update `absolute_path` via a two-step write to refresh older DuckDB path-index entries before later status updates.
+- `ModelFileRepository.renameModelFile` / `relocateModelFile` update `absolute_path` via a two-step write to refresh path-index entries before later status updates.
 - Main process: `electron/main/ipc/modelActionsIpc.ts` registers `model:deleteModel` (`shell.trashItem` best-effort + `RenderAssetStorage.clearModelRenders` + `deleteModelFile`) and `model:renameModel` (sanitizes the name, guards against collisions, `fs.rename`, updates `model_files` + `indexing_jobs` paths, recomputes `relative_path` from the configured library folder when applicable, verifies the DB row, then returns the updated record). Exposed as `window.meshNest.deleteModel` / `renameModel`. The detail page patches library/search/indexing in-memory caches from the returned record.
 
 ### Worldwide 3D-print model search (World Search)
@@ -313,7 +312,7 @@ Packaging output includes `meshNest Setup <version>.exe` plus `win-unpacked/mesh
 The app is packaged for the **Mac App Store** with `electron-builder` (`npm run dist:mas`). Config lives in the `build` block of `package.json`.
 
 - **Identity**: appId `app.meshnest.desktop`, productName `meshNest`, category `public.app-category.utilities`, Apple Team ID `P5VE23TX58`.
-- **Targets/output**: `mac.target: ["mas"]`; artifacts go to `release/`. `npmRebuild: false` because DuckDB and onnxruntime ship prebuilt binaries. Native modules (`@duckdb/**`, `onnxruntime-node` darwin binaries only, `@huggingface/**`) are `asarUnpack`ed so the `.node`/dylibs load and can be deep-signed.
+- **Targets/output**: `mac.target: ["mas"]`; artifacts go to `release/`. `npmRebuild: false` because better-sqlite3, sqlite-vec, and onnxruntime ship prebuilt binaries matching Electron ABI 146. Native modules (`better-sqlite3/**`, `sqlite-vec/**`, `onnxruntime-node` darwin binaries only, `@huggingface/**`, and legacy `@duckdb/**`) are `asarUnpack`ed so the `.node`/dylibs load and can be deep-signed.
 - **Icon**: `build/icon.icns`.
 - **Entitlements** (`build/`):
   - `entitlements.mas.plist` — app-sandbox, **application-groups** (`P5VE23TX58.app.meshnest.desktop`), `network.client`, `files.user-selected.read-write`, app-scope bookmarks, application-identifier/team-identifier. Electron requires `application-groups` for MAS sandbox.
@@ -343,14 +342,14 @@ After rebuilding, verify:
 The Mac App Store mandates App Sandbox. Two areas are handled so the sandboxed build behaves correctly; outside the sandbox (dev, any direct build) all of this is a no-op and behavior is unchanged.
 
 - **Security-scoped bookmarks** (`electron/main/services/securityScopedBookmarks.ts`): a sandboxed app loses access to user-selected folders after a restart unless it persists a bookmark. `filesystem:pickDirectory` requests `securityScopedBookmarks: true` and `storeDirectoryBookmark` saves the returned bookmark (keyed by directory) to `userData/security-bookmarks.json`. Every main-process file access — `scanDirectory`, `readModelFile`, `scanFile`, `revealInFolder`, plus `model:renameModel` / `model:deleteModel` — is wrapped in `withSecurityScopedAccess(targetPath, fn)`, which resolves the nearest-ancestor bookmark and brackets the work in `app.startAccessingSecurityScopedResource` / stop. The guard is keyed on `process.mas`, so it only activates in the MAS build.
-- **DuckDB VSS skipped on MAS**: `DuckDbClient.open` defaults `enableVss` to false when `process.mas === true` because runtime `INSTALL vss` downloads an unsigned `vss.duckdb_extension` that Gatekeeper/sandbox rejects (`library load disallowed by system policy`). With `vssAvailable: false`, migration `002` is recorded without creating HNSW, and `ensureEmbeddingTable` skips HNSW DDL. Semantic search still works via brute-force `array_cosine_distance`; library listing and other DB ops are unaffected. Non-MAS/dev keeps VSS+HNSW.
+- **SQLite + sqlite-vec MAS-safe vector search**: Vector search runs over local prebuilt `sqlite-vec` virtual tables (`vec0`) loaded directly through better-sqlite3. No runtime network downloads or unsigned binary installs occur, making the store fully App Sandbox compliant on MAS builds.
 - **External app launching**: `filesystem:openWithSlicer` always hands the file to its default handler via `shell.openPath`, which is allowed by the Mac App Store sandbox. The app no longer stores a default slicer preference or launches named slicer applications directly.
-- **Single-window quit on close**: meshNest is a single-window app with no menu bar (`Menu.setApplicationMenu(null)`). On all platforms, closing the main window calls `app.quit()` in `window-all-closed` (MAS Guideline 4 — no orphaned menuless process). Data is persisted in the local DuckDB database before quit.
+- **Single-window quit on close**: meshNest is a single-window app with no menu bar (`Menu.setApplicationMenu(null)`). On all platforms, closing the main window calls `app.quit()` in `window-all-closed` (MAS Guideline 4 — no orphaned menuless process). Data is persisted in the local SQLite database before quit.
 
 ## Conventions
 
 - Keep UI components separate from persistence/indexing services.
-- Filesystem and DuckDB access only in Electron main; UI talks through the preload IPC bridge.
+- Filesystem and SQLite database access only in Electron main; UI talks through the preload IPC bridge.
 - Vision/embedding providers are selected in Settings and run in the Electron main process; the renderer talks to them through bridge providers. Mocks remain available for development.
 - Indexing is idempotent: unchanged files (same content hash + mtime) are not reprocessed.
 - One bad model file must never crash a whole directory indexing run; errors are stored per file.
