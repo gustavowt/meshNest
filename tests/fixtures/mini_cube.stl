@@ -1,0 +1,16 @@
+solid mini_cube
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 0
+      vertex 5 0 0
+      vertex 5 5 0
+    endloop
+  endfacet
+  facet normal 0 0 1
+    outer loop
+      vertex 0 0 5
+      vertex 5 0 5
+      vertex 0 5 5
+    endloop
+  endfacet
+endsolid mini_cube
