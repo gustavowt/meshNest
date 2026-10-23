@@ -1,25 +1,39 @@
 import { ARRAY, arrayValue, FLOAT } from '@duckdb/node-api'
 import type { ModelEmbedding } from '@/types/llm'
-import { getEmbeddingTableDimensions } from './embeddingTable'
 import type { DuckDbClient } from './duckdbClient'
+import { getEmbeddingTableDimensions } from './embeddingTable'
+import { ensureVecTable } from './migrations'
+import type { SqliteClient } from './sqliteClient'
 
 type EmbeddingRow = {
   model_file_id: string
   provider: string
   model: string
   dimensions: number
-  embedding: number[]
+  embedding: number[] | string | null
   source_text: string
   created_at: string
 }
 
 function toEmbedding(row: EmbeddingRow): ModelEmbedding {
+  let embedding: number[] = []
+  if (Array.isArray(row.embedding)) {
+    embedding = row.embedding
+  } else if (typeof row.embedding === 'string') {
+    try {
+      const parsed = JSON.parse(row.embedding)
+      embedding = Array.isArray(parsed) ? parsed : []
+    } catch {
+      embedding = []
+    }
+  }
+
   return {
     modelFileId: row.model_file_id,
     provider: row.provider,
     model: row.model,
     dimensions: Number(row.dimensions),
-    embedding: row.embedding ?? [],
+    embedding,
     sourceText: row.source_text,
     createdAt: row.created_at,
   }
@@ -36,11 +50,51 @@ export class EmbeddingDimensionError extends Error {
 }
 
 export class EmbeddingRepository {
-  constructor(private readonly client: DuckDbClient) {}
+  constructor(private readonly client: SqliteClient | DuckDbClient) {}
+
+  private get isSqlite(): boolean {
+    return 'rawDb' in this.client
+  }
 
   /** Replaces any existing embedding for the model file. */
   async upsert(embedding: Omit<ModelEmbedding, 'createdAt'>): Promise<void> {
-    const tableDimensions = await getEmbeddingTableDimensions(this.client)
+    if (embedding.dimensions <= 0 || embedding.embedding.length !== embedding.dimensions) {
+      throw new EmbeddingDimensionError(embedding.embedding.length, embedding.dimensions)
+    }
+
+    if (this.isSqlite) {
+      const sqlite = this.client as SqliteClient
+      const vecTable = sqlite.vecAvailable
+        ? await ensureVecTable(sqlite, embedding.dimensions)
+        : undefined
+      const rawDb = sqlite.rawDb
+      const tx = rawDb.transaction(() => {
+        rawDb.prepare('DELETE FROM model_embeddings WHERE model_file_id = ?').run(embedding.modelFileId)
+        rawDb.prepare(`
+          INSERT INTO model_embeddings (model_file_id, provider, model, dimensions, embedding, source_text)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `).run(
+          embedding.modelFileId,
+          embedding.provider,
+          embedding.model,
+          embedding.dimensions,
+          JSON.stringify(embedding.embedding),
+          embedding.sourceText,
+        )
+        if (vecTable) {
+          rawDb.prepare(`DELETE FROM ${vecTable} WHERE model_file_id = ?`).run(embedding.modelFileId)
+          rawDb.prepare(`INSERT INTO ${vecTable} (model_file_id, embedding) VALUES (?, ?)`).run(
+            embedding.modelFileId,
+            new Float32Array(embedding.embedding),
+          )
+        }
+      })
+      tx()
+      return
+    }
+
+    const duckDb = this.client as DuckDbClient
+    const tableDimensions = await getEmbeddingTableDimensions(duckDb)
     if (tableDimensions === undefined) {
       throw new Error('model_embeddings table does not exist; run migrations first.')
     }
@@ -48,10 +102,10 @@ export class EmbeddingRepository {
       throw new EmbeddingDimensionError(embedding.embedding.length, tableDimensions)
     }
 
-    await this.client.run('DELETE FROM model_embeddings WHERE model_file_id = $modelFileId', {
+    await duckDb.run('DELETE FROM model_embeddings WHERE model_file_id = $modelFileId', {
       modelFileId: embedding.modelFileId,
     })
-    await this.client.run(
+    await duckDb.run(
       `INSERT INTO model_embeddings (model_file_id, provider, model, dimensions, embedding, source_text)
        VALUES ($modelFileId, $provider, $model, $dimensions, $embedding, $sourceText)`,
       {
@@ -62,19 +116,17 @@ export class EmbeddingRepository {
         embedding: arrayValue(embedding.embedding),
         sourceText: embedding.sourceText,
       },
-      // Explicit type: without it DuckDB infers the element type from the
-      // leading values, and sparse vectors starting with 0 get truncated
-      // to an integer list (silently storing all zeros).
       { embedding: ARRAY(FLOAT, tableDimensions) },
     )
   }
 
   async getByModelFileId(modelFileId: string): Promise<ModelEmbedding | undefined> {
-    const rows = await this.client.all<EmbeddingRow>(
-      `SELECT model_file_id, provider, model, dimensions, embedding, source_text, created_at
-       FROM model_embeddings WHERE model_file_id = $modelFileId`,
-      { modelFileId },
-    )
+    const query = this.isSqlite
+      ? `SELECT model_file_id, provider, model, dimensions, embedding, source_text, created_at
+         FROM model_embeddings WHERE model_file_id = @modelFileId`
+      : `SELECT model_file_id, provider, model, dimensions, embedding, source_text, created_at
+         FROM model_embeddings WHERE model_file_id = $modelFileId`
+    const rows = await this.client.all<EmbeddingRow>(query, { modelFileId })
     return rows.length > 0 ? toEmbedding(rows[0]) : undefined
   }
 
@@ -82,6 +134,6 @@ export class EmbeddingRepository {
     const rows = await this.client.all<{ c: number | string }>(
       'SELECT count(*) AS c FROM model_embeddings',
     )
-    return Number(rows[0].c)
+    return Number(rows[0]?.c ?? 0)
   }
 }

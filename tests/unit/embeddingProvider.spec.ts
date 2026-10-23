@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import {
   EmbeddingDimensionError,
   EmbeddingRepository,
@@ -89,11 +89,11 @@ describe('MockEmbeddingProvider', () => {
 })
 
 describe('EmbeddingRepository', () => {
-  let client: DuckDbClient
+  let client: SqliteClient
   let repository: EmbeddingRepository
 
   beforeEach(async () => {
-    client = await DuckDbClient.open(':memory:')
+    client = await SqliteClient.open(':memory:')
     await runMigrations(client)
     repository = new EmbeddingRepository(client)
   })
@@ -141,7 +141,7 @@ describe('EmbeddingRepository', () => {
         modelFileId: 'file-1',
         provider: 'mock',
         model: 'mock',
-        dimensions: 3,
+        dimensions: 1536,
         embedding: [1, 2, 3],
         sourceText: 'short',
       }),
