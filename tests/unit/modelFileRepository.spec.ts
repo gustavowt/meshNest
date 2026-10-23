@@ -1,12 +1,12 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { GeometryMetadataRepository } from '@/services/database/geometryMetadataRepository'
 import { runMigrations } from '@/services/database/migrations'
 import { ModelFileRepository } from '@/services/database/modelFileRepository'
 import type { ScannedFile } from '@/types/modelFile'
 
-let client: DuckDbClient
+let client: SqliteClient
 let repository: ModelFileRepository
 
 const PROJECT_ID = 'project-1'
@@ -25,7 +25,7 @@ function scannedFile(overrides: Partial<ScannedFile> = {}): ScannedFile {
 }
 
 beforeEach(async () => {
-  client = await DuckDbClient.open(':memory:')
+  client = await SqliteClient.open(':memory:')
   await runMigrations(client)
   repository = new ModelFileRepository(client)
 })
@@ -203,7 +203,7 @@ describe('ModelFileRepository', () => {
   })
 
   test('deletes failed model files and their child rows without touching indexed files', async () => {
-    const geometry = new GeometryMetadataRepository(client)
+    const geometry = new GeometryMetadataRepository(client as any)
     const failed = await repository.upsertModelFile(
       scannedFile({ absolutePath: '/models/bad.stl', relativePath: 'bad.stl', filename: 'bad.stl' }),
       PROJECT_ID,

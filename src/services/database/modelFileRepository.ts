@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import path from 'node:path'
 import type { ModelFile, ModelFileStatus, ScannedFile, SupportedModelExtension } from '@/types/modelFile'
 import type { DuckDbClient } from './duckdbClient'
+import { SqliteClient } from './sqliteClient'
 
 type ModelFileRow = {
   id: string
@@ -36,9 +37,15 @@ function toModelFile(row: ModelFileRow): ModelFile {
     filename: row.filename,
     extension: row.extension as SupportedModelExtension,
     sizeBytes: Number(row.size_bytes),
-    modifiedAt: new Date(`${row.modified_at}Z`).toISOString(),
+    modifiedAt: row.modified_at.endsWith('Z')
+      ? new Date(row.modified_at).toISOString()
+      : new Date(`${row.modified_at}Z`).toISOString(),
     contentHash: row.content_hash,
-    indexedAt: row.indexed_at ? new Date(`${row.indexed_at}Z`).toISOString() : undefined,
+    indexedAt: row.indexed_at
+      ? row.indexed_at.endsWith('Z')
+        ? new Date(row.indexed_at).toISOString()
+        : new Date(`${row.indexed_at}Z`).toISOString()
+      : undefined,
     status: row.status as ModelFileStatus,
     errorMessage: row.error_message ?? undefined,
   }
@@ -51,10 +58,11 @@ function toDbTimestamp(isoString: string): string {
 
 function isAbsolutePathUniqueViolation(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error)
+  const code = error && typeof error === 'object' && 'code' in error ? String((error as any).code) : ''
   return (
-    message.includes('Duplicate key') &&
-    message.includes('absolute_path') &&
-    message.includes('unique constraint')
+    (message.includes('UNIQUE constraint failed') && message.includes('absolute_path')) ||
+    (code === 'SQLITE_CONSTRAINT_UNIQUE' && message.includes('absolute_path')) ||
+    (message.includes('Duplicate key') && message.includes('absolute_path'))
   )
 }
 
@@ -65,7 +73,11 @@ function isAbsolutePathUniqueViolation(error: unknown): boolean {
 export class ModelFileRepository {
   private static readonly upsertLocks = new Map<string, Promise<void>>()
 
-  constructor(private readonly client: DuckDbClient) {}
+  constructor(private readonly client: SqliteClient | DuckDbClient) {}
+
+  private get isSqlite(): boolean {
+    return 'rawDb' in this.client
+  }
 
   /**
    * Inserts a newly discovered file or updates an existing record (matched
@@ -137,53 +149,100 @@ export class ModelFileRepository {
       return existing
     }
 
-    await this.client.run(
-      `UPDATE model_files SET
-         relative_path = $relativePath,
-         filename = $filename,
-         size_bytes = $sizeBytes,
-         modified_at = $modifiedAt::TIMESTAMP,
-         content_hash = $contentHash,
-         status = 'pending',
-         error_message = NULL,
-         indexed_at = NULL,
-         updated_at = now()
-       WHERE id = $id`,
-      {
-        id: existing.id,
-        relativePath: file.relativePath,
-        filename: file.filename,
-        sizeBytes: file.sizeBytes,
-        modifiedAt: toDbTimestamp(file.modifiedAt),
-        contentHash: file.contentHash,
-      },
-    )
+    if (this.isSqlite) {
+      await this.client.run(
+        `UPDATE model_files SET
+           relative_path = @relativePath,
+           filename = @filename,
+           size_bytes = @sizeBytes,
+           modified_at = @modifiedAt,
+           content_hash = @contentHash,
+           status = 'pending',
+           error_message = NULL,
+           indexed_at = NULL,
+           updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+         WHERE id = @id`,
+        {
+          id: existing.id,
+          relativePath: file.relativePath,
+          filename: file.filename,
+          sizeBytes: file.sizeBytes,
+          modifiedAt: file.modifiedAt,
+          contentHash: file.contentHash,
+        },
+      )
+    } else {
+      await this.client.run(
+        `UPDATE model_files SET
+           relative_path = $relativePath,
+           filename = $filename,
+           size_bytes = $sizeBytes,
+           modified_at = $modifiedAt::TIMESTAMP,
+           content_hash = $contentHash,
+           status = 'pending',
+           error_message = NULL,
+           indexed_at = NULL,
+           updated_at = now()
+         WHERE id = $id`,
+        {
+          id: existing.id,
+          relativePath: file.relativePath,
+          filename: file.filename,
+          sizeBytes: file.sizeBytes,
+          modifiedAt: toDbTimestamp(file.modifiedAt),
+          contentHash: file.contentHash,
+        },
+      )
+    }
     return (await this.findById(existing.id))!
   }
 
   private async insertModelFile(file: ScannedFile, projectId: string): Promise<ModelFile> {
     const id = randomUUID()
     try {
-      await this.client.run(
-        `INSERT INTO model_files (
-           id, project_id, absolute_path, relative_path, filename, extension,
-           size_bytes, modified_at, content_hash, status
-         ) VALUES (
-           $id, $projectId, $absolutePath, $relativePath, $filename, $extension,
-           $sizeBytes, $modifiedAt::TIMESTAMP, $contentHash, 'pending'
-         )`,
-        {
-          id,
-          projectId,
-          absolutePath: file.absolutePath,
-          relativePath: file.relativePath,
-          filename: file.filename,
-          extension: file.extension,
-          sizeBytes: file.sizeBytes,
-          modifiedAt: toDbTimestamp(file.modifiedAt),
-          contentHash: file.contentHash,
-        },
-      )
+      if (this.isSqlite) {
+        await this.client.run(
+          `INSERT INTO model_files (
+             id, project_id, absolute_path, relative_path, filename, extension,
+             size_bytes, modified_at, content_hash, status
+           ) VALUES (
+             @id, @projectId, @absolutePath, @relativePath, @filename, @extension,
+             @sizeBytes, @modifiedAt, @contentHash, 'pending'
+           )`,
+          {
+            id,
+            projectId,
+            absolutePath: file.absolutePath,
+            relativePath: file.relativePath,
+            filename: file.filename,
+            extension: file.extension,
+            sizeBytes: file.sizeBytes,
+            modifiedAt: file.modifiedAt,
+            contentHash: file.contentHash,
+          },
+        )
+      } else {
+        await this.client.run(
+          `INSERT INTO model_files (
+             id, project_id, absolute_path, relative_path, filename, extension,
+             size_bytes, modified_at, content_hash, status
+           ) VALUES (
+             $id, $projectId, $absolutePath, $relativePath, $filename, $extension,
+             $sizeBytes, $modifiedAt::TIMESTAMP, $contentHash, 'pending'
+           )`,
+          {
+            id,
+            projectId,
+            absolutePath: file.absolutePath,
+            relativePath: file.relativePath,
+            filename: file.filename,
+            extension: file.extension,
+            sizeBytes: file.sizeBytes,
+            modifiedAt: toDbTimestamp(file.modifiedAt),
+            contentHash: file.contentHash,
+          },
+        )
+      }
     } catch (error) {
       if (!isAbsolutePathUniqueViolation(error)) {
         throw error
@@ -198,35 +257,55 @@ export class ModelFileRepository {
   }
 
   async findByPath(absolutePath: string): Promise<ModelFile | undefined> {
-    const rows = await this.client.all<ModelFileRow>(
-      `SELECT ${SELECT_COLUMNS} FROM model_files WHERE absolute_path = $absolutePath`,
-      { absolutePath },
-    )
+    const rows = this.isSqlite
+      ? await this.client.all<ModelFileRow>(
+          `SELECT ${SELECT_COLUMNS} FROM model_files WHERE absolute_path = @absolutePath`,
+          { absolutePath },
+        )
+      : await this.client.all<ModelFileRow>(
+          `SELECT ${SELECT_COLUMNS} FROM model_files WHERE absolute_path = $absolutePath`,
+          { absolutePath },
+        )
     return rows.length > 0 ? toModelFile(rows[0]) : undefined
   }
 
   async findById(id: string): Promise<ModelFile | undefined> {
-    const rows = await this.client.all<ModelFileRow>(
-      `SELECT ${SELECT_COLUMNS} FROM model_files WHERE id = $id`,
-      { id },
-    )
+    const rows = this.isSqlite
+      ? await this.client.all<ModelFileRow>(
+          `SELECT ${SELECT_COLUMNS} FROM model_files WHERE id = @id`,
+          { id },
+        )
+      : await this.client.all<ModelFileRow>(
+          `SELECT ${SELECT_COLUMNS} FROM model_files WHERE id = $id`,
+          { id },
+        )
     return rows.length > 0 ? toModelFile(rows[0]) : undefined
   }
 
   async findByHash(contentHash: string): Promise<ModelFile[]> {
-    const rows = await this.client.all<ModelFileRow>(
-      `SELECT ${SELECT_COLUMNS} FROM model_files WHERE content_hash = $contentHash ORDER BY absolute_path`,
-      { contentHash },
-    )
+    const rows = this.isSqlite
+      ? await this.client.all<ModelFileRow>(
+          `SELECT ${SELECT_COLUMNS} FROM model_files WHERE content_hash = @contentHash ORDER BY absolute_path`,
+          { contentHash },
+        )
+      : await this.client.all<ModelFileRow>(
+          `SELECT ${SELECT_COLUMNS} FROM model_files WHERE content_hash = $contentHash ORDER BY absolute_path`,
+          { contentHash },
+        )
     return rows.map(toModelFile)
   }
 
   async listModelFiles(projectId?: string): Promise<ModelFile[]> {
     const rows = projectId
-      ? await this.client.all<ModelFileRow>(
-          `SELECT ${SELECT_COLUMNS} FROM model_files WHERE project_id = $projectId ORDER BY relative_path`,
-          { projectId },
-        )
+      ? this.isSqlite
+        ? await this.client.all<ModelFileRow>(
+            `SELECT ${SELECT_COLUMNS} FROM model_files WHERE project_id = @projectId ORDER BY relative_path`,
+            { projectId },
+          )
+        : await this.client.all<ModelFileRow>(
+            `SELECT ${SELECT_COLUMNS} FROM model_files WHERE project_id = $projectId ORDER BY relative_path`,
+            { projectId },
+          )
       : await this.client.all<ModelFileRow>(
           `SELECT ${SELECT_COLUMNS} FROM model_files ORDER BY relative_path`,
         )
@@ -235,11 +314,17 @@ export class ModelFileRepository {
 
   async listPendingFiles(projectId?: string): Promise<ModelFile[]> {
     const rows = projectId
-      ? await this.client.all<ModelFileRow>(
-          `SELECT ${SELECT_COLUMNS} FROM model_files
-           WHERE status = 'pending' AND project_id = $projectId ORDER BY relative_path`,
-          { projectId },
-        )
+      ? this.isSqlite
+        ? await this.client.all<ModelFileRow>(
+            `SELECT ${SELECT_COLUMNS} FROM model_files
+             WHERE status = 'pending' AND project_id = @projectId ORDER BY relative_path`,
+            { projectId },
+          )
+        : await this.client.all<ModelFileRow>(
+            `SELECT ${SELECT_COLUMNS} FROM model_files
+             WHERE status = 'pending' AND project_id = $projectId ORDER BY relative_path`,
+            { projectId },
+          )
       : await this.client.all<ModelFileRow>(
           `SELECT ${SELECT_COLUMNS} FROM model_files WHERE status = 'pending' ORDER BY relative_path`,
         )
@@ -247,12 +332,24 @@ export class ModelFileRepository {
   }
 
   async markIndexed(id: string): Promise<void> {
-    await this.client.run(
-      `UPDATE model_files SET
-         status = 'indexed', indexed_at = now(), error_message = NULL, updated_at = now()
-       WHERE id = $id`,
-      { id },
-    )
+    if (this.isSqlite) {
+      await this.client.run(
+        `UPDATE model_files SET
+           status = 'indexed',
+           indexed_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
+           error_message = NULL,
+           updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+         WHERE id = @id`,
+        { id },
+      )
+    } else {
+      await this.client.run(
+        `UPDATE model_files SET
+           status = 'indexed', indexed_at = now(), error_message = NULL, updated_at = now()
+         WHERE id = $id`,
+        { id },
+      )
+    }
   }
 
   /**
@@ -265,18 +362,33 @@ export class ModelFileRepository {
     location: { absolutePath: string; relativePath: string; filename: string },
   ): Promise<void> {
     await this.updateAbsolutePath(id, location.absolutePath)
-    await this.client.run(
-      `UPDATE model_files SET
-         relative_path = $relativePath,
-         filename = $filename,
-         updated_at = now()
-       WHERE id = $id`,
-      {
-        id,
-        relativePath: location.relativePath,
-        filename: location.filename,
-      },
-    )
+    if (this.isSqlite) {
+      await this.client.run(
+        `UPDATE model_files SET
+           relative_path = @relativePath,
+           filename = @filename,
+           updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+         WHERE id = @id`,
+        {
+          id,
+          relativePath: location.relativePath,
+          filename: location.filename,
+        },
+      )
+    } else {
+      await this.client.run(
+        `UPDATE model_files SET
+           relative_path = $relativePath,
+           filename = $filename,
+           updated_at = now()
+         WHERE id = $id`,
+        {
+          id,
+          relativePath: location.relativePath,
+          filename: location.filename,
+        },
+      )
+    }
   }
 
   /**
@@ -286,22 +398,41 @@ export class ModelFileRepository {
    */
   async relocateModelFile(id: string, file: ScannedFile): Promise<void> {
     await this.updateAbsolutePath(id, file.absolutePath)
-    await this.client.run(
-      `UPDATE model_files SET
-         relative_path = $relativePath,
-         filename = $filename,
-         size_bytes = $sizeBytes,
-         modified_at = $modifiedAt::TIMESTAMP,
-         updated_at = now()
-       WHERE id = $id`,
-      {
-        id,
-        relativePath: file.relativePath,
-        filename: file.filename,
-        sizeBytes: file.sizeBytes,
-        modifiedAt: toDbTimestamp(file.modifiedAt),
-      },
-    )
+    if (this.isSqlite) {
+      await this.client.run(
+        `UPDATE model_files SET
+           relative_path = @relativePath,
+           filename = @filename,
+           size_bytes = @sizeBytes,
+           modified_at = @modifiedAt,
+           updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+         WHERE id = @id`,
+        {
+          id,
+          relativePath: file.relativePath,
+          filename: file.filename,
+          sizeBytes: file.sizeBytes,
+          modifiedAt: file.modifiedAt,
+        },
+      )
+    } else {
+      await this.client.run(
+        `UPDATE model_files SET
+           relative_path = $relativePath,
+           filename = $filename,
+           size_bytes = $sizeBytes,
+           modified_at = $modifiedAt::TIMESTAMP,
+           updated_at = now()
+         WHERE id = $id`,
+        {
+          id,
+          relativePath: file.relativePath,
+          filename: file.filename,
+          sizeBytes: file.sizeBytes,
+          modifiedAt: toDbTimestamp(file.modifiedAt),
+        },
+      )
+    }
   }
 
   /**
@@ -310,13 +441,14 @@ export class ModelFileRepository {
    * cascades, so each table is cleared explicitly.
    */
   async deleteModelFile(id: string): Promise<void> {
-    await this.client.run('DELETE FROM geometry_metadata WHERE model_file_id = $id', { id })
-    await this.client.run('DELETE FROM three_mf_metadata WHERE model_file_id = $id', { id })
-    await this.client.run('DELETE FROM model_render_assets WHERE model_file_id = $id', { id })
-    await this.client.run('DELETE FROM ai_model_descriptions WHERE model_file_id = $id', { id })
-    await this.client.run('DELETE FROM model_embeddings WHERE model_file_id = $id', { id })
-    await this.client.run('DELETE FROM indexing_jobs WHERE model_file_id = $id', { id })
-    await this.client.run('DELETE FROM model_files WHERE id = $id', { id })
+    const param = this.isSqlite ? '@id' : '$id'
+    await this.client.run(`DELETE FROM geometry_metadata WHERE model_file_id = ${param}`, { id })
+    await this.client.run(`DELETE FROM three_mf_metadata WHERE model_file_id = ${param}`, { id })
+    await this.client.run(`DELETE FROM model_render_assets WHERE model_file_id = ${param}`, { id })
+    await this.client.run(`DELETE FROM ai_model_descriptions WHERE model_file_id = ${param}`, { id })
+    await this.client.run(`DELETE FROM model_embeddings WHERE model_file_id = ${param}`, { id })
+    await this.client.run(`DELETE FROM indexing_jobs WHERE model_file_id = ${param}`, { id })
+    await this.client.run(`DELETE FROM model_files WHERE id = ${param}`, { id })
   }
 
   /**
@@ -325,12 +457,19 @@ export class ModelFileRepository {
    */
   async deleteFailedModelFiles(projectId?: string): Promise<string[]> {
     const rows = projectId
-      ? await this.client.all<{ id: string }>(
-          `SELECT id FROM model_files
-           WHERE status = 'failed' AND project_id = $projectId
-           ORDER BY relative_path`,
-          { projectId },
-        )
+      ? this.isSqlite
+        ? await this.client.all<{ id: string }>(
+            `SELECT id FROM model_files
+             WHERE status = 'failed' AND project_id = @projectId
+             ORDER BY relative_path`,
+            { projectId },
+          )
+        : await this.client.all<{ id: string }>(
+            `SELECT id FROM model_files
+             WHERE status = 'failed' AND project_id = $projectId
+             ORDER BY relative_path`,
+            { projectId },
+          )
       : await this.client.all<{ id: string }>(
           `SELECT id FROM model_files
            WHERE status = 'failed'
@@ -344,12 +483,24 @@ export class ModelFileRepository {
 
   /** Forces a file back to 'pending' so the next indexing run reprocesses it. */
   async resetToPending(id: string): Promise<void> {
-    await this.client.run(
-      `UPDATE model_files SET
-         status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()
-       WHERE id = $id`,
-      { id },
-    )
+    if (this.isSqlite) {
+      await this.client.run(
+        `UPDATE model_files SET
+           status = 'pending',
+           error_message = NULL,
+           indexed_at = NULL,
+           updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+         WHERE id = @id`,
+        { id },
+      )
+    } else {
+      await this.client.run(
+        `UPDATE model_files SET
+           status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()
+         WHERE id = $id`,
+        { id },
+      )
+    }
   }
 
   /**
@@ -358,28 +509,59 @@ export class ModelFileRepository {
    */
   async resetAllToPending(projectId?: string): Promise<void> {
     if (projectId) {
-      await this.client.run(
-        `UPDATE model_files SET
-           status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()
-         WHERE project_id = $projectId`,
-        { projectId },
-      )
+      if (this.isSqlite) {
+        await this.client.run(
+          `UPDATE model_files SET
+             status = 'pending',
+             error_message = NULL,
+             indexed_at = NULL,
+             updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+           WHERE project_id = @projectId`,
+          { projectId },
+        )
+      } else {
+        await this.client.run(
+          `UPDATE model_files SET
+             status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()
+           WHERE project_id = $projectId`,
+          { projectId },
+        )
+      }
       return
     }
-    await this.client.run(
-      `UPDATE model_files SET
-         status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()`,
-    )
+    if (this.isSqlite) {
+      await this.client.run(
+        `UPDATE model_files SET
+           status = 'pending',
+           error_message = NULL,
+           indexed_at = NULL,
+           updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
+      )
+    } else {
+      await this.client.run(
+        `UPDATE model_files SET
+           status = 'pending', error_message = NULL, indexed_at = NULL, updated_at = now()`,
+      )
+    }
   }
 
   async markFailed(id: string, errorMessage: string): Promise<void> {
     const update = () =>
-      this.client.run(
-        `UPDATE model_files SET
-           status = 'failed', error_message = $errorMessage, updated_at = now()
-         WHERE id = $id`,
-        { id, errorMessage },
-      )
+      this.isSqlite
+        ? this.client.run(
+            `UPDATE model_files SET
+               status = 'failed',
+               error_message = @errorMessage,
+               updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+             WHERE id = @id`,
+            { id, errorMessage },
+          )
+        : this.client.run(
+            `UPDATE model_files SET
+               status = 'failed', error_message = $errorMessage, updated_at = now()
+             WHERE id = $id`,
+            { id, errorMessage },
+          )
 
     try {
       await update()
@@ -429,14 +611,25 @@ export class ModelFileRepository {
 
   private async repairAbsolutePathIndex(id: string, absolutePath: string): Promise<void> {
     const tempPath = `__meshnest_path_${id}__`
-    await this.client.run(
-      `UPDATE model_files SET absolute_path = $tempPath, updated_at = now() WHERE id = $id`,
-      { id, tempPath },
-    )
-    await this.client.run(
-      `UPDATE model_files SET absolute_path = $absolutePath, updated_at = now() WHERE id = $id`,
-      { id, absolutePath },
-    )
+    if (this.isSqlite) {
+      await this.client.run(
+        `UPDATE model_files SET absolute_path = @tempPath, updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE id = @id`,
+        { id, tempPath },
+      )
+      await this.client.run(
+        `UPDATE model_files SET absolute_path = @absolutePath, updated_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE id = @id`,
+        { id, absolutePath },
+      )
+    } else {
+      await this.client.run(
+        `UPDATE model_files SET absolute_path = $tempPath, updated_at = now() WHERE id = $id`,
+        { id, tempPath },
+      )
+      await this.client.run(
+        `UPDATE model_files SET absolute_path = $absolutePath, updated_at = now() WHERE id = $id`,
+        { id, absolutePath },
+      )
+    }
   }
 
   /**
