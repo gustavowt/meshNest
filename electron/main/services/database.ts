@@ -1,8 +1,10 @@
-import { rename } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { rename, rm } from 'node:fs/promises'
 import { SqliteClient } from '../../../src/services/database/sqliteClient'
 import { ensureEmbeddingTable } from '../../../src/services/database/embeddingTable'
 import { runMigrations } from '../../../src/services/database/migrations'
-import { getDatabasePath } from './appDataPaths'
+import { getDatabasePath, getLegacyDuckDbPath } from './appDataPaths'
+import { migrateDuckDbToSqlite } from './duckdbMigration'
 import { getProviderSettings } from './providerSettings'
 
 let clientPromise: Promise<SqliteClient> | null = null
@@ -56,14 +58,39 @@ async function retryOnBusy<T>(fn: () => Promise<T> | T, maxRetries = 5): Promise
  */
 export function getDatabaseClient(): Promise<SqliteClient> {
   if (!clientPromise) {
-    clientPromise = openDatabaseClient()
+    clientPromise = openDatabaseClient().catch((err) => {
+      clientPromise = null
+      throw err
+    })
   }
   return clientPromise
 }
 
 async function openDatabaseClient(): Promise<SqliteClient> {
-  const client = await SqliteClient.open(getDatabasePath())
+  const databasePath = getDatabasePath()
+  const legacyDuckDbPath = getLegacyDuckDbPath()
+  const sqliteExisted = existsSync(databasePath)
+
+  const client = await SqliteClient.open(databasePath)
   await runMigrations(client)
+
+  if (!sqliteExisted && existsSync(legacyDuckDbPath)) {
+    try {
+      await migrateDuckDbToSqlite({
+        duckdbPath: legacyDuckDbPath,
+        sqliteClient: client,
+      })
+    } catch (error) {
+      try {
+        await client.close()
+      } catch {
+        // ignore close error
+      }
+      await removeFailedDatabaseFiles(databasePath)
+      throw error
+    }
+  }
+
   // Reconcile the embeddings table with the configured embedding
   // dimensions (the initial migration creates it with a default size).
   const settings = getProviderSettings()
@@ -169,3 +196,38 @@ export function isFatalDatabaseError(error: unknown): boolean {
 export function formatDatabaseBackupTimestamp(date: Date): string {
   return date.toISOString().replace(/[:.]/g, '-')
 }
+
+export async function removeFailedDatabaseFiles(databasePath: string): Promise<void> {
+  const companionFiles = [
+    databasePath,
+    `${databasePath}-wal`,
+    `${databasePath}.wal`,
+    `${databasePath}-shm`,
+    `${databasePath}.shm`,
+  ]
+  for (const file of companionFiles) {
+    try {
+      await rm(file, { force: true })
+    } catch (error) {
+      if (isNodeError(error) && error.code === 'ENOENT') {
+        continue
+      }
+      throw error
+    }
+  }
+}
+
+export async function _resetDatabaseStateForTests(): Promise<void> {
+  if (activeClient) {
+    try {
+      await activeClient.close()
+    } catch {
+      // ignore
+    }
+  }
+  clientPromise = null
+  activeClient = null
+  activeGeneration = 0
+  recoveryPromise = null
+}
+
