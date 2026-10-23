@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { LibraryRepository } from '@/services/database/libraryRepository'
 import { runMigrations } from '@/services/database/migrations'
 import { indexModelFile } from '@/services/indexing/indexModelFile'
@@ -20,7 +20,7 @@ const PROJECT_ID = 'project-1'
 
 let filesDir: string
 let rendersDir: string
-let client: DuckDbClient
+let client: SqliteClient
 let repository: LibraryRepository
 
 beforeAll(() => {
@@ -34,7 +34,7 @@ afterAll(() => {
 })
 
 beforeEach(async () => {
-  client = await DuckDbClient.open(':memory:')
+  client = await SqliteClient.open(':memory:')
   await runMigrations(client)
   repository = new LibraryRepository(client)
 })
@@ -45,8 +45,10 @@ afterEach(async () => {
 
 async function indexFixture(filename: string, content: Uint8Array | string) {
   const file = writeScannedFile(filesDir, filename, content)
+  const backend = createTestBackend(client as any, rendersDir)
+  backend.storeEmbedding = async () => {}
   return indexModelFile(file, PROJECT_ID, {
-    backend: createTestBackend(client, rendersDir),
+    backend,
     visionProvider: new MockVisionProvider(),
     embeddingProvider: new MockEmbeddingProvider(),
     renderViews: fakeRenderViews,
