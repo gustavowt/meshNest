@@ -33,6 +33,9 @@ beforeEach(() => {
   resetLibraryStore()
   resetSearchStore()
   resetSettingsStore()
+  window.meshNest = {
+    onDirectoryWatchEvent: () => () => {},
+  } as any
 })
 
 afterEach(() => {
@@ -49,6 +52,7 @@ describe('LibraryPage.vue', () => {
     window.meshNest = {
       listLibraryEntries: async () => mockEntries,
       countEmbeddings: async () => 2,
+      onDirectoryWatchEvent: () => () => {},
     } as any
 
     const settingsStore = useSettingsStore()
@@ -129,6 +133,7 @@ describe('LibraryPage.vue', () => {
           score: 0.55, // Should be filtered out because it is < 60% (0.6)
         },
       ],
+      onDirectoryWatchEvent: () => () => {},
     } as any
 
     const settingsStore = useSettingsStore()
@@ -201,6 +206,7 @@ describe('LibraryPage.vue', () => {
     window.meshNest = {
       listLibraryEntries: async () => mockEntries,
       countEmbeddings: async () => 1,
+      onDirectoryWatchEvent: () => () => {},
     } as any
 
     const settingsStore = useSettingsStore()

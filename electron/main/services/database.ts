@@ -1,5 +1,5 @@
 import { rename } from 'node:fs/promises'
-import { DuckDbClient } from '../../../src/services/database/duckdbClient'
+import { DuckDbClient } from './duckdbClient'
 import { ensureEmbeddingTable } from '../../../src/services/database/embeddingTable'
 import { runMigrations } from '../../../src/services/database/migrations'
 import { getDatabasePath } from './appDataPaths'
