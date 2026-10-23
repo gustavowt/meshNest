@@ -1,16 +1,14 @@
 import type { DuckDbClient } from './duckdbClient'
+import { ensureVecTable } from './migrations'
+import { SqliteClient } from './sqliteClient'
 
 /**
- * The model_embeddings table stores fixed-size FLOAT arrays (required by
- * the HNSW index when VSS is available), so its column type depends on the
- * active embedding provider. This module inspects and rebuilds the table
- * when the configured dimensions change. Rebuilding drops all stored
- * embeddings: vectors from different providers/models live in different
- * spaces and must be regenerated anyway.
+ * In SQLite, embeddings are stored in `model_embeddings` with flexible dimensions,
+ * backed by per-dimension sqlite-vec virtual tables (`vec_model_embeddings_${dimensions}`)
+ * for vector similarity search.
  *
- * HNSW is optional: when `client.vssAvailable` is false (e.g. Mac App Store),
- * the table is created without an HNSW index and search uses brute-force
- * `array_cosine_distance`.
+ * For DuckDB legacy fallback, the table stores fixed-size FLOAT arrays and is
+ * rebuilt when dimensions change.
  */
 
 export function buildEmbeddingTableSql(dimensions: number): string {
@@ -31,10 +29,24 @@ CREATE INDEX IF NOT EXISTS idx_model_embeddings_hnsw
 ON model_embeddings USING HNSW (embedding)
 WITH (metric = 'cosine');`
 
-/** Reads the FLOAT[N] size of the embedding column, if the table exists. */
+/** Reads the FLOAT[N] size of the embedding column, or active dimensions in SQLite. */
 export async function getEmbeddingTableDimensions(
-  client: DuckDbClient,
+  client: SqliteClient | DuckDbClient,
 ): Promise<number | undefined> {
+  if ('rawDb' in client) {
+    try {
+      const rows = await client.all<{ dimensions: number }>(
+        'SELECT dimensions FROM model_embeddings ORDER BY created_at DESC LIMIT 1',
+      )
+      if (rows.length > 0 && rows[0].dimensions != null) {
+        return Number(rows[0].dimensions)
+      }
+      return 1536
+    } catch {
+      return 1536
+    }
+  }
+
   const rows = await client.all<{ data_type: string }>(
     `SELECT data_type FROM information_schema.columns
      WHERE table_name = 'model_embeddings' AND column_name = 'embedding'`,
@@ -47,17 +59,28 @@ export async function getEmbeddingTableDimensions(
 }
 
 /**
- * Makes sure model_embeddings stores vectors of the given size,
- * dropping and recreating the table (and its HNSW index when VSS is
- * available) when the size differs. Returns whether a rebuild happened.
+ * Makes sure the embedding table/virtual table is ready for the given dimensions.
+ *
+ * In SQLite: creates the per-dimension vec0 table if sqlite-vec is available.
+ * Never drops tables or rows, and always returns { rebuilt: false }.
+ *
+ * In DuckDB: drops and recreates model_embeddings when the column width differs.
  */
 export async function ensureEmbeddingTable(
-  client: DuckDbClient,
+  client: SqliteClient | DuckDbClient,
   dimensions: number,
 ): Promise<{ rebuilt: boolean }> {
   if (dimensions <= 0) {
     return { rebuilt: false }
   }
+
+  if ('rawDb' in client) {
+    if (client.vecAvailable) {
+      await ensureVecTable(client, dimensions)
+    }
+    return { rebuilt: false }
+  }
+
   const current = await getEmbeddingTableDimensions(client)
   if (current === dimensions) {
     return { rebuilt: false }
@@ -76,6 +99,6 @@ export async function ensureEmbeddingTable(
 }
 
 /** Clears all embeddings without changing the table shape. */
-export async function clearEmbeddings(client: DuckDbClient): Promise<void> {
+export async function clearEmbeddings(client: SqliteClient | DuckDbClient): Promise<void> {
   await client.run('DELETE FROM model_embeddings')
 }
