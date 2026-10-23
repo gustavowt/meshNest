@@ -137,15 +137,28 @@ export class SearchRepository {
     queryEmbedding: number[],
     options: SemanticSearchOptions = {},
   ): Promise<SearchResult[]> {
-    const tableDimensions = await getEmbeddingTableDimensions(this.client)
-    if (tableDimensions !== undefined && queryEmbedding.length !== tableDimensions) {
-      throw new Error(`Embedding has ${queryEmbedding.length} dimensions but expected ${tableDimensions}`)
-    }
     if ((await this.countEmbeddings()) === 0) {
       throw new NoEmbeddingsError()
     }
 
     const dims = queryEmbedding.length
+    if (dims <= 0) {
+      throw new Error('Query embedding must not be empty')
+    }
+
+    const tableDimensions = await getEmbeddingTableDimensions(this.client)
+    if (tableDimensions !== undefined && dims !== tableDimensions) {
+      const dimCount = await this.client.all<{ c: number }>(
+        'SELECT count(*) AS c FROM model_embeddings WHERE dimensions = ?',
+        [dims],
+      )
+      if ((dimCount[0]?.c ?? 0) === 0) {
+        throw new Error(
+          `Embedding has ${dims} dimensions but database has embeddings with ${tableDimensions} dimensions`,
+        )
+      }
+    }
+
     const vecTable = getVecTableName(dims)
     const tableExists = await this.client.all<{ name: string }>(
       "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",

@@ -7,7 +7,7 @@ import type { SqliteClient } from './sqliteClient'
  * for vector similarity search.
  */
 
-/** Reads the active dimensions from the most recently stored embedding in SQLite, or default 1536. */
+/** Reads the active dimensions from the most recently stored embedding in SQLite, or undefined if no embeddings exist. */
 export async function getEmbeddingTableDimensions(
   client: SqliteClient,
 ): Promise<number | undefined> {
@@ -18,9 +18,9 @@ export async function getEmbeddingTableDimensions(
     if (rows.length > 0 && rows[0].dimensions != null) {
       return Number(rows[0].dimensions)
     }
-    return 1536
+    return undefined
   } catch {
-    return 1536
+    return undefined
   }
 }
 

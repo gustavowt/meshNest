@@ -131,8 +131,8 @@ describe('embedding table (sqlite-vec)', () => {
     }
   })
 
-  test('getEmbeddingTableDimensions returns default 1536 or most recent row dimensions', async () => {
-    expect(await getEmbeddingTableDimensions(client)).toBe(1536)
+  test('getEmbeddingTableDimensions returns undefined when empty or most recent row dimensions', async () => {
+    expect(await getEmbeddingTableDimensions(client)).toBeUndefined()
 
     const files = new ModelFileRepository(client)
     const repository = new EmbeddingRepository(client)
