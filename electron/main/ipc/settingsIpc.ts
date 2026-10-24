@@ -8,6 +8,10 @@ import type {
   ProviderSettings,
   VisionSettings,
 } from '../../../src/types/providerSettings'
+import {
+  getBuiltinEmbeddingProbeResult,
+  isBuiltinEmbeddingAvailable,
+} from '../services/builtinEmbedding'
 import { getProviderSettings, saveProviderSettings, syncProviderSettings } from '../services/providerSettings'
 
 export function registerSettingsIpc(): void {
@@ -23,11 +27,33 @@ export function registerSettingsIpc(): void {
     syncProviderSettings(settings)
   })
 
+  ipcMain.handle('settings:isBuiltinEmbeddingAvailable', async () => {
+    return isBuiltinEmbeddingAvailable()
+  })
+
+  ipcMain.handle('settings:testBuiltinEmbedding', async () => {
+    const probe = getBuiltinEmbeddingProbeResult()
+    return {
+      ok: probe.available,
+      reason: probe.reason,
+    }
+  })
+
   ipcMain.handle('settings:testVisionProvider', async (_event, settings: VisionSettings) => {
     return testVisionConnection(settings)
   })
 
   ipcMain.handle('settings:testEmbeddingProvider', async (_event, settings: EmbeddingSettings) => {
+    if (settings.provider === 'builtin') {
+      const probe = getBuiltinEmbeddingProbeResult()
+      if (!probe.available) {
+        return {
+          ok: false,
+          message:
+            'Built-in embedding cannot load on this macOS version (requires macOS 13.3+). Choose Ollama or an API provider instead.',
+        }
+      }
+    }
     return testEmbeddingConnection(settings)
   })
 

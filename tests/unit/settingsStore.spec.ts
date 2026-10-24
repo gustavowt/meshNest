@@ -112,4 +112,39 @@ describe('settingsStore', () => {
     expect(store.state.dirty).toBe(false)
     expect(store.state.visionTest?.message).toBe('Model responded successfully.')
   })
+
+  test('checks builtin embedding availability when loading settings', async () => {
+    window.meshNest = {
+      syncProviderSettings: vi.fn(async () => undefined),
+      isBuiltinEmbeddingAvailable: vi.fn(async () => false),
+    } as any
+
+    const store = useSettingsStore()
+    await store.loadSettings()
+
+    expect(window.meshNest.isBuiltinEmbeddingAvailable).toHaveBeenCalled()
+    expect(store.state.builtinEmbeddingAvailable).toBe(false)
+  })
+
+  test('reports builtin embedding test failure with warning when unavailable', async () => {
+    const settings = providerSettings()
+    settings.embedding.provider = 'builtin'
+
+    const store = useSettingsStore()
+    store.state.draft = settings
+    store.state.builtinEmbeddingAvailable = false
+
+    window.meshNest = {
+      testEmbeddingProvider: vi.fn(async () => ({
+        ok: false,
+        message:
+          'Built-in embedding cannot load on this macOS version (requires macOS 13.3+). Choose Ollama or an API provider instead.',
+      })),
+    } as any
+
+    await store.testEmbedding()
+
+    expect(store.state.embeddingTest?.ok).toBe(false)
+    expect(store.state.embeddingTest?.message).toContain('requires macOS 13.3+')
+  })
 })

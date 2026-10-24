@@ -7,7 +7,7 @@ import type {
 } from '../../../src/services/llm/visionProvider'
 import type { EmbeddingSettings, VisionSettings } from '../../../src/types/providerSettings'
 import { BuiltinEmbeddingProvider } from '../services/builtinEmbedding'
-import { getActiveEmbeddingProvider, reembedAllModels } from '../services/embeddingService'
+import { reembedAllModels } from '../services/embeddingService'
 import { getProviderSettings, resolveEffectiveEmbeddingSettings } from '../services/providerSettings'
 
 /**
