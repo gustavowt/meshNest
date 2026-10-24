@@ -30,11 +30,24 @@ export async function createBridgeEmbeddingProvider(
     throw new Error('Embedding provider bridge is only available in the desktop app.')
   }
   if (settings) {
+    let effective = settings
+    if (
+      settings.provider === 'builtin' &&
+      typeof window.meshNest.isBuiltinEmbeddingAvailable === 'function' &&
+      !(await window.meshNest.isBuiltinEmbeddingAvailable())
+    ) {
+      effective = {
+        provider: 'none',
+        model: '',
+        dimensions: 0,
+        useCloud: false,
+      }
+    }
     return new BridgeEmbeddingProvider(
-      settings.provider,
-      settings.model,
-      settings.dimensions,
-      settings,
+      effective.provider,
+      effective.model,
+      effective.dimensions,
+      effective,
     )
   }
   const active = await window.meshNest.getActiveEmbeddingProvider()
