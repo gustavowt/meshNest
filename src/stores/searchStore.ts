@@ -46,6 +46,19 @@ function patchResultPaths(
   )
 }
 
+export function formatSearchError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error)
+  if (
+    message.includes('dlopen') ||
+    message.includes('onnxruntime') ||
+    message.includes('to_chars') ||
+    message.includes('libc++')
+  ) {
+    return 'Embedding provider unavailable — configure Ollama or an API provider in Settings.'
+  }
+  return message
+}
+
 async function runSearch(query: string): Promise<void> {
   state.query = query
   if (query.trim().length === 0) {
@@ -62,17 +75,38 @@ async function runSearch(query: string): Promise<void> {
   state.loading = true
   state.error = null
   try {
+    const rawSettings = loadCachedProviderSettings()?.embedding
+    const isBuiltin = !rawSettings || rawSettings.provider === 'builtin'
+    if (
+      isBuiltin &&
+      typeof window.meshNest.isBuiltinEmbeddingAvailable === 'function' &&
+      !(await window.meshNest.isBuiltinEmbeddingAvailable())
+    ) {
+      state.results = []
+      state.searched = true
+      state.error =
+        'Embedding provider unavailable — configure Ollama or an API provider in Settings.'
+      return
+    }
+
+    const provider = await createBridgeEmbeddingProvider(rawSettings)
+    if (provider.name === 'none') {
+      state.results = []
+      state.searched = true
+      state.error =
+        'Embedding provider unavailable — configure Ollama or an API provider in Settings.'
+      return
+    }
+
     state.results = await semanticSearch(
       query,
-      createDesktopSearchDeps(
-        await createBridgeEmbeddingProvider(loadCachedProviderSettings()?.embedding),
-      ),
+      createDesktopSearchDeps(provider),
     )
     state.searched = true
   } catch (error) {
     state.results = []
     state.searched = true
-    state.error = error instanceof Error ? error.message : String(error)
+    state.error = formatSearchError(error)
   } finally {
     state.loading = false
   }

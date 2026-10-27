@@ -206,6 +206,7 @@
       "disabledTitle": "Quando está desativado",
       "disabledDesc": "Não há download, chamada a provedor nem trabalho de re-incorporação, mas a busca semântica não consegue ordenar modelos por significado até os embeddings serem ativados novamente.",
       "provider": "Provedor",
+      "builtinUnavailableWarning": "O embedding integrado não pode ser carregado nesta versão do macOS (requer macOS 13.3+). Escolha Ollama ou um provedor de API.",
       "useCloud": "Usar Modelos em Nuvem",
       "useCloudNote": "Requer conta Ollama paga",
       "modelSelection": "Seleção de Modelo",

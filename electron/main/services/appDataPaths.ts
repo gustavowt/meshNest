@@ -11,6 +11,10 @@ export function getAppDataRoot(): string {
 }
 
 export function getDatabasePath(): string {
+  return path.join(getAppDataRoot(), 'meshnest.sqlite')
+}
+
+export function getLegacyDuckDbPath(): string {
   return path.join(getAppDataRoot(), 'meshnest.duckdb')
 }
 

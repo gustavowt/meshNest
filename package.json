@@ -32,6 +32,9 @@
     ],
     "asarUnpack": [
       "**/node_modules/@duckdb/**",
+      "**/node_modules/better-sqlite3/**",
+      "**/node_modules/sqlite-vec/**",
+      "**/node_modules/sqlite-vec-*/**",
       "**/node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
       "**/node_modules/onnxruntime-node/dist/**",
       "**/node_modules/onnxruntime-node/package.json",
@@ -61,14 +64,17 @@
     "@capacitor/haptics": "8.0.2",
     "@capacitor/keyboard": "8.0.3",
     "@capacitor/status-bar": "8.0.2",
+    "//": "legacy data migration only — keep exactly one release (PLAN.md step 6)",
     "@duckdb/node-api": "^1.5.3-r.3",
     "@huggingface/transformers": "^4.2.0",
     "@ionic/vue": "^8.0.0",
     "@ionic/vue-router": "^8.0.0",
     "@xmldom/xmldom": "^0.9.10",
+    "better-sqlite3": "^13.0.3",
     "fast-xml-parser": "^5.8.0",
     "fflate": "^0.8.3",
     "ionicons": "^7.0.0",
+    "sqlite-vec": "^0.1.9",
     "three": "^0.184.0",
     "vue": "^3.3.0",
     "vue-i18n": "^11.4.5",
@@ -77,6 +83,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "8.4.0",
+    "@lancedb/lancedb": "0.22.3",
     "@types/three": "^0.184.1",
     "@vitejs/plugin-legacy": "^5.0.0",
     "@vitejs/plugin-vue": "^4.0.0",
@@ -95,5 +102,14 @@
     "vitest": "^0.34.6",
     "vue-tsc": "^2.1.10"
   },
-  "description": "An Ionic project"
+  "overrides": {
+    "@huggingface/transformers": {
+      "onnxruntime-node": "1.23.2"
+    }
+  },
+  "description": "An Ionic project",
+  "allowScripts": {
+    "esbuild@0.21.5": true,
+    "onnxruntime-node@1.24.3": true
+  }
 }

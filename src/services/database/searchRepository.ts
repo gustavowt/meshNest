@@ -1,9 +1,8 @@
-import { ARRAY, arrayValue, FLOAT } from '@duckdb/node-api'
 import type { SearchResult } from '@/types/search'
 import type { SupportedModelExtension } from '@/types/modelFile'
-import type { DuckDbClient } from './duckdbClient'
-import { EmbeddingDimensionError } from './embeddingRepository'
 import { getEmbeddingTableDimensions } from './embeddingTable'
+import { getVecTableName } from './schema'
+import type { SqliteClient } from './sqliteClient'
 
 export class NoEmbeddingsError extends Error {
   constructor() {
@@ -26,7 +25,7 @@ type SearchRow = {
   short_name: string | null
   description: string | null
   likely_category: string | null
-  tags: string[] | null
+  tags: string[] | string | null
   thumbnail_path: string | null
   distance: number
   rank_distance?: number
@@ -35,11 +34,11 @@ type SearchRow = {
 const DEFAULT_LIMIT = 20
 const MIN_TOKEN_LENGTH = 2
 
-const LEXICAL_FIELDS = [
+const SQLITE_LEXICAL_FIELDS = [
   { sql: 'mf.filename', weight: 0.05 },
   { sql: 'aid.short_name', weight: 0.1 },
-  { sql: "array_to_string(coalesce(aid.tags, []), ' ')", weight: 0.12 },
-  { sql: "array_to_string(coalesce(aid.search_phrases, []), ' ')", weight: 0.1 },
+  { sql: "coalesce(aid.tags, '')", weight: 0.12 },
+  { sql: "coalesce(aid.search_phrases, '')", weight: 0.1 },
   { sql: 'aid.description', weight: 0.04 },
   { sql: 'aid.likely_category', weight: 0.03 },
 ] as const
@@ -47,6 +46,17 @@ const LEXICAL_FIELDS = [
 function toSearchResult(row: SearchRow): SearchResult {
   const distance = Number(row.distance)
   const rankDistance = row.rank_distance === undefined ? distance : Number(row.rank_distance)
+  let tags: string[] = []
+  if (typeof row.tags === 'string') {
+    try {
+      const parsed = JSON.parse(row.tags)
+      tags = Array.isArray(parsed) ? parsed : []
+    } catch {
+      tags = []
+    }
+  } else if (Array.isArray(row.tags)) {
+    tags = row.tags
+  }
   return {
     modelFileId: row.model_file_id,
     filename: row.filename,
@@ -55,7 +65,7 @@ function toSearchResult(row: SearchRow): SearchResult {
     shortName: row.short_name ?? undefined,
     description: row.description ?? undefined,
     likelyCategory: row.likely_category ?? undefined,
-    tags: row.tags ?? [],
+    tags,
     thumbnailPath: row.thumbnail_path ?? undefined,
     distance,
     // Hybrid rank distance may include lexical boosts; clamp the displayed relevance.
@@ -89,7 +99,7 @@ function buildLexicalTerms(queryText?: string): string[] {
   return Array.from(terms)
 }
 
-function buildLexicalBoost(queryText?: string): {
+function buildLexicalBoostSqlite(queryText?: string): {
   sql: string
   params: Record<string, string>
 } {
@@ -103,10 +113,9 @@ function buildLexicalBoost(queryText?: string): {
   terms.forEach((term, termIndex) => {
     const paramName = `lexicalTerm${termIndex}`
     params[paramName] = `%${term}%`
-    for (const field of LEXICAL_FIELDS) {
+    for (const field of SQLITE_LEXICAL_FIELDS) {
       clauses.push(
-        `CASE WHEN lower(coalesce(${field.sql}, '')) LIKE $${paramName} ` +
-          `THEN ${field.weight} ELSE 0 END`,
+        `CASE WHEN lower(coalesce(${field.sql}, '')) LIKE :${paramName} THEN ${field.weight} ELSE 0 END`,
       )
     }
   })
@@ -122,67 +131,96 @@ function buildLexicalBoost(queryText?: string): {
  * needed to render result cards.
  */
 export class SearchRepository {
-  constructor(private readonly client: DuckDbClient) {}
+  constructor(private readonly client: SqliteClient) {}
 
   async searchByEmbedding(
     queryEmbedding: number[],
     options: SemanticSearchOptions = {},
   ): Promise<SearchResult[]> {
-    const tableDimensions = await getEmbeddingTableDimensions(this.client)
-    if (tableDimensions !== undefined && queryEmbedding.length !== tableDimensions) {
-      throw new EmbeddingDimensionError(queryEmbedding.length, tableDimensions)
-    }
     if ((await this.countEmbeddings()) === 0) {
       throw new NoEmbeddingsError()
     }
 
+    const dims = queryEmbedding.length
+    if (dims <= 0) {
+      throw new Error('Query embedding must not be empty')
+    }
+
+    const tableDimensions = await getEmbeddingTableDimensions(this.client)
+    if (tableDimensions !== undefined && dims !== tableDimensions) {
+      const dimCount = await this.client.all<{ c: number }>(
+        'SELECT count(*) AS c FROM model_embeddings WHERE dimensions = ?',
+        [dims],
+      )
+      if ((dimCount[0]?.c ?? 0) === 0) {
+        throw new Error(
+          `Embedding has ${dims} dimensions but database has embeddings with ${tableDimensions} dimensions`,
+        )
+      }
+    }
+
+    const vecTable = getVecTableName(dims)
+    const tableExists = await this.client.all<{ name: string }>(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?",
+      [vecTable],
+    )
+    if (tableExists.length === 0) {
+      return []
+    }
+
     const limit = options.limit ?? DEFAULT_LIMIT
-    const projectFilter = options.projectId ? 'WHERE mf.project_id = $projectId' : ''
-    const lexicalBoost = buildLexicalBoost(options.queryText)
+    const k = Math.max(limit * 10, 100)
+    const projectFilter = options.projectId ? 'WHERE mf.project_id = :projectId' : ''
+    const lexicalBoost = buildLexicalBoostSqlite(options.queryText)
+
     const rows = await this.client.all<SearchRow>(
-      `WITH scored AS (
-         SELECT
-           mf.id AS model_file_id,
-           mf.filename,
-           mf.absolute_path,
-           mf.extension,
-           aid.short_name,
-           aid.description,
-           aid.likely_category,
-           aid.tags,
-           mra.absolute_path AS thumbnail_path,
-           array_cosine_distance(me.embedding, $queryEmbedding) AS distance,
-           ${lexicalBoost.sql} AS lexical_boost
-         FROM model_embeddings me
-         JOIN model_files mf ON mf.id = me.model_file_id
-         LEFT JOIN ai_model_descriptions aid ON aid.model_file_id = mf.id
-         LEFT JOIN model_render_assets mra
-           ON mra.model_file_id = mf.id AND mra.view_name = 'thumbnail'
-         ${projectFilter}
-       )
-       SELECT
-         model_file_id,
-         filename,
-         absolute_path,
-         extension,
-         short_name,
-         description,
-         likely_category,
-         tags,
-         thumbnail_path,
-         distance,
-         distance - lexical_boost AS rank_distance
-       FROM scored
-       ORDER BY rank_distance, distance
-       LIMIT $limit`,
+      `WITH knn AS (
+        SELECT model_file_id, distance
+        FROM ${vecTable}
+        WHERE embedding MATCH :queryVec AND k = :k
+      ),
+      scored AS (
+        SELECT
+          mf.id AS model_file_id,
+          mf.filename,
+          mf.absolute_path,
+          mf.extension,
+          aid.short_name,
+          aid.description,
+          aid.likely_category,
+          aid.tags,
+          mra.absolute_path AS thumbnail_path,
+          knn.distance,
+          knn.distance - (${lexicalBoost.sql}) AS rank_distance
+        FROM knn
+        JOIN model_files mf ON mf.id = knn.model_file_id
+        LEFT JOIN ai_model_descriptions aid ON aid.model_file_id = mf.id
+        LEFT JOIN model_render_assets mra
+          ON mra.model_file_id = mf.id AND mra.view_name = 'thumbnail'
+        ${projectFilter}
+      )
+      SELECT
+        model_file_id,
+        filename,
+        absolute_path,
+        extension,
+        short_name,
+        description,
+        likely_category,
+        tags,
+        thumbnail_path,
+        distance,
+        rank_distance
+      FROM scored
+      ORDER BY rank_distance, distance
+      LIMIT :limit`,
       {
-        queryEmbedding: arrayValue(queryEmbedding),
+        queryVec: new Float32Array(queryEmbedding),
+        k,
         limit,
         ...lexicalBoost.params,
         ...(options.projectId ? { projectId: options.projectId } : {}),
       },
-      // Explicit type so sparse vectors are not inferred as integer lists.
-      { queryEmbedding: ARRAY(FLOAT, queryEmbedding.length) },
     )
     return rows.map(toSearchResult)
   }
@@ -191,6 +229,6 @@ export class SearchRepository {
     const rows = await this.client.all<{ c: number | string }>(
       'SELECT count(*) AS c FROM model_embeddings',
     )
-    return Number(rows[0].c)
+    return Number(rows[0]?.c ?? 0)
   }
 }

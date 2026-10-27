@@ -1,9 +1,9 @@
-// Uses jsdom (default): the 3MF loader needs DOMParser. DuckDB still runs natively.
+// Uses jsdom (default): the 3MF loader needs DOMParser.
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { IndexingJobRepository } from '@/services/database/indexingJobRepository'
 import { runMigrations } from '@/services/database/migrations'
 import { indexScannedFiles, retryFailedFiles } from '@/services/indexing/indexDirectory'
@@ -25,15 +25,26 @@ const PROJECT_ID = 'project-1'
 
 let filesDir: string
 let rendersDir: string
-let client: DuckDbClient
+let client: SqliteClient
 let deps: IndexFilesDeps
 
 function writeScannedFile(filename: string, content: Uint8Array | string): ScannedFile {
   return writeScannedFileIn(filesDir, filename, content)
 }
 
-function validStl(): Uint8Array {
-  return new Uint8Array(buildBinaryStl(SPANNING_TRIANGLES))
+function validStl(scale = 1): Uint8Array {
+  if (scale === 1) {
+    return new Uint8Array(buildBinaryStl(SPANNING_TRIANGLES))
+  }
+  const scaled = SPANNING_TRIANGLES.map((t) => ({
+    normal: t.normal,
+    vertices: t.vertices.map((v) => [v[0] * scale, v[1] * scale, v[2] * scale] as [number, number, number]) as [
+      [number, number, number],
+      [number, number, number],
+      [number, number, number],
+    ],
+  }))
+  return new Uint8Array(buildBinaryStl(scaled))
 }
 
 beforeAll(() => {
@@ -47,7 +58,7 @@ afterAll(() => {
 })
 
 beforeEach(async () => {
-  client = await DuckDbClient.open(':memory:')
+  client = await SqliteClient.open(':memory:')
   await runMigrations(client)
   deps = {
     backend: createTestBackend(client, rendersDir),
@@ -177,7 +188,7 @@ describe('indexScannedFiles', () => {
     const files = [
       writeScannedFile('alpha.stl', validStl()),
       writeScannedFile('broken.stl', 'solid empty\nendsolid empty'),
-      writeScannedFile('beta.stl', validStl()),
+      writeScannedFile('beta.stl', validStl(2)),
     ]
 
     const outcome = await indexScannedFiles(files, PROJECT_ID, deps, { concurrency: 2 })

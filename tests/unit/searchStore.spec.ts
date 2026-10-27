@@ -108,4 +108,65 @@ describe('searchStore', () => {
 
     expect(store.state.embeddingCount).toBe(7)
   })
+
+  test('surfaces friendly error when builtin embedding is unavailable on current OS', async () => {
+    window.meshNest = {
+      isBuiltinEmbeddingAvailable: async () => false,
+      searchByEmbedding: async () => {
+        throw new Error('should not be called')
+      },
+    } as unknown as MeshNestApi
+
+    const store = useSearchStore()
+    await store.runSearch('dragon')
+
+    expect(store.state.error).toBe(
+      'Embedding provider unavailable — configure Ollama or an API provider in Settings.',
+    )
+    expect(store.state.results).toEqual([])
+    expect(store.state.searched).toBe(true)
+  })
+
+  test('surfaces friendly error when active provider resolves to none', async () => {
+    window.meshNest = {
+      isBuiltinEmbeddingAvailable: async () => true,
+      getActiveEmbeddingProvider: async () => ({
+        name: 'none',
+        model: '',
+        dimensions: 0,
+      }),
+      searchByEmbedding: async () => {
+        throw new Error('should not be called')
+      },
+    } as unknown as MeshNestApi
+
+    const store = useSearchStore()
+    await store.runSearch('dragon')
+
+    expect(store.state.error).toBe(
+      'Embedding provider unavailable — configure Ollama or an API provider in Settings.',
+    )
+    expect(store.state.results).toEqual([])
+    expect(store.state.searched).toBe(true)
+  })
+
+  test('maps raw dlopen or onnxruntime error into friendly error state', async () => {
+    window.meshNest = {
+      ...embeddingBridge(),
+      searchByEmbedding: async () => {
+        throw new Error(
+          'dlopen(/path/to/onnxruntime_binding.node, 0x0001): Symbol not found: (__ZNSt3__18to_charsEPcS0_d)',
+        )
+      },
+    } as unknown as MeshNestApi
+
+    const store = useSearchStore()
+    await store.runSearch('dragon')
+
+    expect(store.state.error).toBe(
+      'Embedding provider unavailable — configure Ollama or an API provider in Settings.',
+    )
+    expect(store.state.results).toEqual([])
+    expect(store.state.searched).toBe(true)
+  })
 })

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { GeometryMetadataRepository } from '@/services/database/geometryMetadataRepository'
 import { runMigrations } from '@/services/database/migrations'
 import { extractGeometryMetadata } from '@/services/model-parsing/geometryMetadata'
@@ -54,11 +54,11 @@ describe('extractGeometryMetadata', () => {
 })
 
 describe('GeometryMetadataRepository', () => {
-  let client: DuckDbClient
+  let client: SqliteClient
   let repository: GeometryMetadataRepository
 
   beforeEach(async () => {
-    client = await DuckDbClient.open(':memory:')
+    client = await SqliteClient.open(':memory:')
     await runMigrations(client)
     repository = new GeometryMetadataRepository(client)
   })
@@ -76,6 +76,12 @@ describe('GeometryMetadataRepository', () => {
     expect(stored?.widthMm).toBeCloseTo(10)
     expect(stored?.triangleCount).toBe(2)
     expect(stored?.isWatertight).toBeUndefined()
+
+    await repository.upsert('file-watertight', { ...metadata, isWatertight: true })
+    expect((await repository.getByModelFileId('file-watertight'))?.isWatertight).toBe(true)
+
+    await repository.upsert('file-not-watertight', { ...metadata, isWatertight: false })
+    expect((await repository.getByModelFileId('file-not-watertight'))?.isWatertight).toBe(false)
   })
 
   test('upsert replaces previous metadata', async () => {

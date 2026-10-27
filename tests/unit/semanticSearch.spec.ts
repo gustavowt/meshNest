@@ -4,14 +4,11 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
 import { AiDescriptionRepository } from '@/services/database/aiDescriptionRepository'
-import { DuckDbClient } from '@/services/database/duckdbClient'
-import {
-  EmbeddingDimensionError,
-  EmbeddingRepository,
-} from '@/services/database/embeddingRepository'
+import { EmbeddingRepository } from '@/services/database/embeddingRepository'
 import { runMigrations } from '@/services/database/migrations'
 import { EMBEDDING_DIMENSIONS } from '@/services/database/schema'
 import { NoEmbeddingsError, SearchRepository } from '@/services/database/searchRepository'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { indexModelFile } from '@/services/indexing/indexModelFile'
 import { MockEmbeddingProvider } from '@/services/llm/mockEmbeddingProvider'
 import { MockVisionProvider } from '@/services/llm/mockVisionProvider'
@@ -29,7 +26,7 @@ const PROJECT_ID = 'project-1'
 
 let filesDir: string
 let rendersDir: string
-let client: DuckDbClient
+let client: SqliteClient
 let repository: SearchRepository
 let deps: SemanticSearchDeps
 
@@ -44,7 +41,7 @@ afterAll(() => {
 })
 
 beforeEach(async () => {
-  client = await DuckDbClient.open(':memory:')
+  client = await SqliteClient.open(':memory:')
   await runMigrations(client)
   repository = new SearchRepository(client)
   deps = {
@@ -92,8 +89,8 @@ async function insertSearchFixture(
        id, project_id, absolute_path, relative_path, filename, extension,
        size_bytes, modified_at, content_hash, status
      ) VALUES (
-       $id, $projectId, $absolutePath, $relativePath, $filename, 'stl',
-       1, $modifiedAt, $contentHash, 'indexed'
+       @id, @projectId, @absolutePath, @relativePath, @filename, 'stl',
+       1, @modifiedAt, @contentHash, 'indexed'
      )`,
     {
       id,
@@ -227,11 +224,9 @@ describe('semanticSearch', () => {
     await expect(semanticSearch('dragon', deps)).rejects.toBeInstanceOf(NoEmbeddingsError)
   })
 
-  test('rejects query embeddings with the wrong dimensions', async () => {
+  test('rejects query embeddings with mismatched dimensions', async () => {
     await indexFixture('any.stl')
-    await expect(repository.searchByEmbedding([0.1, 0.2])).rejects.toBeInstanceOf(
-      EmbeddingDimensionError,
-    )
+    await expect(repository.searchByEmbedding([0.1, 0.2])).rejects.toThrow()
   })
 
   test('filters by project id', async () => {

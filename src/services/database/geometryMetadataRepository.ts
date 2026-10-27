@@ -1,5 +1,5 @@
 import type { GeometryMetadata } from '@/types/modelMetadata'
-import type { DuckDbClient } from './duckdbClient'
+import type { SqliteClient } from './sqliteClient'
 
 type GeometryMetadataRow = {
   width_mm: number | null
@@ -11,7 +11,7 @@ type GeometryMetadataRow = {
   object_count: number | string | null
   surface_area_mm2: number | null
   volume_mm3: number | null
-  is_watertight: boolean | null
+  is_watertight: boolean | number | null
 }
 
 function toGeometryMetadata(row: GeometryMetadataRow): GeometryMetadata {
@@ -25,16 +25,19 @@ function toGeometryMetadata(row: GeometryMetadataRow): GeometryMetadata {
     objectCount: row.object_count !== null ? Number(row.object_count) : undefined,
     surfaceAreaMm2: row.surface_area_mm2 ?? undefined,
     volumeMm3: row.volume_mm3 ?? undefined,
-    isWatertight: row.is_watertight ?? undefined,
+    isWatertight:
+      row.is_watertight === null || row.is_watertight === undefined
+        ? undefined
+        : Boolean(row.is_watertight),
   }
 }
 
 export class GeometryMetadataRepository {
-  constructor(private readonly client: DuckDbClient) {}
+  constructor(private readonly client: SqliteClient) {}
 
   /** Replaces any existing metadata for the model file. */
   async upsert(modelFileId: string, metadata: GeometryMetadata): Promise<void> {
-    await this.client.run('DELETE FROM geometry_metadata WHERE model_file_id = $modelFileId', {
+    await this.client.run('DELETE FROM geometry_metadata WHERE model_file_id = @modelFileId', {
       modelFileId,
     })
     await this.client.run(
@@ -42,8 +45,8 @@ export class GeometryMetadataRepository {
          model_file_id, width_mm, height_mm, depth_mm, triangle_count,
          vertex_count, mesh_count, object_count, surface_area_mm2, volume_mm3, is_watertight
        ) VALUES (
-         $modelFileId, $widthMm, $heightMm, $depthMm, $triangleCount,
-         $vertexCount, $meshCount, $objectCount, $surfaceAreaMm2, $volumeMm3, $isWatertight
+         @modelFileId, @widthMm, @heightMm, @depthMm, @triangleCount,
+         @vertexCount, @meshCount, @objectCount, @surfaceAreaMm2, @volumeMm3, @isWatertight
        )`,
       {
         modelFileId,
@@ -56,18 +59,17 @@ export class GeometryMetadataRepository {
         objectCount: metadata.objectCount ?? null,
         surfaceAreaMm2: metadata.surfaceAreaMm2 ?? null,
         volumeMm3: metadata.volumeMm3 ?? null,
-        isWatertight: metadata.isWatertight ?? null,
+        isWatertight:
+          metadata.isWatertight === true ? 1 : metadata.isWatertight === false ? 0 : null,
       },
     )
   }
 
   async getByModelFileId(modelFileId: string): Promise<GeometryMetadata | undefined> {
-    const rows = await this.client.all<GeometryMetadataRow>(
-      `SELECT width_mm, height_mm, depth_mm, triangle_count, vertex_count,
+    const query = `SELECT width_mm, height_mm, depth_mm, triangle_count, vertex_count,
               mesh_count, object_count, surface_area_mm2, volume_mm3, is_watertight
-       FROM geometry_metadata WHERE model_file_id = $modelFileId`,
-      { modelFileId },
-    )
+       FROM geometry_metadata WHERE model_file_id = @modelFileId`
+    const rows = await this.client.all<GeometryMetadataRow>(query, { modelFileId })
     return rows.length > 0 ? toGeometryMetadata(rows[0]) : undefined
   }
 }

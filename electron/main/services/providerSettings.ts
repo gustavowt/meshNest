@@ -5,6 +5,7 @@ import {
 import { mergeWorldSearchSettings } from '../../../src/services/settings/worldSearchSettings'
 import { clearEmbeddings, ensureEmbeddingTable } from '../../../src/services/database/embeddingTable'
 import type { EmbeddingSettings, ProviderSettings, VisionSettings } from '../../../src/types/providerSettings'
+import { isBuiltinEmbeddingAvailable } from './builtinEmbedding'
 import { getDatabaseClient } from './database'
 
 let activeProviderSettings: ProviderSettings = cloneSettings(DEFAULT_PROVIDER_SETTINGS)
@@ -40,6 +41,26 @@ export function resolveProviderSettings(): ProviderSettings {
 
 export function getProviderSettings(): ProviderSettings {
   return resolveProviderSettings()
+}
+
+/**
+ * Resolves the effective embedding configuration. When the configured provider
+ * is 'builtin' (or defaulted) and the built-in model binding cannot load on this OS,
+ * degrades gracefully to 'none'.
+ */
+export function resolveEffectiveEmbeddingSettings(
+  embedding?: EmbeddingSettings,
+): EmbeddingSettings {
+  const current = embedding ?? activeProviderSettings.embedding
+  if (current.provider === 'builtin' && !isBuiltinEmbeddingAvailable()) {
+    return {
+      provider: 'none',
+      model: '',
+      dimensions: 0,
+      useCloud: false,
+    }
+  }
+  return current
 }
 
 export type SaveSettingsOutcome = {

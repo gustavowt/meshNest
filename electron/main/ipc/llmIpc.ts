@@ -7,8 +7,8 @@ import type {
 } from '../../../src/services/llm/visionProvider'
 import type { EmbeddingSettings, VisionSettings } from '../../../src/types/providerSettings'
 import { BuiltinEmbeddingProvider } from '../services/builtinEmbedding'
-import { getActiveEmbeddingProvider, reembedAllModels } from '../services/embeddingService'
-import { getProviderSettings } from '../services/providerSettings'
+import { reembedAllModels } from '../services/embeddingService'
+import { getProviderSettings, resolveEffectiveEmbeddingSettings } from '../services/providerSettings'
 
 /**
  * LLM calls run in the main process so API keys never reach the
@@ -54,12 +54,10 @@ export function registerLlmIpc(): void {
   ipcMain.handle(
     'llm:embedText',
     async (_event, text: string, settingsSnapshot?: EmbeddingSettings) => {
-      if (!settingsSnapshot) {
-        const provider = await getActiveEmbeddingProvider()
-        return provider.embedText(text)
-      }
-
-      const provider = createEmbeddingProvider(settingsSnapshot, {
+      const effectiveSettings = resolveEffectiveEmbeddingSettings(
+        settingsSnapshot ?? (await getProviderSettings()).embedding,
+      )
+      const provider = createEmbeddingProvider(effectiveSettings, {
         builtinFactory: (embedding) =>
           new BuiltinEmbeddingProvider(embedding.model, embedding.dimensions),
       })
@@ -69,10 +67,11 @@ export function registerLlmIpc(): void {
 
   ipcMain.handle('llm:getActiveEmbeddingProvider', async () => {
     const settings = await getProviderSettings()
+    const effective = resolveEffectiveEmbeddingSettings(settings.embedding)
     return {
-      name: settings.embedding.provider,
-      model: settings.embedding.model,
-      dimensions: settings.embedding.dimensions,
+      name: effective.provider,
+      model: effective.model,
+      dimensions: effective.dimensions,
     }
   })
 

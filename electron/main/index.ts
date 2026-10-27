@@ -82,29 +82,47 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  Menu.setApplicationMenu(null)
+const gotTheLock = app.requestSingleInstanceLock()
 
-  if (process.platform === 'darwin' && app.dock) {
-    const icon = nativeImage.createFromPath(resolveAppIcon())
-    if (!icon.isEmpty()) {
-      app.dock.setIcon(icon)
-    }
-  }
-  registerFilesystemIpc()
-  registerRenderingIpc()
-  registerDatabaseIpc()
-  registerModelActionsIpc()
-  registerSettingsIpc()
-  registerLlmIpc()
-  registerWorldSearchIpc()
-  createWindow()
+if (!gotTheLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const [mainWindow] = BrowserWindow.getAllWindows()
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) {
+        mainWindow.restore()
+      }
+
+      mainWindow.focus()
     }
   })
+
+  app.whenReady().then(() => {
+    Menu.setApplicationMenu(null)
+
+    if (process.platform === 'darwin' && app.dock) {
+      const icon = nativeImage.createFromPath(resolveAppIcon())
+      if (!icon.isEmpty()) {
+        app.dock.setIcon(icon)
+      }
+    }
+    registerFilesystemIpc()
+    registerRenderingIpc()
+    registerDatabaseIpc()
+    registerModelActionsIpc()
+    registerSettingsIpc()
+    registerLlmIpc()
+    registerWorldSearchIpc()
+    createWindow()
+  })
+}
+
+app.on('activate', () => {
+  if (gotTheLock && BrowserWindow.getAllWindows().length === 0) {
+    createWindow()
+  }
 })
 
 app.on('window-all-closed', () => {

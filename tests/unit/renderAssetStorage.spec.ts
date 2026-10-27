@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import { runMigrations } from '@/services/database/migrations'
 import { RenderAssetRepository } from '@/services/database/renderAssetRepository'
 import { RenderAssetStorage } from '@/services/rendering/renderAssetStorage'
@@ -62,11 +62,11 @@ describe('RenderAssetStorage', () => {
 })
 
 describe('RenderAssetRepository', () => {
-  let client: DuckDbClient
+  let client: SqliteClient
   let repository: RenderAssetRepository
 
   beforeEach(async () => {
-    client = await DuckDbClient.open(':memory:')
+    client = await SqliteClient.open(':memory:')
     await runMigrations(client)
     repository = new RenderAssetRepository(client)
   })

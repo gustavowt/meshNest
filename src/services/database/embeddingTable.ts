@@ -1,81 +1,46 @@
-import type { DuckDbClient } from './duckdbClient'
+import { ensureVecTable } from './migrations'
+import type { SqliteClient } from './sqliteClient'
 
 /**
- * The model_embeddings table stores fixed-size FLOAT arrays (required by
- * the HNSW index when VSS is available), so its column type depends on the
- * active embedding provider. This module inspects and rebuilds the table
- * when the configured dimensions change. Rebuilding drops all stored
- * embeddings: vectors from different providers/models live in different
- * spaces and must be regenerated anyway.
- *
- * HNSW is optional: when `client.vssAvailable` is false (e.g. Mac App Store),
- * the table is created without an HNSW index and search uses brute-force
- * `array_cosine_distance`.
+ * In SQLite, embeddings are stored in `model_embeddings` with flexible dimensions,
+ * backed by per-dimension sqlite-vec virtual tables (`vec_model_embeddings_${dimensions}`)
+ * for vector similarity search.
  */
 
-export function buildEmbeddingTableSql(dimensions: number): string {
-  return `
-CREATE TABLE IF NOT EXISTS model_embeddings (
-  model_file_id TEXT PRIMARY KEY,
-  provider TEXT NOT NULL,
-  model TEXT NOT NULL,
-  dimensions INTEGER NOT NULL,
-  embedding FLOAT[${dimensions}],
-  source_text TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT now()
-);`
-}
-
-export const HNSW_INDEX_SQL = `
-CREATE INDEX IF NOT EXISTS idx_model_embeddings_hnsw
-ON model_embeddings USING HNSW (embedding)
-WITH (metric = 'cosine');`
-
-/** Reads the FLOAT[N] size of the embedding column, if the table exists. */
+/** Reads the active dimensions from the most recently stored embedding in SQLite, or undefined if no embeddings exist. */
 export async function getEmbeddingTableDimensions(
-  client: DuckDbClient,
+  client: SqliteClient,
 ): Promise<number | undefined> {
-  const rows = await client.all<{ data_type: string }>(
-    `SELECT data_type FROM information_schema.columns
-     WHERE table_name = 'model_embeddings' AND column_name = 'embedding'`,
-  )
-  if (rows.length === 0) {
+  try {
+    const rows = await client.all<{ dimensions: number }>(
+      'SELECT dimensions FROM model_embeddings ORDER BY created_at DESC LIMIT 1',
+    )
+    if (rows.length > 0 && rows[0].dimensions != null) {
+      return Number(rows[0].dimensions)
+    }
+    return undefined
+  } catch {
     return undefined
   }
-  const match = rows[0].data_type.match(/\[(\d+)\]/)
-  return match ? Number(match[1]) : undefined
 }
 
 /**
- * Makes sure model_embeddings stores vectors of the given size,
- * dropping and recreating the table (and its HNSW index when VSS is
- * available) when the size differs. Returns whether a rebuild happened.
+ * Makes sure the embedding table/virtual table is ready for the given dimensions.
+ *
+ * In SQLite: creates the per-dimension vec0 table if sqlite-vec is available.
+ * Never drops tables or rows, and always returns { rebuilt: false }.
  */
 export async function ensureEmbeddingTable(
-  client: DuckDbClient,
+  client: SqliteClient,
   dimensions: number,
 ): Promise<{ rebuilt: boolean }> {
-  if (dimensions <= 0) {
-    return { rebuilt: false }
+  if (dimensions > 0 && client.vecAvailable) {
+    await ensureVecTable(client, dimensions)
   }
-  const current = await getEmbeddingTableDimensions(client)
-  if (current === dimensions) {
-    return { rebuilt: false }
-  }
-
-  // HNSW index type requires VSS; skip DROP/CREATE without it.
-  if (client.vssAvailable) {
-    await client.run('DROP INDEX IF EXISTS idx_model_embeddings_hnsw')
-  }
-  await client.run('DROP TABLE IF EXISTS model_embeddings')
-  await client.run(buildEmbeddingTableSql(dimensions))
-  if (client.vssAvailable) {
-    await client.run(HNSW_INDEX_SQL)
-  }
-  return { rebuilt: current !== undefined }
+  return { rebuilt: false }
 }
 
 /** Clears all embeddings without changing the table shape. */
-export async function clearEmbeddings(client: DuckDbClient): Promise<void> {
+export async function clearEmbeddings(client: SqliteClient): Promise<void> {
   await client.run('DELETE FROM model_embeddings')
 }

@@ -302,6 +302,19 @@
                   </ion-select>
                 </ion-item>
 
+                <ion-item
+                  v-if="draft.embedding.provider === 'builtin' && settings.state.builtinEmbeddingAvailable === false"
+                  class="builtin-unavailable-warning"
+                  lines="none"
+                >
+                  <ion-icon :icon="warningOutline" color="warning" slot="start" />
+                  <ion-text color="warning">
+                    <p class="builtin-warning-text">
+                      {{ $t('settings.embeddingSection.builtinUnavailableWarning') }}
+                    </p>
+                  </ion-text>
+                </ion-item>
+
                 <ion-item v-if="draft.embedding.provider === 'ollama'">
                   <ion-toggle
                     :checked="!!draft.embedding.useCloud"
@@ -590,7 +603,7 @@ import {
 } from '@ionic/vue'
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { folderOutline, globeOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline } from 'ionicons/icons'
+import { folderOutline, globeOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline, warningOutline } from 'ionicons/icons'
 import ProviderTestBanner from '@/components/settings/ProviderTestBanner.vue'
 import WorldSearchSettingsSection from '@/components/settings/WorldSearchSettingsSection.vue'
 import type { VisionProviderId, EmbeddingProviderId } from '@/types/providerSettings'
@@ -662,6 +675,8 @@ async function save(): Promise<void> {
 onMounted(() => {
   if (!settings.state.draft) {
     settings.loadSettings()
+  } else if (settings.state.builtinEmbeddingAvailable === null) {
+    settings.checkBuiltinEmbeddingAvailability()
   }
 })
 </script>
@@ -1212,6 +1227,18 @@ onMounted(() => {
   font-size: 0.75rem;
   color: var(--ion-color-medium);
   margin-top: 2px;
+}
+
+.builtin-unavailable-warning {
+  --background: rgba(var(--ion-color-warning-rgb), 0.08);
+  margin: 6px 0;
+  border-radius: 8px;
+}
+
+.builtin-warning-text {
+  margin: 4px 0;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 @media (max-width: 576px) {

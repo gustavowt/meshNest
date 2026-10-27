@@ -1,8 +1,7 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { DuckDbClient } from '@/services/database/duckdbClient'
+import { SqliteClient } from '@/services/database/sqliteClient'
 import {
-  EmbeddingDimensionError,
   EmbeddingRepository,
 } from '@/services/database/embeddingRepository'
 import { runMigrations } from '@/services/database/migrations'
@@ -89,11 +88,11 @@ describe('MockEmbeddingProvider', () => {
 })
 
 describe('EmbeddingRepository', () => {
-  let client: DuckDbClient
+  let client: SqliteClient
   let repository: EmbeddingRepository
 
   beforeEach(async () => {
-    client = await DuckDbClient.open(':memory:')
+    client = await SqliteClient.open(':memory:')
     await runMigrations(client)
     repository = new EmbeddingRepository(client)
   })
@@ -125,7 +124,7 @@ describe('EmbeddingRepository', () => {
     expect(await repository.countEmbeddings()).toBe(1)
 
     // Values must survive the roundtrip (float32 precision), not just the
-    // shape: DuckDB list inference once truncated sparse vectors to zeros.
+    // shape: list inference once truncated sparse vectors to zeros.
     const storedNorm = Math.sqrt(stored!.embedding.reduce((sum, v) => sum + v * v, 0))
     expect(storedNorm).toBeCloseTo(1, 3)
     for (const [index, value] of vector.entries()) {
@@ -141,11 +140,11 @@ describe('EmbeddingRepository', () => {
         modelFileId: 'file-1',
         provider: 'mock',
         model: 'mock',
-        dimensions: 3,
+        dimensions: 1536,
         embedding: [1, 2, 3],
         sourceText: 'short',
       }),
-    ).rejects.toBeInstanceOf(EmbeddingDimensionError)
+    ).rejects.toThrow(/dimension/i)
   })
 
   test('upsert replaces an existing embedding', async () => {

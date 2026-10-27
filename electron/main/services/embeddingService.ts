@@ -4,14 +4,26 @@ import { ensureEmbeddingTable } from '../../../src/services/database/embeddingTa
 import { buildEmbeddingSourceText } from '../../../src/services/llm/embeddingProvider'
 import type { EmbeddingProvider } from '../../../src/services/llm/embeddingProvider'
 import { createEmbeddingProvider } from '../../../src/services/llm/embeddingProviderFactory'
-import { BuiltinEmbeddingProvider } from './builtinEmbedding'
+import {
+  BuiltinEmbeddingProvider,
+  getBuiltinEmbeddingProbeResult,
+  isBuiltinEmbeddingAvailable,
+  setBuiltinEmbeddingAvailableForTests,
+} from './builtinEmbedding'
 import { getDatabaseClient } from './database'
-import { getProviderSettings } from './providerSettings'
+import { getProviderSettings, resolveEffectiveEmbeddingSettings } from './providerSettings'
 
-/** Builds the embedding provider configured in Settings (incl. built-in). */
+export {
+  isBuiltinEmbeddingAvailable,
+  getBuiltinEmbeddingProbeResult,
+  setBuiltinEmbeddingAvailableForTests,
+}
+
+/** Builds the embedding provider configured in Settings (incl. built-in with graceful degradation). */
 export async function getActiveEmbeddingProvider(): Promise<EmbeddingProvider> {
   const settings = await getProviderSettings()
-  return createEmbeddingProvider(settings.embedding, {
+  const effectiveEmbedding = resolveEffectiveEmbeddingSettings(settings.embedding)
+  return createEmbeddingProvider(effectiveEmbedding, {
     builtinFactory: (embedding) =>
       new BuiltinEmbeddingProvider(embedding.model, embedding.dimensions),
   })

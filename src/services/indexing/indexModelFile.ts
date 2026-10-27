@@ -128,7 +128,14 @@ export async function indexModelFile(
     await backend.markIndexed(record.id)
     return { modelFileId: record.id, status: 'indexed' }
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error)
+    const raw = error instanceof Error ? error.message : String(error)
+    const errorMessage =
+      raw.includes('dlopen') ||
+      raw.includes('onnxruntime') ||
+      raw.includes('to_chars') ||
+      raw.includes('libc++')
+        ? 'Embedding provider unavailable — configure Ollama or an API provider in Settings.'
+        : raw
     await backend.markFailed(record.id, errorMessage)
     return { modelFileId: record.id, status: 'failed', errorMessage }
   }

@@ -1,6 +1,6 @@
 import type { LibraryEntry } from '@/types/library'
 import type { ModelFileStatus, SupportedModelExtension } from '@/types/modelFile'
-import type { DuckDbClient } from './duckdbClient'
+import type { SqliteClient } from './sqliteClient'
 
 type LibraryRow = {
   id: string
@@ -15,8 +15,23 @@ type LibraryRow = {
   error_message: string | null
   short_name: string | null
   likely_category: string | null
-  tags: string[] | null
+  tags: string[] | string | null
   thumbnail_path: string | null
+}
+
+function parseIsoTimestamp(ts: string): string {
+  return ts.endsWith('Z') ? new Date(ts).toISOString() : new Date(`${ts}Z`).toISOString()
+}
+
+function parseTags(tags: string[] | string | null): string[] {
+  if (!tags) return []
+  if (Array.isArray(tags)) return tags
+  try {
+    const parsed = JSON.parse(tags)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }
 
 function toLibraryEntry(row: LibraryRow): LibraryEntry {
@@ -27,13 +42,13 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
     absolutePath: row.absolute_path,
     extension: row.extension as SupportedModelExtension,
     sizeBytes: Number(row.size_bytes),
-    modifiedAt: new Date(`${row.modified_at}Z`).toISOString(),
-    indexedAt: row.indexed_at ? new Date(`${row.indexed_at}Z`).toISOString() : undefined,
+    modifiedAt: parseIsoTimestamp(row.modified_at),
+    indexedAt: row.indexed_at ? parseIsoTimestamp(row.indexed_at) : undefined,
     status: row.status as ModelFileStatus,
     errorMessage: row.error_message ?? undefined,
     shortName: row.short_name ?? undefined,
     likelyCategory: row.likely_category ?? undefined,
-    tags: row.tags ?? [],
+    tags: parseTags(row.tags),
     thumbnailPath: row.thumbnail_path ?? undefined,
   }
 }
@@ -43,7 +58,7 @@ function toLibraryEntry(row: LibraryRow): LibraryEntry {
  * description summary and thumbnail render asset.
  */
 export class LibraryRepository {
-  constructor(private readonly client: DuckDbClient) {}
+  constructor(private readonly client: SqliteClient) {}
 
   async listLibraryEntries(projectId?: string): Promise<LibraryEntry[]> {
     const baseQuery = `
@@ -59,7 +74,7 @@ export class LibraryRepository {
 
     const rows = projectId
       ? await this.client.all<LibraryRow>(
-          `${baseQuery} WHERE f.project_id = $projectId ORDER BY f.relative_path`,
+          `${baseQuery} WHERE f.project_id = @projectId ORDER BY f.relative_path`,
           { projectId },
         )
       : await this.client.all<LibraryRow>(`${baseQuery} ORDER BY f.relative_path`)
@@ -67,8 +82,7 @@ export class LibraryRepository {
   }
 
   async getLibraryEntry(modelFileId: string): Promise<LibraryEntry | undefined> {
-    const rows = await this.client.all<LibraryRow>(
-      `
+    const baseQuery = `
       SELECT
         f.id, f.filename, f.relative_path, f.absolute_path, f.extension,
         f.size_bytes, f.modified_at, f.indexed_at, f.status, f.error_message,
@@ -77,8 +91,10 @@ export class LibraryRepository {
       FROM model_files f
       LEFT JOIN ai_model_descriptions d ON d.model_file_id = f.id
       LEFT JOIN model_render_assets r
-        ON r.model_file_id = f.id AND r.view_name = 'thumbnail'
-      WHERE f.id = $modelFileId`,
+        ON r.model_file_id = f.id AND r.view_name = 'thumbnail'`
+
+    const rows = await this.client.all<LibraryRow>(
+      `${baseQuery} WHERE f.id = @modelFileId`,
       { modelFileId },
     )
     return rows.length > 0 ? toLibraryEntry(rows[0]) : undefined

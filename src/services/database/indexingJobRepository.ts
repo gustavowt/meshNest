@@ -1,5 +1,5 @@
 import type { IndexingJob, IndexingJobStatus, IndexingJobType } from '@/types/indexing'
-import type { DuckDbClient } from './duckdbClient'
+import type { SqliteClient } from './sqliteClient'
 
 type IndexingJobRow = {
   id: string
@@ -28,19 +28,19 @@ function toJob(row: IndexingJobRow): IndexingJob {
 }
 
 export class IndexingJobRepository {
-  constructor(private readonly client: DuckDbClient) {}
+  constructor(private readonly client: SqliteClient) {}
 
   async create(job: { id: string; absolutePath: string; jobType: IndexingJobType }): Promise<void> {
     await this.client.run(
       `INSERT INTO indexing_jobs (id, absolute_path, job_type, status)
-       VALUES ($id, $absolutePath, $jobType, 'queued')`,
+       VALUES (@id, @absolutePath, @jobType, 'queued')`,
       { id: job.id, absolutePath: job.absolutePath, jobType: job.jobType },
     )
   }
 
   async markRunning(id: string): Promise<void> {
     await this.client.run(
-      `UPDATE indexing_jobs SET status = 'running', started_at = now() WHERE id = $id`,
+      `UPDATE indexing_jobs SET status = 'running', started_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now')) WHERE id = @id`,
       { id },
     )
   }
@@ -53,36 +53,34 @@ export class IndexingJobRepository {
   ): Promise<void> {
     await this.client.run(
       `UPDATE indexing_jobs SET
-         status = $status,
-         model_file_id = $modelFileId,
-         error_message = $errorMessage,
-         finished_at = now()
-       WHERE id = $id`,
+         status = @status,
+         model_file_id = @modelFileId,
+         error_message = @errorMessage,
+         finished_at = (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
+       WHERE id = @id`,
       { id, status, modelFileId: modelFileId ?? null, errorMessage: errorMessage ?? null },
     )
   }
 
   async updateAbsolutePathForModel(modelFileId: string, absolutePath: string): Promise<void> {
     await this.client.run(
-      `UPDATE indexing_jobs SET absolute_path = $absolutePath WHERE model_file_id = $modelFileId`,
+      `UPDATE indexing_jobs SET absolute_path = @absolutePath WHERE model_file_id = @modelFileId`,
       { modelFileId, absolutePath },
     )
   }
 
   async updateAbsolutePath(previousAbsolutePath: string, absolutePath: string): Promise<void> {
     await this.client.run(
-      `UPDATE indexing_jobs SET absolute_path = $absolutePath WHERE absolute_path = $previousAbsolutePath`,
+      `UPDATE indexing_jobs SET absolute_path = @absolutePath WHERE absolute_path = @previousAbsolutePath`,
       { previousAbsolutePath, absolutePath },
     )
   }
 
   async listRecent(limit = 100): Promise<IndexingJob[]> {
-    const rows = await this.client.all<IndexingJobRow>(
-      `SELECT id, model_file_id, absolute_path, job_type, status, error_message,
+    const query = `SELECT id, model_file_id, absolute_path, job_type, status, error_message,
               started_at, finished_at, created_at
-       FROM indexing_jobs ORDER BY created_at DESC LIMIT $limit`,
-      { limit },
-    )
+       FROM indexing_jobs ORDER BY created_at DESC LIMIT @limit`
+    const rows = await this.client.all<IndexingJobRow>(query, { limit })
     return rows.map(toJob)
   }
 

@@ -40,6 +40,8 @@ type SettingsState = {
   ollamaEmbeddingError: string | null
   /** True when the draft differs from the last loaded/saved settings. */
   dirty: boolean
+  /** Availability of the local transformers.js model on current OS (null until probed). */
+  builtinEmbeddingAvailable: boolean | null
 }
 
 const state = reactive<SettingsState>({
@@ -60,6 +62,7 @@ const state = reactive<SettingsState>({
   fetchingOllamaEmbeddingModels: false,
   ollamaEmbeddingError: null,
   dirty: false,
+  builtinEmbeddingAvailable: null,
 })
 
 let systemThemeListener: ((e: MediaQueryListEvent) => void) | null = null
@@ -132,6 +135,7 @@ async function loadSettings(): Promise<void> {
     state.draft = cloneSettings(loadCachedProviderSettings() ?? DEFAULT_PROVIDER_SETTINGS)
     if (window.meshNest) {
       await window.meshNest.syncProviderSettings(cloneSettings(state.draft))
+      await checkBuiltinEmbeddingAvailability()
     }
     persistedSettings = cloneSettings(state.draft)
     state.dirty = false
@@ -281,6 +285,26 @@ async function fetchOllamaEmbeddingModels(baseUrl: string): Promise<void> {
   }
 }
 
+async function checkBuiltinEmbeddingAvailability(): Promise<boolean> {
+  if (!window.meshNest) {
+    state.builtinEmbeddingAvailable = true
+    return true
+  }
+  try {
+    if (typeof window.meshNest.isBuiltinEmbeddingAvailable === 'function') {
+      state.builtinEmbeddingAvailable = await window.meshNest.isBuiltinEmbeddingAvailable()
+    } else if (typeof window.meshNest.testBuiltinEmbedding === 'function') {
+      const res = await window.meshNest.testBuiltinEmbedding()
+      state.builtinEmbeddingAvailable = res.ok
+    } else {
+      state.builtinEmbeddingAvailable = true
+    }
+  } catch {
+    state.builtinEmbeddingAvailable = true
+  }
+  return state.builtinEmbeddingAvailable ?? true
+}
+
 function markDirty(): void {
   state.saved = false
   state.dirty = true
@@ -305,6 +329,7 @@ export function resetSettingsStore(): void {
   state.fetchingOllamaEmbeddingModels = false
   state.ollamaEmbeddingError = null
   state.dirty = false
+  state.builtinEmbeddingAvailable = null
   persistedSettings = null
 }
 
@@ -326,5 +351,6 @@ export function useSettingsStore() {
     testEmbedding,
     markDirty,
     fetchOllamaEmbeddingModels,
+    checkBuiltinEmbeddingAvailability,
   }
 }

@@ -73,7 +73,7 @@ async function runIndexing(
     lastResults = outcome.resultsByPath
     state.summary = outcome.summary
   } catch (error) {
-    state.error = error instanceof Error ? error.message : String(error)
+    state.error = formatIndexingError(error)
   } finally {
     finishManualRunWatchSuppression()
     state.running = false
@@ -120,7 +120,7 @@ async function indexNewFilesOnBoot(directory?: string | null): Promise<void> {
     lastResults = outcome.resultsByPath
     state.summary = outcome.summary
   } catch (error) {
-    state.error = error instanceof Error ? error.message : String(error)
+    state.error = formatIndexingError(error)
   } finally {
     finishManualRunWatchSuppression()
     state.running = false
@@ -158,7 +158,7 @@ async function retryFailed(): Promise<void> {
     }
     state.summary = outcome.summary
   } catch (error) {
-    state.error = error instanceof Error ? error.message : String(error)
+    state.error = formatIndexingError(error)
   } finally {
     state.running = false
     abortController = null
@@ -245,7 +245,7 @@ async function retryFailedLibrary(
     lastResults = resultsByPath
     state.summary = summarizeRetryResults(entries.length, [...resultsByPath.values()])
   } catch (error) {
-    state.error = error instanceof Error ? error.message : String(error)
+    state.error = formatIndexingError(error)
   } finally {
     finishManualRunWatchSuppression()
     state.running = false
@@ -268,8 +268,29 @@ async function reconcileScannedDirectory(directory: string): Promise<ScannedFile
 
 function formatScanFileError(error: unknown, absolutePath: string): string {
   const reason = error instanceof Error ? error.message : String(error)
+  if (
+    reason.includes('dlopen') ||
+    reason.includes('onnxruntime') ||
+    reason.includes('to_chars') ||
+    reason.includes('libc++')
+  ) {
+    return 'Embedding provider unavailable — configure Ollama or an API provider in Settings.'
+  }
   if (reason.includes('ENOENT') || reason.toLowerCase().includes('no such file')) {
     return `File not found at ${absolutePath}. It may have been moved or deleted.`
+  }
+  return reason
+}
+
+function formatIndexingError(error: unknown): string {
+  const reason = error instanceof Error ? error.message : String(error)
+  if (
+    reason.includes('dlopen') ||
+    reason.includes('onnxruntime') ||
+    reason.includes('to_chars') ||
+    reason.includes('libc++')
+  ) {
+    return 'Embedding provider unavailable — configure Ollama or an API provider in Settings.'
   }
   return reason
 }
@@ -421,7 +442,7 @@ async function indexWatchedFile(event: DirectoryWatchEvent): Promise<void> {
       }
     }
   } catch (error) {
-    state.error = error instanceof Error ? error.message : String(error)
+    state.error = formatIndexingError(error)
   } finally {
     ignoreWatchedPaths([event.absolutePath])
     state.running = false
