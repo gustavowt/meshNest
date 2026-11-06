@@ -50,7 +50,9 @@ export function registerSettingsIpc(): void {
         return {
           ok: false,
           message:
-            'Built-in embedding cannot load on this macOS version (requires macOS 13.3+). Choose Ollama or an API provider instead.',
+            process.platform === 'darwin'
+              ? 'Built-in embedding cannot load on this macOS version (requires macOS 13.3+). Choose Ollama or an API provider instead.'
+              : `Built-in embedding model is unavailable: ${probe.reason ?? 'failed to load onnxruntime binding'}. Choose Ollama or an API provider instead.`,
         }
       }
     }

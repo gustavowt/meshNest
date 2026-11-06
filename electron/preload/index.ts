@@ -7,6 +7,7 @@ import type {
 } from '../../src/types/electronApi'
 
 const api: MeshNestApi = {
+  platform: process.platform,
   isMasBuild: process.mas === true,
   pickDirectory: () => ipcRenderer.invoke('filesystem:pickDirectory'),
   openWithSlicer: (absolutePath) =>

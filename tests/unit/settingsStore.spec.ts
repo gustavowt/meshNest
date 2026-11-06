@@ -147,4 +147,27 @@ describe('settingsStore', () => {
     expect(store.state.embeddingTest?.ok).toBe(false)
     expect(store.state.embeddingTest?.message).toContain('requires macOS 13.3+')
   })
+
+  test('reports builtin embedding test failure on non-macOS without mentioning macOS version', async () => {
+    const settings = providerSettings()
+    settings.embedding.provider = 'builtin'
+
+    const store = useSettingsStore()
+    store.state.draft = settings
+    store.state.builtinEmbeddingAvailable = false
+
+    window.meshNest = {
+      testEmbeddingProvider: vi.fn(async () => ({
+        ok: false,
+        message:
+          'Built-in embedding model is unavailable: failed to load onnxruntime binding. Choose Ollama or an API provider instead.',
+      })),
+    } as any
+
+    await store.testEmbedding()
+
+    expect(store.state.embeddingTest?.ok).toBe(false)
+    expect(store.state.embeddingTest?.message).toContain('Built-in embedding model is unavailable')
+    expect(store.state.embeddingTest?.message).not.toContain('macOS')
+  })
 })

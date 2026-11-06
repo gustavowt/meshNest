@@ -27,20 +27,25 @@
       "dist-electron/**/*",
       "package.json",
       "!**/node_modules/@rollup/**",
-      "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
-      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**"
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/**/libonnxruntime_providers_cuda.so"
     ],
     "asarUnpack": [
       "**/node_modules/@duckdb/**",
       "**/node_modules/better-sqlite3/**",
       "**/node_modules/sqlite-vec/**",
       "**/node_modules/sqlite-vec-*/**",
-      "**/node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
+      "**/node_modules/onnxruntime-node/bin/napi-v6/**",
       "**/node_modules/onnxruntime-node/dist/**",
       "**/node_modules/onnxruntime-node/package.json",
-      "**/node_modules/@huggingface/**"
+      "**/node_modules/@huggingface/**",
+      "**/node_modules/sharp/**",
+      "**/node_modules/@img/**"
     ],
     "mac": {
+      "files": [
+        "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
+        "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**"
+      ],
       "category": "public.app-category.utilities",
       "icon": "build/icon.icns",
       "target": [
@@ -64,7 +69,6 @@
     "@capacitor/haptics": "8.0.2",
     "@capacitor/keyboard": "8.0.3",
     "@capacitor/status-bar": "8.0.2",
-    "//": "legacy data migration only — keep exactly one release (PLAN.md step 6)",
     "@duckdb/node-api": "^1.5.3-r.3",
     "@huggingface/transformers": "^4.2.0",
     "@ionic/vue": "^8.0.0",

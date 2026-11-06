@@ -53,6 +53,7 @@ export type DirectoryWatchEvent = {
  * through this bridge.
  */
 export type MeshNestApi = {
+  readonly platform?: string
   /** True when running as a sandboxed Mac App Store build. */
   readonly isMasBuild: boolean
   /** Opens the OS directory picker. Resolves to null when cancelled. */

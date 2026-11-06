@@ -207,6 +207,7 @@
       "disabledDesc": "There is no download, provider call, or re-embedding work, but semantic search cannot rank models by meaning until embeddings are enabled again.",
       "provider": "Provider",
       "builtinUnavailableWarning": "Built-in embedding cannot load on this macOS version (requires macOS 13.3+). Choose Ollama or an API provider instead.",
+      "builtinUnavailableWarningGeneric": "Built-in embedding cannot load on this system. Choose Ollama or an API provider instead.",
       "useCloud": "Use Cloud Models",
       "useCloudNote": "Requires paid Ollama account",
       "modelSelection": "Model Selection",

@@ -310,7 +310,7 @@
                   <ion-icon :icon="warningOutline" color="warning" slot="start" />
                   <ion-text color="warning">
                     <p class="builtin-warning-text">
-                      {{ $t('settings.embeddingSection.builtinUnavailableWarning') }}
+                      {{ isDarwin ? $t('settings.embeddingSection.builtinUnavailableWarning') : $t('settings.embeddingSection.builtinUnavailableWarningGeneric') }}
                     </p>
                   </ion-text>
                 </ion-item>
@@ -617,6 +617,7 @@ import { useSettingsStore } from '@/stores/settingsStore'
 const { t } = useI18n()
 const settings = useSettingsStore()
 const draft = computed(() => settings.state.draft)
+const isDarwin = computed(() => (window as any).meshNest?.platform === 'darwin')
  
 const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language' | 'worldSearch'>('library')
 

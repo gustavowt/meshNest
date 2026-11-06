@@ -207,6 +207,7 @@
       "disabledDesc": "No hay descarga, llamada a proveedor ni trabajo de re-incorporación, pero la búsqueda semántica no puede ordenar modelos por significado hasta que los embeddings vuelvan a activarse.",
       "provider": "Proveedor",
       "builtinUnavailableWarning": "El modelo integrado no puede cargarse en esta versión de macOS (requiere macOS 13.3+). Elija Ollama o un proveedor de API en su lugar.",
+      "builtinUnavailableWarningGeneric": "El modelo integrado no puede cargarse en este sistema. Elija Ollama o un proveedor de API en su lugar.",
       "useCloud": "Usar Modelos en la Nube",
       "useCloudNote": "Requiere una cuenta de Ollama de pago",
       "modelSelection": "Selección de Modelo",
