@@ -52,6 +52,14 @@ export type DirectoryWatchEvent = {
  * `window.meshNest`. UI code must access desktop features only
  * through this bridge.
  */
+export type ResetDatabaseResult =
+  | { ok: true; removed: string[]; error?: undefined }
+  | { ok: false; removed?: string[]; error?: string }
+
+export interface DatabaseApi {
+  reset: () => Promise<ResetDatabaseResult>
+}
+
 export type MeshNestApi = {
   /** True when running as a sandboxed Mac App Store build. */
   readonly isMasBuild: boolean
@@ -94,6 +102,9 @@ export type MeshNestApi = {
   resetAllToPending(projectId?: string): Promise<void>
   /** Removes failed database records without deleting source files. */
   deleteFailedModelFiles(projectId?: string): Promise<number>
+  /** Deletes the local library database (sqlite main file and sidecars). Model files and settings are untouched; the database is recreated fresh on next use. */
+  resetDatabase(): Promise<ResetDatabaseResult>
+  database?: DatabaseApi
   /** Moves the model file to the OS trash and removes all of its records. */
   deleteModel(modelFileId: string): Promise<void>
   /** Renames the model file on disk (same folder) and updates its records. */

@@ -170,6 +170,7 @@
       "vision": "IA de Visão",
       "embedding": "Embeddings",
       "appearance": "Aparência",
+      "storage": "Armazenamento",
       "language": "Idioma",
       "worldSearch": "Busca Global"
     },
@@ -244,6 +245,19 @@
       "ptDesc": "Português",
       "esTitle": "Español",
       "esDesc": "Espanhol"
+    },
+    "storageSection": {
+      "title": "Armazenamento",
+      "desc": "O banco de dados da biblioteca é executado localmente nos dados do aplicativo. A redefinição exclui metadados indexados e embeddings — seus arquivos de modelo 3D permanecem intactos.",
+      "resetLabel": "Redefinir banco de dados",
+      "resetButton": "Redefinir…",
+      "confirmReset": "Confirmar redefinição?",
+      "confirmButton": "Confirmar redefinição?",
+      "resetting": "Redefinindo banco de dados…",
+      "success": "Redefinição concluída. {n} arquivos removidos. Índice da biblioteca reconstruído no próximo uso.",
+      "resetSuccess": "Redefinição concluída. {count} arquivos removidos. Índice da biblioteca reconstruído no próximo uso.",
+      "resetError": "Falha ao redefinir o banco de dados: {error}",
+      "errorFallback": "Falha na redefinição."
     },
     "worldSearchSection": {
       "title": "Provedores de Busca Global",

@@ -17,7 +17,7 @@ import type { AIModelDescription, ModelEmbedding } from '../../../src/types/llm'
 import type { ScannedFile } from '../../../src/types/modelFile'
 import type { GeometryMetadata, ThreeMfPackageMetadata } from '../../../src/types/modelMetadata'
 import { getModelRendersRoot } from '../services/appDataPaths'
-import { getDatabaseClient } from '../services/database'
+import { getDatabaseClient, resetDatabase } from '../services/database'
 
 export function registerDatabaseIpc(): void {
   ipcMain.handle(
@@ -164,5 +164,17 @@ export function registerDatabaseIpc(): void {
   ipcMain.handle('database:countEmbeddings', async () => {
     const repository = new SearchRepository(await getDatabaseClient())
     return repository.countEmbeddings()
+  })
+
+  ipcMain.handle('database:reset', async () => {
+    try {
+      return await resetDatabase()
+    } catch (error) {
+      return {
+        ok: false,
+        removed: [],
+        error: error instanceof Error ? error.message : String(error),
+      }
+    }
   })
 }

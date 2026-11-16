@@ -170,6 +170,7 @@
       "vision": "IA de Visión",
       "embedding": "Embeddings",
       "appearance": "Apariencia",
+      "storage": "Almacenamiento",
       "language": "Idioma",
       "worldSearch": "Búsqueda Global"
     },
@@ -244,6 +245,19 @@
       "ptDesc": "Portugués",
       "esTitle": "Español",
       "esDesc": "Español"
+    },
+    "storageSection": {
+      "title": "Almacenamiento",
+      "desc": "La base de datos de la biblioteca se ejecuta localmente en los datos de la aplicación. El restablecimiento elimina metadatos indexados e incrustaciones — sus archivos de modelos 3D no se tocan.",
+      "resetLabel": "Restablecer base de datos",
+      "resetButton": "Restablecer…",
+      "confirmReset": "¿Confirmar restablecimiento?",
+      "confirmButton": "¿Confirmar restablecimiento?",
+      "resetting": "Restableciendo base de datos…",
+      "success": "Restablecimiento completo. {n} archivos eliminados. El índice de la biblioteca se reconstruirá en el próximo uso.",
+      "resetSuccess": "Restablecimiento completo. {count} archivos eliminados. El índice de la biblioteca se reconstruirá en el próximo uso.",
+      "resetError": "Error al restablecer la base de datos: {error}",
+      "errorFallback": "Error al restablecer."
     },
     "worldSearchSection": {
       "title": "Proveedores de Búsqueda Global",

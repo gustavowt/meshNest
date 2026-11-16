@@ -45,6 +45,10 @@
               <ion-icon :icon="colorPaletteOutline" />
               <ion-label>{{ $t('settings.tabs.appearance') }}</ion-label>
             </ion-segment-button>
+            <ion-segment-button value="storage">
+              <ion-icon :icon="serverOutline" />
+              <ion-label>{{ $t('settings.tabs.storage') }}</ion-label>
+            </ion-segment-button>
             <ion-segment-button value="language">
               <ion-icon :icon="languageOutline" />
               <ion-label>{{ $t('settings.tabs.language') }}</ion-label>
@@ -91,6 +95,15 @@
               >
                 <ion-icon :icon="colorPaletteOutline" />
                 <span>{{ $t('settings.tabs.appearance') }}</span>
+              </button>
+              <button
+                class="nav-item"
+                data-testid="storage-nav"
+                :class="{ active: activeSection === 'storage' }"
+                @click="activeSection = 'storage'"
+              >
+                <ion-icon :icon="serverOutline" />
+                <span>{{ $t('settings.tabs.storage') }}</span>
               </button>
               <button
                 class="nav-item"
@@ -509,6 +522,33 @@
               </div>
             </section>
 
+            <!-- Storage -->
+            <section v-if="activeSection === 'storage'" class="content-section">
+              <h2 class="section-title">{{ $t('settings.storageSection.title') }}</h2>
+              <p class="section-description">{{ $t('settings.storageSection.desc') }}</p>
+              <ion-list inset>
+                <ion-item>
+                  <ion-label>{{ $t('settings.storageSection.resetLabel') }}</ion-label>
+                  <ion-button
+                    slot="end"
+                    color="danger"
+                    fill="outline"
+                    size="small"
+                    :disabled="resetState === 'resetting' || indexing.state.running"
+                    @click="handleResetDatabase"
+                  >
+                    <ion-spinner v-if="resetState === 'resetting'" name="crescent" class="test-spinner" />
+                    {{ resetState === 'armed' ? $t('settings.storageSection.confirmButton') : $t('settings.storageSection.resetButton') }}
+                  </ion-button>
+                </ion-item>
+              </ion-list>
+              <ion-text v-if="resetResult !== null" color="success">
+                <p class="reset-result">{{ $t('settings.storageSection.success', { n: resetResult }) }}</p>
+              </ion-text>
+              <ion-text v-if="resetError !== null" color="danger">
+                <p class="reset-result">{{ resetError }}</p>
+              </ion-text>
+            </section>
             <!-- Language Section -->
             <section v-if="activeSection === 'language'" class="content-section">
               <h2 class="section-title">{{ $t('settings.languageSection.title') }}</h2>
@@ -601,9 +641,13 @@ import {
   IonToolbar,
   toastController,
 } from '@ionic/vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { folderOutline, globeOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline, warningOutline } from 'ionicons/icons'
+import { folderOutline, globeOutline, imageOutline, searchOutline, colorPaletteOutline, languageOutline, warningOutline, serverOutline } from 'ionicons/icons'
+import { useLibraryStore } from '@/stores/libraryStore'
+import { useSearchStore } from '@/stores/searchStore'
+import { useIndexingStore } from '@/stores/indexingStore'
+import { resetDatabase } from '@/services/database'
 import ProviderTestBanner from '@/components/settings/ProviderTestBanner.vue'
 import WorldSearchSettingsSection from '@/components/settings/WorldSearchSettingsSection.vue'
 import type { VisionProviderId, EmbeddingProviderId } from '@/types/providerSettings'
@@ -616,9 +660,84 @@ import { useSettingsStore } from '@/stores/settingsStore'
  
 const { t } = useI18n()
 const settings = useSettingsStore()
+const library = useLibraryStore()
+const search = useSearchStore()
+const indexing = useIndexingStore()
 const draft = computed(() => settings.state.draft)
  
-const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'language' | 'worldSearch'>('library')
+const activeSection = ref<'library' | 'vision' | 'embedding' | 'appearance' | 'storage' | 'language' | 'worldSearch'>('library')
+
+const resetState = ref<'idle' | 'armed' | 'resetting'>('idle')
+const resetResult = ref<number | null>(null)
+const resetError = ref<string | null>(null)
+let resetDisarmTimer: ReturnType<typeof setTimeout> | null = null
+
+function disarmReset(): void {
+  if (resetDisarmTimer) {
+    clearTimeout(resetDisarmTimer)
+    resetDisarmTimer = null
+  }
+  resetState.value = 'idle'
+}
+
+watch(
+  () => indexing.state.running,
+  (running) => {
+    if (running && resetState.value === 'armed') {
+      disarmReset()
+    }
+  },
+)
+
+async function handleResetDatabase(): Promise<void> {
+  if (!window.meshNest) return
+  if (indexing.state.running) {
+    disarmReset()
+    return
+  }
+  if (resetState.value === 'idle') {
+    resetResult.value = null
+    resetError.value = null
+    resetState.value = 'armed'
+    resetDisarmTimer = setTimeout(() => {
+      resetDisarmTimer = null
+      resetState.value = 'idle'
+    }, 5000)
+    return
+  }
+  if (resetState.value !== 'armed') return
+  disarmReset()
+  resetState.value = 'resetting'
+  try {
+    const result = window.meshNest?.resetDatabase
+      ? await window.meshNest.resetDatabase()
+      : await resetDatabase()
+    if (result.ok) {
+      resetResult.value = result.removed.length
+      if (window.meshNest?.listLibraryEntries) {
+        void window.meshNest.listLibraryEntries()
+      }
+      void library.loadLibrary({ silent: true })
+      void search.refreshIndexStatus()
+      void search.runSearch('')
+    } else {
+      resetError.value = result.error || t('settings.storageSection.errorFallback')
+    }
+  } catch (error) {
+    resetError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    if (resetState.value === 'resetting') {
+      resetState.value = 'idle'
+    }
+  }
+}
+
+onUnmounted(() => {
+  if (resetDisarmTimer) {
+    clearTimeout(resetDisarmTimer)
+    resetDisarmTimer = null
+  }
+})
 
 const visionInfo = computed(() => VISION_PROVIDERS[draft.value!.vision.provider as Exclude<VisionProviderId, 'mock'>])
 const embeddingInfo = computed(() => EMBEDDING_PROVIDERS[draft.value!.embedding.provider as Exclude<EmbeddingProviderId, 'mock'>])
@@ -714,6 +833,14 @@ onMounted(() => {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 16px;
+}
+
+.reset-spinner,
+.save-spinner,
+.test-spinner {
+  width: 14px;
+  height: 14px;
+  margin-inline-end: 6px;
 }
 
 .save-spinner,
@@ -843,7 +970,8 @@ onMounted(() => {
   font-family: var(--font-heading);
 }
 
-.section-description {
+.section-description,
+.section-desc {
   color: var(--ion-color-medium);
   font-size: 0.95rem;
   margin: 0 0 24px 0;
@@ -1246,5 +1374,53 @@ onMounted(() => {
     grid-template-columns: 1fr;
     gap: 12px;
   }
+}
+
+.storage-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--card-glass-bg);
+  border: var(--card-glass-border);
+  border-radius: 14px;
+  box-shadow: var(--card-glass-shadow);
+  margin-bottom: 16px;
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-label {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--ion-text-color);
+}
+
+.reset-spinner {
+  width: 18px;
+  height: 18px;
+}
+
+.storage-status {
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  margin-top: 12px;
+}
+
+.storage-status.success {
+  background: rgba(var(--ion-color-success-rgb, 45, 211, 111), 0.12);
+  color: var(--ion-color-success);
+  border: 1px solid rgba(var(--ion-color-success-rgb, 45, 211, 111), 0.25);
+}
+
+.storage-status.error {
+  background: rgba(var(--ion-color-danger-rgb, 235, 68, 90), 0.12);
+  color: var(--ion-color-danger);
+  border: 1px solid rgba(var(--ion-color-danger-rgb, 235, 68, 90), 0.25);
 }
 </style>
