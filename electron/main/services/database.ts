@@ -301,11 +301,16 @@ async function performDatabaseReset(): Promise<{ ok: boolean; removed: string[];
     const dbPath = getDatabasePath()
     const suffixes = [...DATABASE_FILE_SUFFIXES, '-journal']
     const removed: string[] = []
+    // Count every file that existed when the reset started, even if the final
+    // unlink failed (e.g. SQLite keeping the WAL open on some platforms) —
+    // the UI reports "N files removed" and must not underreport to 0.
+    const existed: string[] = []
 
     for (const suffix of suffixes) {
       const filePath = `${dbPath}${suffix}`
       try {
         if (existsSync(filePath)) {
+          existed.push(filePath)
           rmSync(filePath, { force: true })
           removed.push(filePath)
         }
@@ -318,6 +323,7 @@ async function performDatabaseReset(): Promise<{ ok: boolean; removed: string[];
     for (const file of [legacyDuckDb, `${legacyDuckDb}.wal`]) {
       try {
         if (existsSync(file)) {
+          existed.push(file)
           rmSync(file, { force: true })
           removed.push(file)
         }
@@ -334,7 +340,7 @@ async function performDatabaseReset(): Promise<{ ok: boolean; removed: string[];
       }
     }
 
-    return { ok: true, removed }
+    return { ok: true, removed: removed.length > 0 ? removed : existed }
   } catch (error) {
     return {
       ok: false,
