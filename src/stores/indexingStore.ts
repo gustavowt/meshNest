@@ -29,6 +29,7 @@ const state = reactive<IndexingState>({
 let abortController: AbortController | null = null
 let lastFiles: ScannedFile[] = []
 let lastResults: Map<string, IndexingResult> = new Map()
+let isBootScanning = false
 let watchedFileProcessing = false
 const watchedFileQueue = new Map<string, DirectoryWatchEvent>()
 const fileProcessedListeners = new Set<(file: ScannedFile, result: IndexingResult) => void>()
@@ -86,17 +87,14 @@ async function runIndexing(
  * On startup, catch files added while the app was closed. This keeps the
  * watcher path focused on live additions while preserving the same queue.
  */
-async function indexNewFilesOnBoot(directory?: string | null): Promise<void> {
+async function indexNewFilesOnBoot(
+  directory?: string | null,
+): Promise<{ total: number; successful: number; failed: number }> {
   if (state.running || !directory || !window.meshNest) {
-    return
+    return { total: 0, successful: 0, failed: 0 }
   }
 
-  state.running = true
-  state.directory = directory
-  state.progress = null
-  state.summary = null
-  state.error = null
-  abortController = new AbortController()
+  isBootScanning = true
 
   try {
     const scannedFiles = await window.meshNest.scanDirectory(directory, crypto.randomUUID())
@@ -106,8 +104,15 @@ async function indexNewFilesOnBoot(directory?: string | null): Promise<void> {
     const newFiles = scannedFiles.filter((file) => !existingPaths.has(file.absolutePath))
 
     if (newFiles.length === 0) {
-      return
+      return { total: 0, successful: 0, failed: 0 }
     }
+
+    state.running = true
+    state.directory = directory
+    state.progress = null
+    state.summary = null
+    state.error = null
+    abortController = new AbortController()
 
     lastFiles = newFiles
     const outcome = await indexScannedFiles(newFiles, DEFAULT_PROJECT_ID, await createDesktopIndexingDeps(), {
@@ -119,9 +124,16 @@ async function indexNewFilesOnBoot(directory?: string | null): Promise<void> {
     })
     lastResults = outcome.resultsByPath
     state.summary = outcome.summary
+    return {
+      total: outcome.summary.total,
+      successful: outcome.summary.indexed,
+      failed: outcome.summary.failed,
+    }
   } catch (error) {
     state.error = formatIndexingError(error)
+    return { total: 0, successful: 0, failed: 0 }
   } finally {
+    isBootScanning = false
     finishManualRunWatchSuppression()
     state.running = false
     abortController = null
@@ -383,12 +395,12 @@ function notifyFileProcessed(file: ScannedFile, result: IndexingResult): void {
 }
 
 async function processWatchedFileQueue(): Promise<void> {
-  if (watchedFileProcessing || state.running || !window.meshNest) {
+  if (watchedFileProcessing || state.running || isBootScanning || !window.meshNest) {
     return
   }
   watchedFileProcessing = true
   try {
-    while (!state.running && watchedFileQueue.size > 0 && window.meshNest) {
+    while (!state.running && !isBootScanning && watchedFileQueue.size > 0 && window.meshNest) {
       const next = watchedFileQueue.entries().next().value as
         | [string, DirectoryWatchEvent]
         | undefined
@@ -483,6 +495,7 @@ function syncRenamedModel(previousAbsolutePath: string, updated: ModelFile): voi
 
 /** Test-only helper to restore a pristine store between specs. */
 export function resetIndexingStore(): void {
+  isBootScanning = false
   state.running = false
   state.directory = null
   state.progress = null

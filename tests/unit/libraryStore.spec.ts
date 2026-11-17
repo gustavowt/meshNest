@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
-import { resetLibraryStore, useLibraryStore } from '@/stores/libraryStore'
+import {
+  hydrateFromCache,
+  loadCachedLibraryEntries,
+  resetLibraryStore,
+  saveCachedLibraryEntries,
+  useLibraryStore,
+} from '@/stores/libraryStore'
 import type { LibraryEntry } from '@/types/library'
 import type { MeshNestApi } from '@/types/electronApi'
 
@@ -18,7 +24,27 @@ function entry(overrides: Partial<LibraryEntry>): LibraryEntry {
   }
 }
 
+function installLocalStorageMock(): void {
+  const values = new Map<string, string>()
+  Object.defineProperty(window, 'localStorage', {
+    configurable: true,
+    value: {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        values.set(key, value)
+      },
+      removeItem: (key: string) => {
+        values.delete(key)
+      },
+      clear: () => {
+        values.clear()
+      },
+    },
+  })
+}
+
 beforeEach(() => {
+  installLocalStorageMock()
   resetLibraryStore()
 })
 
@@ -215,5 +241,66 @@ describe('libraryStore', () => {
 
     expect(store.state.entries[0].absolutePath).toBe('/models/new-name.3mf')
     expect(store.state.entries[0].shortName).toBe('new name')
+  })
+
+  test('caches fresh entries to localStorage when loadLibrary runs', async () => {
+    const entries = [entry({ id: 'model-cache-1', filename: 'cached.stl' })]
+    window.meshNest = {
+      listLibraryEntries: async () => entries,
+    } as unknown as MeshNestApi
+
+    const store = useLibraryStore()
+    await store.loadLibrary()
+
+    const cached = loadCachedLibraryEntries()
+    expect(cached).toHaveLength(1)
+    expect(cached[0].id).toBe('model-cache-1')
+    expect(window.localStorage.getItem('meshnest.libraryCache.v1')).toContain('model-cache-1')
+  })
+
+  test('silent background refresh retains cached entries on bridge failure without showing error', async () => {
+    const initial = [entry({ id: 'model-1', filename: 'initial.stl' })]
+    window.meshNest = {
+      listLibraryEntries: async () => initial,
+    } as unknown as MeshNestApi
+
+    const store = useLibraryStore()
+    await store.loadLibrary()
+
+    expect(store.state.entries).toHaveLength(1)
+    expect(store.state.entries[0].filename).toBe('initial.stl')
+
+    window.meshNest = {
+      listLibraryEntries: async () => {
+        throw new Error('database locked')
+      },
+    } as unknown as MeshNestApi
+
+    await store.loadLibrary({ silent: true })
+
+    expect(store.state.entries).toHaveLength(1)
+    expect(store.state.entries[0].filename).toBe('initial.stl')
+    expect(store.state.error).toBeNull()
+    expect(store.state.loading).toBe(false)
+  })
+
+  test('hydrates entries from localStorage cache', () => {
+    const cachedEntries = [entry({ id: 'hydrated-1', filename: 'hydrated.stl' })]
+    saveCachedLibraryEntries(cachedEntries)
+
+    expect(loadCachedLibraryEntries()).toHaveLength(1)
+
+    const store = useLibraryStore()
+    expect(store.state.entries).toHaveLength(0)
+
+    hydrateFromCache()
+    expect(store.state.entries).toHaveLength(1)
+    expect(store.state.entries[0].id).toBe('hydrated-1')
+    expect(store.state.loaded).toBe(true)
+
+    resetLibraryStore()
+    saveCachedLibraryEntries(cachedEntries)
+    store.hydrateFromCache()
+    expect(store.state.entries).toHaveLength(1)
   })
 })

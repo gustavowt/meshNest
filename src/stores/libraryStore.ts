@@ -1,6 +1,80 @@
 import { computed, reactive, readonly } from 'vue'
 import type { LibraryEntry, LibrarySortKey } from '@/types/library'
 
+const CACHE_VERSION = 1
+const STORAGE_KEY = 'meshnest.libraryCache.v1'
+
+type CachedLibrary = {
+  version: typeof CACHE_VERSION
+  entries: LibraryEntry[]
+}
+
+type LibraryStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>
+
+function getStorage(): LibraryStorage | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+  const storage = window.localStorage
+  if (
+    !storage ||
+    typeof storage.getItem !== 'function' ||
+    typeof storage.setItem !== 'function' ||
+    typeof storage.removeItem !== 'function'
+  ) {
+    return null
+  }
+  return storage
+}
+
+export function loadCachedLibraryEntries(): LibraryEntry[] {
+  const storage = getStorage()
+  if (!storage) {
+    return []
+  }
+  try {
+    const raw = storage.getItem(STORAGE_KEY)
+    if (!raw) {
+      return []
+    }
+    const parsed = JSON.parse(raw) as Partial<CachedLibrary>
+    if (parsed.version !== CACHE_VERSION || !Array.isArray(parsed.entries)) {
+      return []
+    }
+    return parsed.entries
+  } catch {
+    return []
+  }
+}
+
+export function saveCachedLibraryEntries(entries: LibraryEntry[]): void {
+  const storage = getStorage()
+  if (!storage) {
+    return
+  }
+  try {
+    const payload: CachedLibrary = {
+      version: CACHE_VERSION,
+      entries,
+    }
+    storage.setItem(STORAGE_KEY, JSON.stringify(payload))
+  } catch (error) {
+    console.warn('Failed to cache library entries:', error)
+  }
+}
+
+export function clearCachedLibraryEntries(): void {
+  const storage = getStorage()
+  if (!storage) {
+    return
+  }
+  try {
+    storage.removeItem(STORAGE_KEY)
+  } catch {
+    // Ignore storage clear issues
+  }
+}
+
 type LibraryState = {
   entries: LibraryEntry[]
   loading: boolean
@@ -9,14 +83,24 @@ type LibraryState = {
   sortKey: LibrarySortKey
 }
 
+const initialCachedEntries = loadCachedLibraryEntries()
+
 const state = reactive<LibraryState>({
-  entries: [],
+  entries: initialCachedEntries,
   loading: false,
   error: null,
-  loaded: false,
+  loaded: initialCachedEntries.length > 0,
   sortKey: 'filename',
 })
 const pinnedEntryIds: string[] = []
+
+export function hydrateFromCache(): void {
+  const cached = loadCachedLibraryEntries()
+  if (cached.length > 0) {
+    state.entries = cached
+    state.loaded = true
+  }
+}
 
 function compareEntries(a: LibraryEntry, b: LibraryEntry, key: LibrarySortKey): number {
   switch (key) {
@@ -59,10 +143,16 @@ async function loadLibrary(options: { silent?: boolean } = {}): Promise<void> {
   }
   state.error = null
   try {
-    state.entries = await window.meshNest.listLibraryEntries()
+    const freshEntries = await window.meshNest.listLibraryEntries()
+    state.entries = freshEntries
     state.loaded = true
+    saveCachedLibraryEntries(freshEntries)
   } catch (error) {
-    state.error = error instanceof Error ? error.message : String(error)
+    if (options.silent && state.entries.length > 0) {
+      console.warn('Silent library refresh failed; retaining cached entries:', error)
+    } else {
+      state.error = error instanceof Error ? error.message : String(error)
+    }
   } finally {
     if (!options.silent) {
       state.loading = false
@@ -83,6 +173,7 @@ function upsertEntry(entry: LibraryEntry): void {
     state.entries.push(entry)
   }
   state.loaded = true
+  saveCachedLibraryEntries(state.entries)
 }
 
 async function refreshEntry(modelFileId: string): Promise<LibraryEntry | null> {
@@ -125,6 +216,7 @@ function pinEntryFirst(id: string): void {
 
 /** Test-only helper to restore a pristine store between specs. */
 export function resetLibraryStore(): void {
+  clearCachedLibraryEntries()
   state.entries = []
   state.loading = false
   state.error = null
@@ -146,5 +238,6 @@ export function useLibraryStore() {
     setSortKey,
     patchEntry,
     pinEntryFirst,
+    hydrateFromCache,
   }
 }

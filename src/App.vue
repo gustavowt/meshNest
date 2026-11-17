@@ -15,6 +15,6 @@ const settings = useSettingsStore();
 
 onMounted(async () => {
   await settings.loadSettings();
-  await indexing.indexNewFilesOnBoot(settings.state.draft?.libraryFolder);
+  void indexing.indexNewFilesOnBoot(settings.state.draft?.libraryFolder);
 });
 </script>

@@ -24,49 +24,46 @@
             <ion-icon slot="icon-only" :icon="ellipsisVerticalOutline" />
           </ion-button>
         </ion-buttons>
+        <ion-progress-bar
+          v-if="indexing.state.running"
+          class="header-progress-bar"
+          :type="indexing.state.progress ? 'determinate' : 'indeterminate'"
+          :value="progressFraction"
+        />
       </ion-toolbar>
 
-      <ion-toolbar v-if="indexing.state.running" class="indexing-toolbar">
-        <div class="indexing-bar">
-          <div class="indexing-panel">
-            <div class="indexing-info">
-              <div class="indexing-copy">
-                <span v-if="indexing.state.progress" class="indexing-title">
-                  {{ indexing.state.progress.processed }} / {{ indexing.state.progress.total }}
-                </span>
-                <span v-else class="indexing-title">
-                  {{ $t('library.indexing', { dir: indexing.state.directory }) }}
-                </span>
-                <span v-if="currentFileName" class="current-file">{{ currentFileName }}</span>
-              </div>
-              <ion-button
-                class="indexing-cancel-btn"
-                size="small"
-                fill="clear"
-                color="medium"
-                @click="indexing.cancelIndexing()"
-              >
-                {{ $t('library.indexingCancel') }}
-              </ion-button>
-            </div>
-            <ion-progress-bar
-              class="indexing-progress"
-              :type="indexing.state.progress ? 'determinate' : 'indeterminate'"
-              :value="progressFraction"
-            />
-            <div v-if="indexing.state.progress" class="indexing-stats" aria-live="polite">
-              <span class="indexing-stat success">
-                {{ $t('library.indexingSuccessful', { count: indexingSuccessfulCount }) }}
-              </span>
-              <span class="indexing-stat error">
-                {{ $t('library.indexingErrors', { count: indexingErrorCount }) }}
-              </span>
-            </div>
+      <div v-if="indexing.state.running" class="indexing-floating-badge">
+        <div class="indexing-info">
+          <div class="indexing-copy">
+            <span v-if="indexing.state.progress" class="indexing-title">
+              {{ indexing.state.progress.processed }} / {{ indexing.state.progress.total }}
+            </span>
+            <span v-else class="indexing-title">
+              {{ $t('library.indexing', { dir: indexing.state.directory }) }}
+            </span>
+            <span v-if="currentFileName" class="current-file">{{ currentFileName }}</span>
           </div>
+          <div v-if="indexing.state.progress" class="indexing-stats" aria-live="polite">
+            <span class="indexing-stat success">
+              {{ $t('library.indexingSuccessful', { count: indexingSuccessfulCount }) }}
+            </span>
+            <span v-if="indexingErrorCount > 0" class="indexing-stat error">
+              {{ $t('library.indexingErrors', { count: indexingErrorCount }) }}
+            </span>
+          </div>
+          <ion-button
+            class="indexing-cancel-btn"
+            size="small"
+            fill="clear"
+            color="medium"
+            @click="indexing.cancelIndexing()"
+          >
+            {{ $t('library.indexingCancel') }}
+          </ion-button>
         </div>
-      </ion-toolbar>
+      </div>
 
-      <ion-toolbar v-else-if="bulkRenameProgress.phase !== 'idle'" class="indexing-toolbar">
+      <ion-toolbar v-if="bulkRenameProgress.phase !== 'idle'" class="indexing-toolbar">
         <div class="indexing-bar">
           <div class="indexing-panel">
             <div class="indexing-info">
@@ -202,7 +199,7 @@
       </div>
 
       <!-- Loading state -->
-      <div v-if="library.state.loading || settings.state.loading" class="state-container">
+      <div v-if="(library.state.loading || settings.state.loading) && !library.state.loaded" class="state-container">
         <ion-spinner name="crescent" />
         <p>{{ $t('library.loadingLibrary') }}</p>
       </div>
@@ -215,7 +212,7 @@
       </div>
 
       <!-- State A: No library folder selected yet -->
-      <div v-else-if="!settings.state.draft?.libraryFolder" class="state-container">
+      <div v-else-if="!settings.state.draft?.libraryFolder && library.state.entries.length === 0" class="state-container">
         <ion-icon :icon="folderOutline" class="state-icon" />
         <h2>{{ $t('library.noFolderTitle') }}</h2>
         <p>{{ $t('library.noFolderDesc') }}</p>
@@ -229,7 +226,7 @@
       <div v-else-if="library.state.loaded && library.state.entries.length === 0" class="state-container">
         <ion-icon :icon="cubeOutline" class="state-icon" />
         <h2>{{ $t('library.noModelsTitle') }}</h2>
-        <p>{{ $t('library.noModelsDesc', { folder: settings.state.draft.libraryFolder }) }}</p>
+        <p>{{ $t('library.noModelsDesc', { folder: settings.state.draft?.libraryFolder }) }}</p>
         <div style="display: flex; gap: 8px; margin-top: 8px;">
           <ion-button :disabled="indexing.state.running" fill="outline" @click="rescanCurrentFolder">
             <ion-icon slot="start" :icon="refreshOutline" />
@@ -364,10 +361,8 @@ const settings = useSettingsStore()
 let activeDirectoryWatchId: string | null = null
 let unsubscribeDirectoryWatchEvents: (() => void) | null = null
 const RUN_SUMMARY_DISMISS_MS = 5000
-const unsubscribeFileProcessed = indexing.onFileProcessed((_file, result) => {
-  if (result.modelFileId) {
-    void library.refreshEntry(result.modelFileId)
-  }
+const unsubscribeFileProcessed = indexing.onFileProcessed(() => {
+  // Batch indexing silently reloads when indexing.state.running becomes false.
 })
 const unsubscribeWatchedFileIndexed = indexing.onWatchedFileIndexed((result) => {
   if (result.modelFileId) {
@@ -404,7 +399,7 @@ const AI_VISION_PROVIDERS = ['openai', 'gemini', 'ollama']
 
 const searchEntries = computed<LibraryEntry[]>(() => {
   return search.state.results
-    .filter((r) => r.score > 0.55)
+    .filter((r) => r.score > 0.50)
     .map((r) => {
       const original = library.state.entries.find((e) => e.id === r.modelFileId)
       return {
@@ -1027,9 +1022,7 @@ onBeforeUnmount(() => {
 })
 
 onMounted(async () => {
-  if (!library.state.loaded) {
-    library.loadLibrary()
-  }
+  void library.loadLibrary({ silent: library.state.loaded })
   search.refreshIndexStatus()
   if (!settings.state.draft) {
     await settings.loadSettings()
@@ -1119,6 +1112,32 @@ onMounted(async () => {
   .bulk-rename-mode-cancel {
     --color: rgba(255, 255, 255, 0.68);
   }
+}
+
+.header-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 10;
+}
+
+.indexing-floating-badge {
+  position: absolute;
+  top: 100%;
+  right: 16px;
+  margin-top: 8px;
+  z-index: 1000;
+  padding: 6px 14px;
+  border-radius: 16px;
+  background: var(--ion-toolbar-background, var(--ion-background-color));
+  border: 1px solid rgba(var(--ion-color-primary-rgb), 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  pointer-events: auto;
+  max-width: min(500px, calc(100vw - 32px));
 }
 
 .indexing-toolbar {

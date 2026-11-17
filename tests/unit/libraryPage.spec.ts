@@ -130,7 +130,7 @@ describe('LibraryPage.vue', () => {
           extension: 'stl',
           tags: ['storage'],
           distance: 0.9,
-          score: 0.55, // Should be filtered out because it is < 60% (0.6)
+          score: 0.45, // Should be filtered out because it is <= 50% (0.50)
         },
       ],
       onDirectoryWatchEvent: () => () => {},
@@ -187,8 +187,8 @@ describe('LibraryPage.vue', () => {
     vi.advanceTimersByTime(300)
     await flushPromises() // resolve the async semanticSearch promises
 
-    // Now it should show the semantic search results with the score >= 60%!
-    // The box (55% match) must be filtered out.
+    // Now it should show the semantic search results with the score > 50%!
+    // The box (45% match) must be filtered out.
     items = wrapper.findAll('.mock-grid .item')
     expect(items).toHaveLength(1)
     expect(items[0].text()).toContain('dragon.stl (score: 0.95)')
