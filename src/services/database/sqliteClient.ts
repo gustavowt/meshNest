@@ -16,6 +16,20 @@ function isEmptyParams(params?: SqliteParams): boolean {
   return Object.keys(params).length === 0
 }
 
+function loadSqliteVec(db: Database.Database): boolean {
+  try {
+    let loadPath = sqliteVec.getLoadablePath()
+    if (loadPath.includes('app.asar') && !loadPath.includes('app.asar.unpacked')) {
+      loadPath = loadPath.replace('app.asar', 'app.asar.unpacked')
+    }
+    db.loadExtension(loadPath)
+    return true
+  } catch (err) {
+    console.error('Failed to load sqlite-vec extension:', err)
+    return false
+  }
+}
+
 /**
  * SQLite client wrapper around better-sqlite3 with sqlite-vec extension support.
  * Matches the standard database client call shape for repository compatibility.
@@ -67,12 +81,7 @@ export class SqliteClient {
 
     let vecAvailable = false
     if (options?.enableVec ?? true) {
-      try {
-        sqliteVec.load(db)
-        vecAvailable = true
-      } catch {
-        vecAvailable = false
-      }
+      vecAvailable = loadSqliteVec(db)
     }
 
     return new SqliteClient(db, vecAvailable)
