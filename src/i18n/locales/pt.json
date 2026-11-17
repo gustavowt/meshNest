@@ -158,7 +158,10 @@
     "renamed": "Arquivo renomeado.",
     "deleteConfirmHeader": "Excluir modelo?",
     "deleteConfirmMessage": "\"{name}\" será movido para a lixeira e removido da sua biblioteca. Isso não pode ser desfeito pelo aplicativo.",
-    "deleted": "Modelo movido para a lixeira."
+    "deleted": "Modelo movido para a lixeira.",
+    "filamentColor": "Cor do filamento",
+    "customColor": "Cor personalizada",
+    "resetColor": "Restaurar cor original"
   },
   "settings": {
     "saving": "Salvando…",

@@ -158,7 +158,10 @@
     "renamed": "File renamed.",
     "deleteConfirmHeader": "Delete model?",
     "deleteConfirmMessage": "\"{name}\" will be moved to the trash and removed from your library. This cannot be undone from the app.",
-    "deleted": "Model moved to trash."
+    "deleted": "Model moved to trash.",
+    "filamentColor": "Filament color",
+    "customColor": "Custom color",
+    "resetColor": "Reset to original color"
   },
   "settings": {
     "saving": "Saving…",

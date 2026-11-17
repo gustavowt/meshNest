@@ -158,7 +158,10 @@
     "renamed": "Archivo renombrado.",
     "deleteConfirmHeader": "¿Eliminar modelo?",
     "deleteConfirmMessage": "\"{name}\" se moverá a la papelera y se eliminará de tu biblioteca. Esto no se puede deshacer desde la aplicación.",
-    "deleted": "Modelo movido a la papelera."
+    "deleted": "Modelo movido a la papelera.",
+    "filamentColor": "Color del filamento",
+    "customColor": "Color personalizado",
+    "resetColor": "Restablecer color original"
   },
   "settings": {
     "saving": "Guardando…",
