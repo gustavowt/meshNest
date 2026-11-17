@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>meshNest — Semantic Library for Your 3D Prints</title>
+  <meta name="description" content="meshNest indexes your STL/3MF collection with on-device AI descriptions, 3D previews, and semantic search — find any model by describing it, all local-first on your machine." />
+  <meta property="og:title" content="meshNest — Semantic Library for Your 3D Prints" />
+  <meta property="og:description" content="Index, describe, preview and semantically search your STL/3MF library with on-device AI. Local-first, built for 3D printing." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://gustavowt.github.io/meshnest/" />
+  <link rel="icon" type="image/png" href="favicon_32.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-deepest: #12101c;
+      --bg-deep: #191525;
+      --bg-surface: #201a2e;
+      --bg-elevated: #2a2340;
+      --bg-hover: #342c4e;
+
+      --border-subtle: #241f32;
+      --border-default: #302a44;
+      --border-strong: #45385f;
+
+      --text-primary: #ece9f5;
+      --text-secondary: #a49fc0;
+      --text-muted: #7a7399;
+
+      --indigo: #4f46e5;
+      --indigo-light: #6c64f0;
+      --indigo-dark: #453eb9;
+      --indigo-muted: rgba(79, 70, 229, 0.16);
+      --indigo-glow: rgba(79, 70, 229, 0.35);
+
+      --teal: #2dd4bf;
+      --teal-light: #5eead4;
+      --teal-muted: rgba(45, 212, 191, 0.14);
+
+      --green: #34d399;
+      --green-light: #6ee7b7;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: var(--bg-deepest);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+    a { color: var(--indigo-light); text-decoration: none; transition: color .2s; }
+    a:hover { color: var(--teal-light); }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
+
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      background: rgba(18, 16, 28, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    nav .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px;
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text-primary); }
+    .nav-logo img { width: 28px; height: 28px; }
+    .nav-links { display: flex; gap: 28px; font-size: 14px; font-weight: 500; }
+    .nav-links a { color: var(--text-secondary); }
+    .nav-links a:hover { color: var(--text-primary); }
+    .nav-cta {
+      padding: 8px 18px; border-radius: 10px; font-weight: 600; font-size: 14px;
+      background: var(--indigo); color: #fff !important;
+      box-shadow: 0 0 18px var(--indigo-glow);
+    }
+    .nav-cta:hover { background: var(--indigo-dark); }
+
+    .hero { padding: 140px 0 60px; text-align: center; position: relative; }
+    .hero::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background:
+        radial-gradient(600px 300px at 50% 0%, var(--indigo-muted), transparent 70%),
+        radial-gradient(400px 220px at 30% 20%, rgba(45,212,191,0.06), transparent 70%);
+    }
+    .hero .container { position: relative; }
+    .hero-logo { width: 88px; height: 88px; margin: 0 auto 20px; display: block; filter: drop-shadow(0 0 24px var(--indigo-glow)); }
+    .hero h1 { font-size: 52px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 18px; }
+    .hero h1 .accent { color: var(--indigo-light); }
+    .hero .tagline { font-size: 20px; color: var(--text-secondary); max-width: 680px; margin: 0 auto 34px; }
+    .hero .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 13px 26px; border-radius: 12px; font-weight: 600; font-size: 15px;
+      transition: transform .15s, box-shadow .2s;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-primary { background: var(--indigo); color: #fff !important; box-shadow: 0 0 26px var(--indigo-glow); }
+    .btn-primary:hover { box-shadow: 0 0 40px var(--indigo-glow); }
+    .btn-secondary { background: var(--bg-elevated); color: var(--text-primary) !important; border: 1px solid var(--border-strong); }
+    .hero .badges { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+    .badge {
+      font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 999px;
+      background: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-secondary);
+    }
+    .badge b { color: var(--teal-light); font-weight: 600; }
+
+    section { padding: 72px 0; }
+    .section-head { text-align: center; margin-bottom: 46px; }
+    .section-head .kicker {
+      font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--teal-light); margin-bottom: 10px; display: block;
+    }
+    .section-head h2 { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
+    .section-head p { color: var(--text-secondary); max-width: 640px; margin: 12px auto 0; }
+
+    .shot {
+      border-radius: 14px; border: 1px solid var(--border-default);
+      box-shadow: 0 24px 70px rgba(0,0,0,0.5), 0 0 60px var(--indigo-muted);
+      width: 100%; display: block;
+    }
+    .hero-shot-wrap { position: relative; margin-top: 54px; }
+    .hero-shot-wrap::after {
+      content: ''; position: absolute; left: 8%; right: 8%; bottom: -30px; height: 80px;
+      background: radial-gradient(50% 60px at 50% 50%, var(--indigo-glow), transparent 70%);
+      filter: blur(20px); z-index: -1;
+    }
+    .caption {
+      text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 14px;
+    }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .feature {
+      background: var(--bg-surface); border: 1px solid var(--border-default);
+      border-radius: 14px; padding: 26px;
+      transition: border-color .2s, transform .2s;
+    }
+    .feature:hover { border-color: var(--border-strong); transform: translateY(-3px); }
+    .feature .icon {
+      width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      background: var(--indigo-muted); font-size: 20px; margin-bottom: 14px;
+    }
+    .feature h3 { font-size: 16.5px; font-weight: 700; margin-bottom: 8px; }
+    .feature p { font-size: 14px; color: var(--text-secondary); }
+
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
+    @media (max-width: 860px) { .pair { grid-template-columns: 1fr; } }
+
+    .how { background: var(--bg-deep); border-block: 1px solid var(--border-subtle); }
+    .step {
+      display: flex; gap: 18px; align-items: flex-start;
+      background: var(--bg-surface); border: 1px solid var(--border-default);
+      border-radius: 14px; padding: 22px 24px;
+    }
+    .step .num {
+      flex: none; width: 34px; height: 34px; border-radius: 50%; font-weight: 800; font-size: 15px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--indigo); color: #fff;
+    }
+    .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .step p { font-size: 14px; color: var(--text-secondary); }
+    .steps { display: grid; gap: 14px; max-width: 780px; margin: 0 auto; }
+
+    table.tech { width: 100%; border-collapse: collapse; font-size: 14px; }
+    table.tech th, table.tech td { padding: 11px 14px; border-bottom: 1px solid var(--border-subtle); text-align: left; }
+    table.tech th { color: var(--text-muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .08em; }
+    table.tech td b { color: var(--teal-light); font-weight: 600; }
+    table.tech td { color: var(--text-secondary); }
+    table.tech tr:last-child td { border-bottom: none; }
+    .tech-wrap {
+      background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 14px;
+      overflow: hidden; max-width: 720px; margin: 0 auto;
+    }
+
+    .cta-final {
+      text-align: center; padding: 80px 0; position: relative;
+      background: radial-gradient(700px 320px at 50% 100%, var(--indigo-muted), transparent 70%);
+    }
+    .cta-final h2 { font-size: 36px; font-weight: 800; margin-bottom: 14px; letter-spacing: -0.02em; }
+    .cta-final p { color: var(--text-secondary); margin-bottom: 30px; }
+
+    footer {
+      border-top: 1px solid var(--border-subtle); padding: 30px 0;
+      color: var(--text-muted); font-size: 13.5px; text-align: center;
+    }
+    footer .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+    footer a { color: var(--text-secondary); }
+
+    @media (max-width: 720px) {
+      .nav-links { display: none; }
+      .hero h1 { font-size: 36px; }
+      .hero .tagline { font-size: 17px; }
+      .section-head h2 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="container nav-inner">
+      <a class="nav-logo" href="#top"><img src="logo.png" alt="meshNest" /> meshNest</a>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How it works</a>
+        <a href="#screenshots">Screenshots</a>
+        <a href="#tech">Tech</a>
+        <a href="https://github.com/gustavowt/meshNest#readme">Docs</a>
+      </div>
+      <a class="nav-cta" href="https://github.com/gustavowt/meshNest">Get started</a>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="container">
+      <img class="hero-logo" src="logo.png" alt="meshNest logo" />
+      <h1>Your print library,<br /><span class="accent">findable by meaning.</span></h1>
+      <p class="tagline">
+        meshNest indexes your STL and 3MF collection with on-device AI — generating descriptions, tags and 3D
+        previews — so you can find any model by simply describing it in natural language. Local-first, no cloud required.
+      </p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/gustavowt/meshNest#readme">Read the docs</a>
+        <a class="btn btn-secondary" href="https://github.com/gustavowt/meshNest/releases">Download for macOS</a>
+      </div>
+      <div class="badges">
+        <span class="badge"><b>Local-first</b> SQLite + sqlite-vec on your machine</span>
+        <span class="badge">Multi-provider <b>Ollama</b> / OpenAI / Gemini / built-in</span>
+        <span class="badge"><b>STL + 3MF</b> preview, metadata and tags</span>
+      </div>
+
+      <div class="hero-shot-wrap">
+        <img class="shot" src="screenshot-library.png" alt="meshNest Library — semantic search over a 3D model collection" />
+        <p class="caption">The Library — every model described and tagged by AI, searchable in natural language.</p>
+      </div>
+    </div>
+  </header>
+
+  <section id="features">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Features</span>
+        <h2>Everything a print library should do</h2>
+        <p>From the moment you point meshNest at a folder, it scans, understands and indexes your models — with your choice of AI provider.</p>
+      </div>
+      <div class="grid">
+        <div class="feature"><div class="icon">🔍</div><h3>Semantic search</h3><p>Describe what you want — "spooky halloween ghosts decoration" — and get the closest models ranked by vector similarity, powered by embeddings.</p></div>
+        <div class="feature"><div class="icon">🧠</div><h3>AI descriptions &amp; tags</h3><p>Vision models describe each model in natural language with tags, print-use suggestions and confidence — stored locally in SQLite.</p></div>
+        <div class="feature"><div class="icon">🖼️</div><h3>Deterministic 3D previews</h3><p>Three.js renders consistent multi-view thumbnails (back, front, left, perspective) for every model, even inside 3MF archives.</p></div>
+        <div class="feature"><div class="icon">🌐</div><h3>World search</h3><p>Out of ideas? Search public 3D model sites from the app and open results with your slicer in one click.</p></div>
+        <div class="feature"><div class="icon">⚙️</div><h3>Provider-agnostic</h3><p>Embeddings and vision via Ollama, OpenAI, Gemini or the built-in local model. Switching providers won't lose your metadata.</p></div>
+        <div class="feature"><div class="icon">🔒</div><h3>Local-first storage</h3><p>SQLite (WAL) with the sqlite-vec extension keeps models, metadata and embedding vectors entirely on your machine.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="how" id="how">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">How it works</span>
+        <h2>Point, scan, done</h2>
+      </div>
+      <div class="steps">
+        <div class="step"><div class="num">1</div><div><h3>Select your models folder</h3><p>Point meshNest at any local folder — it discovers <b>STL</b> and <b>3MF</b> files and watches for new ones.</p></div></div>
+        <div class="step"><div class="num">2</div><div><h3>Scan &amp; index</h3><p>Each file gets 3D renders extracted, 3MF internals parsed (object names, materials, colors) and geometry metadata stored.</p></div></div>
+        <div class="step"><div class="num">3</div><div><h3>AI describes</h3><p>Your configured vision provider turns renders into descriptions + searchable tags. Embeddings go into a vector index.</p></div></div>
+        <div class="step"><div class="num">4</div><div><h3>Ask your library</h3><p>Type what you're looking for. meshNest ranks matches, shows previews and opens the file in your slicer.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="screenshots">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Screenshots</span>
+        <h2>See it in action</h2>
+      </div>
+      <div class="pair">
+        <div>
+          <img class="shot" src="screenshot-detail.png" alt="Model detail — 3D preview, render views and AI description" />
+          <p class="caption">Model detail: preview, render views, AI description, tags and confidence.</p>
+        </div>
+        <div>
+          <img class="shot" src="screenshot-semantic-search.png" alt="Semantic search ranked results" />
+          <p class="caption">Semantic search: ranked results with match confidence and AI tags.</p>
+        </div>
+      </div>
+      <div class="pair" style="margin-top:22px;">
+        <div>
+          <img class="shot" src="screenshot-world-search.png" alt="World search" />
+          <p class="caption">World search: discover printable models across public sites.</p>
+        </div>
+        <div>
+          <img class="shot" src="screenshot-settings.png" alt="Settings — storage controls" />
+          <p class="caption">Settings: providers, library folder and storage controls.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tech">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Under the hood</span>
+        <h2>Built local-first</h2>
+      </div>
+      <div class="tech-wrap">
+        <table class="tech">
+          <tr><th>Layer</th><th>Stack</th></tr>
+          <tr><td>UI</td><td><b>Ionic 8 + Vue 3</b> + TypeScript, Electron shell</td></tr>
+          <tr><td>3D</td><td><b>three.js</b> — STL/3MF loaders, deterministic renderer</td></tr>
+          <tr><td>Storage</td><td><b>better-sqlite3</b> (WAL) + <b>sqlite-vec</b> KNN vector search</td></tr>
+          <tr><td>AI</td><td><b>Ollama</b>, OpenAI, Gemini, or local built-in (transformers.js)</td></tr>
+          <tr><td>Parsing</td><td>fflate + fast-xml-parser for 3MF internals, zod for AI output validation</td></tr>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-final">
+    <div class="container">
+      <h2>Stop scrolling. Start describing.</h2>
+      <p>meshNest is free and open source (AGPL). Star the repo if it saves your searching time.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="https://github.com/gustavowt/meshNest">Open the repository</a>
+        <a class="btn btn-secondary" href="https://github.com/gustavowt/meshNest/issues">Report an issue</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <span>© 2026 meshNest — AGPL v3</span>
+      <span><a href="https://github.com/gustavowt/meshNest">GitHub</a> · <a href="https://github.com/gustavowt/meshNest/issues">Issues</a></span>
+    </div>
+  </footer>
+</body>
+</html>
