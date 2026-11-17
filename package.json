@@ -61,6 +61,26 @@
       "entitlementsLoginHelper": "build/entitlements.mas.loginhelper.plist",
       "provisioningProfile": "build/meshnest_mas.provisionprofile",
       "preAutoEntitlements": false
+    },
+    "linux": {
+      "category": "Utility",
+      "icon": "build",
+      "target": [
+        "AppImage"
+      ],
+      "artifactName": "meshNest-${version}-${arch}.${ext}"
+    },
+    "win": {
+      "icon": "build/icon.icns",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "meshNest-Setup-${version}.exe"
     }
   },
   "dependencies": {
