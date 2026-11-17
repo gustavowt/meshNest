@@ -84,12 +84,13 @@ async function insertSearchFixture(
   description: AIModelDescription,
   embedding: number[],
 ): Promise<void> {
+  const extension = filename.split('.').pop() ?? 'stl'
   await client.run(
     `INSERT INTO model_files (
        id, project_id, absolute_path, relative_path, filename, extension,
        size_bytes, modified_at, content_hash, status
      ) VALUES (
-       @id, @projectId, @absolutePath, @relativePath, @filename, 'stl',
+       @id, @projectId, @absolutePath, @relativePath, @filename, @extension,
        1, @modifiedAt, @contentHash, 'indexed'
      )`,
     {
@@ -98,6 +99,7 @@ async function insertSearchFixture(
       absolutePath: join(filesDir, filename),
       relativePath: filename,
       filename,
+      extension,
       modifiedAt: '2026-06-01T12:00:00.000Z',
       contentHash: `hash-${id}`,
     },
@@ -197,6 +199,46 @@ describe('semanticSearch', () => {
     expect(results[0].filename).toBe('axolotl-keychain.stl')
     expect(results[0].shortName).toBe('Chaveiro de Axolote Articulado')
     expect(results[1].filename).toBe('headphone-stand.stl')
+  })
+
+  test('finds models with specific filename keyword match even when vector distance is distant', async () => {
+    await insertSearchFixture(
+      'distant-model',
+      '5D Model.3mf',
+      {
+        shortName: '5D Calibration Print',
+        description: 'An experimental print for calibration and testing.',
+        likelyCategory: 'tools',
+        tags: ['calibration', 'test'],
+        objectsDetected: ['tool'],
+        confidence: 0.9,
+        searchPhrases: ['calibration test'],
+      },
+      vectorWithCosine(0.1),
+    )
+    await insertSearchFixture(
+      'cube-model',
+      'cube.stl',
+      {
+        shortName: 'Geometric Cube',
+        description: 'A simple geometric cube.',
+        likelyCategory: 'geometry',
+        tags: ['cube', 'shape'],
+        objectsDetected: ['cube'],
+        confidence: 0.9,
+        searchPhrases: ['geometric cube'],
+      },
+      vectorWithCosine(0.9),
+    )
+
+    const results = await repository.searchByEmbedding(vectorWithCosine(0.9), {
+      queryText: 'model',
+    })
+
+    const matched = results.find((r) => r.filename === '5D Model.3mf')
+    expect(matched).toBeDefined()
+    expect(matched!.score).toBeGreaterThan(0.7)
+    expect(results[0].filename).toBe('5D Model.3mf')
   })
 
   test('returns an empty list for blank queries without touching the index', async () => {

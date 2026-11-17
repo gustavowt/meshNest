@@ -34,14 +34,15 @@ type SearchRow = {
 const DEFAULT_LIMIT = 20
 const MIN_TOKEN_LENGTH = 2
 
-const SQLITE_LEXICAL_FIELDS = [
-  { sql: 'mf.filename', weight: 0.05 },
-  { sql: 'aid.short_name', weight: 0.1 },
-  { sql: "coalesce(aid.tags, '')", weight: 0.12 },
-  { sql: "coalesce(aid.search_phrases, '')", weight: 0.1 },
-  { sql: 'aid.description', weight: 0.04 },
-  { sql: 'aid.likely_category', weight: 0.03 },
-] as const
+const SQLITE_LEXICAL_FIELDS: Array<{ field: string; weight: number }> = [
+  { field: 'mf.filename', weight: 0.4 },
+  { field: 'mf.relative_path', weight: 0.2 },
+  { field: 'aid.short_name', weight: 0.3 },
+  { field: 'aid.tags', weight: 0.2 },
+  { field: 'aid.search_phrases', weight: 0.2 },
+  { field: 'aid.description', weight: 0.1 },
+  { field: 'aid.likely_category', weight: 0.08 },
+]
 
 function toSearchResult(row: SearchRow): SearchResult {
   const distance = Number(row.distance)
@@ -115,7 +116,7 @@ function buildLexicalBoostSqlite(queryText?: string): {
     params[paramName] = `%${term}%`
     for (const field of SQLITE_LEXICAL_FIELDS) {
       clauses.push(
-        `CASE WHEN lower(coalesce(${field.sql}, '')) LIKE :${paramName} THEN ${field.weight} ELSE 0 END`,
+        `CASE WHEN lower(coalesce(${field.field}, '')) LIKE :${paramName} THEN ${field.weight} ELSE 0 END`,
       )
     }
   })
@@ -124,6 +125,29 @@ function buildLexicalBoostSqlite(queryText?: string): {
     sql: clauses.join(' + '),
     params,
   }
+}
+
+function buildLexicalMatchWhereSqlite(terms: string[]): {
+  sql: string
+  params: Record<string, string>
+} {
+  if (terms.length === 0) {
+    return { sql: '0', params: {} }
+  }
+  const params: Record<string, string> = {}
+  const orClauses: string[] = []
+  terms.forEach((term, index) => {
+    const paramName = `lexMatchTerm${index}`
+    params[paramName] = `%${term}%`
+    orClauses.push(
+      `lower(mf.filename) LIKE :${paramName}`,
+      `lower(mf.relative_path) LIKE :${paramName}`,
+      `lower(aid.short_name) LIKE :${paramName}`,
+      `lower(aid.tags) LIKE :${paramName}`,
+      `lower(aid.search_phrases) LIKE :${paramName}`,
+    )
+  })
+  return { sql: orClauses.join(' OR '), params }
 }
 
 /**
@@ -172,6 +196,79 @@ export class SearchRepository {
     const k = Math.max(limit * 10, 100)
     const projectFilter = options.projectId ? 'WHERE mf.project_id = :projectId' : ''
     const lexicalBoost = buildLexicalBoostSqlite(options.queryText)
+    const terms = buildLexicalTerms(options.queryText)
+
+    if (terms.length > 0) {
+      const lexicalMatchWhere = buildLexicalMatchWhereSqlite(terms)
+      const rows = await this.client.all<SearchRow>(
+        `WITH knn AS (
+          SELECT model_file_id, distance
+          FROM ${vecTable}
+          WHERE embedding MATCH :queryVec AND k = :k
+        ),
+        lexical_matches AS (
+          SELECT
+            mf.id AS model_file_id,
+            1.0 AS distance
+          FROM model_files mf
+          LEFT JOIN ai_model_descriptions aid ON aid.model_file_id = mf.id
+          WHERE ${lexicalMatchWhere.sql}
+        ),
+        candidates AS (
+          SELECT model_file_id, min(distance) AS distance
+          FROM (
+            SELECT model_file_id, distance FROM knn
+            UNION ALL
+            SELECT model_file_id, distance FROM lexical_matches
+          )
+          GROUP BY model_file_id
+        ),
+        scored AS (
+          SELECT
+            mf.id AS model_file_id,
+            mf.filename,
+            mf.absolute_path,
+            mf.extension,
+            aid.short_name,
+            aid.description,
+            aid.likely_category,
+            aid.tags,
+            mra.absolute_path AS thumbnail_path,
+            c.distance,
+            c.distance - (${lexicalBoost.sql}) AS rank_distance
+          FROM candidates c
+          JOIN model_files mf ON mf.id = c.model_file_id
+          LEFT JOIN ai_model_descriptions aid ON aid.model_file_id = mf.id
+          LEFT JOIN model_render_assets mra
+            ON mra.model_file_id = mf.id AND mra.view_name = 'thumbnail'
+          ${projectFilter}
+        )
+        SELECT
+          model_file_id,
+          filename,
+          absolute_path,
+          extension,
+          short_name,
+          description,
+          likely_category,
+          tags,
+          thumbnail_path,
+          distance,
+          rank_distance
+        FROM scored
+        ORDER BY rank_distance, distance
+        LIMIT :limit`,
+        {
+          queryVec: new Float32Array(queryEmbedding),
+          k,
+          limit,
+          ...lexicalBoost.params,
+          ...lexicalMatchWhere.params,
+          ...(options.projectId ? { projectId: options.projectId } : {}),
+        },
+      )
+      return rows.map(toSearchResult)
+    }
 
     const rows = await this.client.all<SearchRow>(
       `WITH knn AS (

@@ -35,7 +35,39 @@ export async function ensureEmbeddingTable(
   dimensions: number,
 ): Promise<{ rebuilt: boolean }> {
   if (dimensions > 0 && client.vecAvailable) {
-    await ensureVecTable(client, dimensions)
+    const vecTable = await ensureVecTable(client, dimensions)
+    try {
+      const rawDb = client.rawDb
+      const missing = rawDb
+        .prepare(
+          `SELECT model_file_id, embedding
+           FROM model_embeddings
+           WHERE dimensions = ? AND embedding IS NOT NULL
+             AND model_file_id NOT IN (SELECT model_file_id FROM ${vecTable})`,
+        )
+        .all(dimensions) as Array<{ model_file_id: string; embedding: string }>
+
+      if (missing.length > 0) {
+        const insertStmt = rawDb.prepare(
+          `INSERT OR REPLACE INTO ${vecTable} (model_file_id, embedding) VALUES (?, ?)`,
+        )
+        const tx = rawDb.transaction(() => {
+          for (const row of missing) {
+            try {
+              const vec = new Float32Array(JSON.parse(row.embedding))
+              if (vec.length === dimensions) {
+                insertStmt.run(row.model_file_id, vec)
+              }
+            } catch {
+              // ignore corrupt single row
+            }
+          }
+        })
+        tx()
+      }
+    } catch {
+      // non-fatal
+    }
   }
   return { rebuilt: false }
 }
