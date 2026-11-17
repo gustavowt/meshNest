@@ -173,6 +173,7 @@
       "vision": "Vision AI",
       "embedding": "Embeddings",
       "appearance": "Appearance",
+      "storage": "Storage",
       "language": "Language",
       "worldSearch": "World Search"
     },
@@ -248,6 +249,19 @@
       "ptDesc": "Portuguese",
       "esTitle": "Español",
       "esDesc": "Spanish"
+    },
+    "storageSection": {
+      "title": "Storage",
+      "desc": "Library database runs locally in app data. Resetting deletes indexed metadata and embeddings — your 3D model files are untouched.",
+      "resetLabel": "Reset database",
+      "resetButton": "Reset…",
+      "confirmButton": "Confirm reset?",
+      "confirmReset": "Confirm reset?",
+      "resetting": "Resetting database…",
+      "success": "Reset complete. {n} files removed. Library index rebuilt on next use.",
+      "resetSuccess": "Reset complete. {count} files removed. Library index rebuilt on next use.",
+      "resetError": "Failed to reset database: {error}",
+      "errorFallback": "Reset failed."
     },
     "worldSearchSection": {
       "title": "World Search Providers",

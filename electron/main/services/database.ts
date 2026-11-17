@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, rmSync } from 'node:fs'
 import { rename, rm } from 'node:fs/promises'
 import { SqliteClient } from '../../../src/services/database/sqliteClient'
 import { ensureEmbeddingTable } from '../../../src/services/database/embeddingTable'
@@ -11,6 +11,7 @@ let clientPromise: Promise<SqliteClient> | null = null
 let activeClient: SqliteClient | null = null
 let activeGeneration = 0
 let recoveryPromise: Promise<void> | null = null
+let resetPromise: Promise<{ ok: boolean; removed: string[]; error?: string }> | null = null
 
 type RunArgs = Parameters<SqliteClient['run']>
 type AllArgs = Parameters<SqliteClient['all']>
@@ -57,6 +58,14 @@ async function retryOnBusy<T>(fn: () => Promise<T> | T, maxRetries = 5): Promise
  * All main-process IPC handlers share this single connection.
  */
 export function getDatabaseClient(): Promise<SqliteClient> {
+  if (resetPromise) {
+    return resetPromise.then((res) => {
+      if (!res.ok) {
+        throw new Error(res.error || 'Failed to reset database')
+      }
+      return getDatabaseClient()
+    })
+  }
   if (!clientPromise) {
     clientPromise = openDatabaseClient().catch((err) => {
       clientPromise = null
@@ -158,7 +167,11 @@ async function recoverDatabase(): Promise<void> {
     }
 
     await backupCorruptDatabaseFiles()
-    await getDatabaseClient()
+    clientPromise = openDatabaseClient().catch((err) => {
+      clientPromise = null
+      throw err
+    })
+    await clientPromise
   })().finally(() => {
     recoveryPromise = null
   })
@@ -197,14 +210,10 @@ export function formatDatabaseBackupTimestamp(date: Date): string {
   return date.toISOString().replace(/[:.]/g, '-')
 }
 
+export const DATABASE_FILE_SUFFIXES = ['', '-wal', '-shm', '.wal', '.shm'] as const
+
 export async function removeFailedDatabaseFiles(databasePath: string): Promise<void> {
-  const companionFiles = [
-    databasePath,
-    `${databasePath}-wal`,
-    `${databasePath}.wal`,
-    `${databasePath}-shm`,
-    `${databasePath}.shm`,
-  ]
+  const companionFiles = DATABASE_FILE_SUFFIXES.map((suffix) => `${databasePath}${suffix}`)
   for (const file of companionFiles) {
     try {
       await rm(file, { force: true })
@@ -229,5 +238,115 @@ export async function _resetDatabaseStateForTests(): Promise<void> {
   activeClient = null
   activeGeneration = 0
   recoveryPromise = null
+  resetPromise = null
+}
+
+/**
+ * User-invoked reset: closes the active database client, invalidates the
+ * cached connection, and deletes the local database files (sqlite main file,
+ * WAL/SHM sidecars, and any leftover legacy DuckDB database). Model files,
+ * render assets, and settings are untouched. The next getDatabaseClient()
+ * call recreates and re-migrates a fresh, empty database.
+ * In-flight getDatabaseClient() calls wait for the reset to complete before
+ * opening a fresh connection.
+ * Returns { ok: boolean, removed: string[], error?: string }.
+ */
+export function resetDatabase(): Promise<{ ok: boolean; removed: string[]; error?: string }> {
+  return (async () => {
+    while (recoveryPromise) {
+      await recoveryPromise.catch(() => undefined)
+    }
+    while (resetPromise) {
+      await resetPromise.catch(() => undefined)
+    }
+    const task = performDatabaseReset()
+    resetPromise = task
+    try {
+      return await task
+    } finally {
+      if (resetPromise === task) {
+        resetPromise = null
+      }
+    }
+  })()
+}
+
+async function performDatabaseReset(): Promise<{ ok: boolean; removed: string[]; error?: string }> {
+  try {
+    activeGeneration += 1
+    const pendingClientPromise = clientPromise
+    const previousClient = activeClient
+    clientPromise = null
+    activeClient = null
+
+    if (pendingClientPromise) {
+      try {
+        const pendingClient = await pendingClientPromise
+        await pendingClient.close()
+      } catch (err) {
+        console.warn('Warning: failed to close pending database client during reset:', err)
+      }
+      activeGeneration += 1
+      activeClient = null
+    }
+
+    if (previousClient) {
+      try {
+        await previousClient.close()
+      } catch (err) {
+        console.warn('Warning: failed to close active database client during reset:', err)
+      }
+    }
+
+    const dbPath = getDatabasePath()
+    const suffixes = [...DATABASE_FILE_SUFFIXES, '-journal']
+    const removed: string[] = []
+    // Count every file that existed when the reset started, even if the final
+    // unlink failed (e.g. SQLite keeping the WAL open on some platforms) —
+    // the UI reports "N files removed" and must not underreport to 0.
+    const existed: string[] = []
+
+    for (const suffix of suffixes) {
+      const filePath = `${dbPath}${suffix}`
+      try {
+        if (existsSync(filePath)) {
+          existed.push(filePath)
+          rmSync(filePath, { force: true })
+          removed.push(filePath)
+        }
+      } catch (err) {
+        console.warn(`Warning: failed to remove database file ${filePath}:`, err)
+      }
+    }
+
+    const legacyDuckDb = getLegacyDuckDbPath()
+    for (const file of [legacyDuckDb, `${legacyDuckDb}.wal`]) {
+      try {
+        if (existsSync(file)) {
+          existed.push(file)
+          rmSync(file, { force: true })
+          removed.push(file)
+        }
+      } catch (err) {
+        console.warn(`Warning: failed to remove legacy database file ${file}:`, err)
+      }
+    }
+
+    if (existsSync(dbPath)) {
+      return {
+        ok: false,
+        removed: [],
+        error: `Failed to remove the database file: ${dbPath}`,
+      }
+    }
+
+    return { ok: true, removed: removed.length > 0 ? removed : existed }
+  } catch (error) {
+    return {
+      ok: false,
+      removed: [],
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
 }
 

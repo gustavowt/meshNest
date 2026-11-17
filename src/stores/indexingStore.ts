@@ -1,4 +1,4 @@
-import { reactive, readonly } from 'vue'
+import { reactive } from 'vue'
 import { indexScannedFiles, retryFailedFiles } from '@/services/indexing/indexDirectory'
 import type { LibraryEntry } from '@/types/library'
 import type { IndexDirectorySummary } from '@/services/indexing/indexDirectory'
@@ -518,7 +518,7 @@ export function resetIndexingStore(): void {
  */
 export function useIndexingStore() {
   return {
-    state: readonly(state),
+    state,
     runIndexing,
     retryFailed,
     retryFailedLibrary,

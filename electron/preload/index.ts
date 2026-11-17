@@ -45,6 +45,10 @@ const api: MeshNestApi = {
   resetAllToPending: (projectId) => ipcRenderer.invoke('database:resetAllToPending', projectId),
   deleteFailedModelFiles: (projectId) =>
     ipcRenderer.invoke('database:deleteFailedModelFiles', projectId),
+  resetDatabase: () => ipcRenderer.invoke('database:reset'),
+  database: {
+    reset: () => ipcRenderer.invoke('database:reset'),
+  },
   deleteModel: (modelFileId) => ipcRenderer.invoke('model:deleteModel', modelFileId),
   renameModel: (modelFileId, newName) =>
     ipcRenderer.invoke('model:renameModel', modelFileId, newName),
