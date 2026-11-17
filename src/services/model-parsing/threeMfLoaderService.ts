@@ -8,6 +8,7 @@ import {
 } from 'three'
 import type { Object3D } from 'three'
 import { ThreeMFLoader } from 'three/examples/jsm/loaders/3MFLoader.js'
+import { getAssemblyPaletteColor } from '@/services/rendering/filamentColors'
 import { ModelParseError } from './modelScene'
 import type { ModelScene } from './modelScene'
 import ParseWorker from './threeMfParser.worker?worker'
@@ -22,12 +23,30 @@ type WorkerObject = {
   components?: WorkerComponent[]
 }
 
+type BuildContext = {
+  meshIndex: number
+  fallbackColor?: string | number
+}
+
+const MAX_COMPONENT_DEPTH = 64
+
 /**
  * Rebuilds a single parsed 3MF object (mesh leaf or a group of transformed
  * component references) into a Three.js node. Components are resolved
  * recursively against the full object map.
  */
-function buildWorkerObject(obj: WorkerObject, objects: Record<string, WorkerObject>): Object3D {
+export function buildWorkerObject(
+  obj: WorkerObject,
+  objects: Record<string, WorkerObject>,
+  context: BuildContext = { meshIndex: 0 },
+  visited: Set<string> = new Set(),
+): Object3D {
+  if (visited.has(obj.id) || visited.size >= MAX_COMPONENT_DEPTH) {
+    const fallback = new Group()
+    fallback.name = obj.name || `object-${obj.id}`
+    return fallback
+  }
+
   if (obj.mesh) {
     const geometry = new BufferGeometry()
     geometry.setAttribute('position', new BufferAttribute(obj.mesh.positions, 3))
@@ -35,18 +54,34 @@ function buildWorkerObject(obj: WorkerObject, objects: Record<string, WorkerObje
       geometry.setIndex(new BufferAttribute(obj.mesh.indices, 1))
     }
     geometry.computeVertexNormals()
-    const color = obj.mesh.materialColor ?? DEFAULT_MATERIAL_COLOR
-    const mesh = new Mesh(geometry, new MeshStandardMaterial({ color }))
+
+    const hasFileColor = Boolean(obj.mesh.materialColor)
+    const baseColor = typeof context.fallbackColor === 'string' ? context.fallbackColor : (context.fallbackColor ?? DEFAULT_MATERIAL_COLOR)
+    const color = obj.mesh.materialColor ?? getAssemblyPaletteColor(baseColor, context.meshIndex++)
+    const material = new MeshStandardMaterial({
+      color,
+      roughness: 0.35,
+      metalness: 0.05,
+    })
+    const mesh = new Mesh(geometry, material)
     mesh.name = obj.name || `object-${obj.id}`
+    mesh.userData.hasFileColor = hasFileColor
+    mesh.userData.originalColor = color
     return mesh
   }
 
   const group = new Group()
   group.name = obj.name || `object-${obj.id}`
+  const nextVisited = new Set(visited)
+  nextVisited.add(obj.id)
+
   for (const component of obj.components ?? []) {
+    if (nextVisited.has(component.objectId)) {
+      continue
+    }
     const child = objects[component.objectId]
     if (!child) continue
-    const node = buildWorkerObject(child, objects)
+    const node = buildWorkerObject(child, objects, context, nextVisited)
     if (component.transform && component.transform.length === 16) {
       node.applyMatrix4(new Matrix4().fromArray(component.transform))
     }
@@ -78,6 +113,9 @@ export function loadThreeMfScene(content: ArrayBuffer | Uint8Array): ModelScene 
   root.traverse((object) => {
     if (object instanceof Mesh) {
       meshCount += 1
+      if (!object.userData.originalColor && object.material && 'color' in object.material) {
+        object.userData.originalColor = object.material.color.getHex()
+      }
     }
   })
   if (meshCount === 0) {
@@ -93,7 +131,10 @@ export function loadThreeMfScene(content: ArrayBuffer | Uint8Array): ModelScene 
  *
  * @throws ModelParseError when the content cannot be loaded as 3MF.
  */
-export function loadThreeMfSceneAsync(content: ArrayBuffer | Uint8Array): Promise<ModelScene> {
+export function loadThreeMfSceneAsync(
+  content: ArrayBuffer | Uint8Array,
+  fallbackColor?: string | number,
+): Promise<ModelScene> {
   return new Promise((resolve, reject) => {
     const worker = new ParseWorker()
     const arrayBuffer = toArrayBuffer(content)
@@ -121,10 +162,11 @@ export function loadThreeMfSceneAsync(content: ArrayBuffer | Uint8Array): Promis
               .filter((obj) => obj.mesh || (obj.components && obj.components.length > 0))
               .map((obj) => ({ objectId: obj.id }))
 
+        const context: BuildContext = { meshIndex: 0, fallbackColor }
         for (const item of items) {
           const obj = objects[item.objectId]
           if (!obj) continue
-          const node = buildWorkerObject(obj, objects)
+          const node = buildWorkerObject(obj, objects, context)
           if (item.transform && item.transform.length === 16) {
             node.applyMatrix4(new Matrix4().fromArray(item.transform))
           }

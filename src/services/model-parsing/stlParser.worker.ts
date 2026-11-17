@@ -4,6 +4,7 @@ addEventListener('message', (event: MessageEvent<{ content: ArrayBuffer }>) => {
   const { content } = event.data
   let positionsData: any = null
   let normalsData: any = null
+  let colorsData: any = null
 
   try {
     const geometry = new STLLoader().parse(content)
@@ -13,12 +14,14 @@ addEventListener('message', (event: MessageEvent<{ content: ArrayBuffer }>) => {
     }
     geometry.computeVertexNormals()
     const normalsAttr = geometry.getAttribute('normal')
+    const colorsAttr = geometry.getAttribute('color')
 
     geometry.computeBoundingBox()
     geometry.computeBoundingSphere()
 
     positionsData = positionsAttr.array
     normalsData = normalsAttr ? normalsAttr.array : new (self as any).Float32Array(0)
+    colorsData = colorsAttr ? colorsAttr.array : null
 
     const bbox = geometry.boundingBox
     const bsphere = geometry.boundingSphere
@@ -33,15 +36,21 @@ addEventListener('message', (event: MessageEvent<{ content: ArrayBuffer }>) => {
       radius: bsphere.radius,
     } : null;
 
+    const transferables: Transferable[] = [positionsData.buffer, normalsData.buffer]
+    if (colorsData && colorsData.buffer) {
+      transferables.push(colorsData.buffer)
+    }
+
     (self as any).postMessage(
       {
         success: true,
         positions: positionsData,
         normals: normalsData,
+        colors: colorsData,
         boundingBox,
         boundingSphere,
       },
-      [positionsData.buffer, normalsData.buffer],
+      transferables,
     )
   } catch (error) {
     (self as any).postMessage({

@@ -24,6 +24,19 @@ describe('stlLoaderService', () => {
 
     expect(scene.source).toBe('stl')
     expect(scene.root.children).toHaveLength(1)
+    const mesh = scene.root.children[0] as any
+    expect(mesh.userData.hasVertexColors).toBe(false)
+    expect(mesh.userData.originalColor).toBe(0x8899aa)
+  })
+
+  test('applies custom fallbackColor to loaded STL', () => {
+    const scene = loadStlScene(buildBinaryStl(SPANNING_TRIANGLES), '#FF6A00')
+    const mesh = scene.root.children[0] as any
+    expect(mesh.userData.hasVertexColors).toBe(false)
+    expect(mesh.userData.originalColor).toBe('#FF6A00')
+    expect(mesh.material.color.getHexString()).toBe('ff6a00')
+    expect(mesh.material.roughness).toBe(0.35)
+    expect(mesh.material.metalness).toBe(0.05)
   })
 
   test('rejects invalid STL content with a controlled error', () => {

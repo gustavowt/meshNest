@@ -13,7 +13,7 @@ const DEFAULT_MATERIAL_COLOR = 0x8899aa
  *
  * @throws ModelParseError when the content is not a valid STL file.
  */
-export function loadStlScene(content: ArrayBuffer | Uint8Array): ModelScene {
+export function loadStlScene(content: ArrayBuffer | Uint8Array, fallbackColor?: string | number): ModelScene {
   let geometry: BufferGeometry
   try {
     geometry = new STLLoader().parse(toArrayBuffer(content))
@@ -28,9 +28,17 @@ export function loadStlScene(content: ArrayBuffer | Uint8Array): ModelScene {
 
   geometry.computeVertexNormals()
 
-  const material = new MeshStandardMaterial({ color: DEFAULT_MATERIAL_COLOR })
+  const hasVertexColors = Boolean(geometry.getAttribute('color'))
+  const material = new MeshStandardMaterial({
+    color: hasVertexColors ? 0xffffff : (fallbackColor ?? DEFAULT_MATERIAL_COLOR),
+    vertexColors: hasVertexColors,
+    roughness: 0.35,
+    metalness: 0.05,
+  })
   const mesh = new Mesh(geometry, material)
   mesh.name = 'stl-mesh'
+  mesh.userData.hasVertexColors = hasVertexColors
+  mesh.userData.originalColor = hasVertexColors ? 0xffffff : (fallbackColor ?? DEFAULT_MATERIAL_COLOR)
 
   const root = new Group()
   root.name = 'stl-model'
@@ -39,7 +47,7 @@ export function loadStlScene(content: ArrayBuffer | Uint8Array): ModelScene {
   return { root, source: 'stl' }
 }
 
-export function loadStlSceneAsync(content: ArrayBuffer | Uint8Array): Promise<ModelScene> {
+export function loadStlSceneAsync(content: ArrayBuffer | Uint8Array, fallbackColor?: string | number): Promise<ModelScene> {
   return new Promise((resolve, reject) => {
     const worker = new ParseWorker()
     const arrayBuffer = toArrayBuffer(content)
@@ -48,10 +56,13 @@ export function loadStlSceneAsync(content: ArrayBuffer | Uint8Array): Promise<Mo
       const data = event.data
       worker.terminate()
       if (data.success) {
-        const { positions, normals, boundingBox, boundingSphere } = data
+        const { positions, normals, colors, boundingBox, boundingSphere } = data
         const geometry = new BufferGeometry()
         geometry.setAttribute('position', new BufferAttribute(positions, 3))
         geometry.setAttribute('normal', new BufferAttribute(normals, 3))
+        if (colors && colors.length > 0) {
+          geometry.setAttribute('color', new BufferAttribute(colors, 3))
+        }
 
         if (boundingBox) {
           geometry.boundingBox = new Box3(
@@ -66,9 +77,17 @@ export function loadStlSceneAsync(content: ArrayBuffer | Uint8Array): Promise<Mo
           )
         }
 
-        const material = new MeshStandardMaterial({ color: DEFAULT_MATERIAL_COLOR })
+        const hasVertexColors = Boolean(geometry.getAttribute('color'))
+        const material = new MeshStandardMaterial({
+          color: hasVertexColors ? 0xffffff : (fallbackColor ?? DEFAULT_MATERIAL_COLOR),
+          vertexColors: hasVertexColors,
+          roughness: 0.35,
+          metalness: 0.05,
+        })
         const mesh = new Mesh(geometry, material)
         mesh.name = 'stl-mesh'
+        mesh.userData.hasVertexColors = hasVertexColors
+        mesh.userData.originalColor = hasVertexColors ? 0xffffff : (fallbackColor ?? DEFAULT_MATERIAL_COLOR)
 
         const root = new Group()
         root.name = 'stl-model'

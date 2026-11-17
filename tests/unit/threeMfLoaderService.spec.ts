@@ -4,8 +4,8 @@ import { strToU8 } from 'fflate'
 import { describe, expect, test } from 'vitest'
 import { extractGeometryMetadata } from '@/services/model-parsing/geometryMetadata'
 import { ModelParseError } from '@/services/model-parsing/modelScene'
-import { loadThreeMfScene } from '@/services/model-parsing/threeMfLoaderService'
-import { parseModelXml } from '@/services/model-parsing/threeMfParser.worker'
+import { buildWorkerObject, loadThreeMfScene } from '@/services/model-parsing/threeMfLoaderService'
+import { parseModelXml, parseVertices } from '@/services/model-parsing/threeMfParser.worker'
 import { buildModelXml, buildThreeMfPackage } from './helpers/threeMfFixtures'
 
 function countMeshes(scene: ReturnType<typeof loadThreeMfScene>): number {
@@ -93,5 +93,104 @@ describe('threeMfLoaderService', () => {
 
   test('rejects invalid 3MF content with a controlled error', () => {
     expect(() => loadThreeMfScene(strToU8('not a zip'))).toThrow(ModelParseError)
+  })
+
+  test('buildWorkerObject preserves materialColor and sets metadata', () => {
+    const obj = {
+      id: '1',
+      name: 'part-1',
+      mesh: {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+        materialColor: '#00AE42',
+      },
+    }
+    const node = buildWorkerObject(obj, { '1': obj }) as Mesh
+    expect(node).toBeInstanceOf(Mesh)
+    expect(node.userData.hasFileColor).toBe(true)
+    expect(node.userData.originalColor).toBe('#00AE42')
+    const mat = node.material as any
+    expect(mat.roughness).toBe(0.35)
+    expect(mat.metalness).toBe(0.05)
+  })
+
+  test('buildWorkerObject cycles assembly colors across multi-part meshes lacking materialColor', () => {
+    const context = { meshIndex: 0, fallbackColor: '#FF6A00' }
+    const obj1 = {
+      id: '1',
+      mesh: {
+        positions: new Float32Array([0, 0, 0, 1, 0, 0, 1, 1, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+      },
+    }
+    const obj2 = {
+      id: '2',
+      mesh: {
+        positions: new Float32Array([0, 0, 0, 2, 0, 0, 2, 2, 0]),
+        indices: new Uint32Array([0, 1, 2]),
+      },
+    }
+
+    const node1 = buildWorkerObject(obj1, {}, context) as Mesh
+    expect(node1.userData.hasFileColor).toBe(false)
+    expect(node1.userData.originalColor).toBe('#FF6A00') // partIndex 0
+
+    const node2 = buildWorkerObject(obj2, {}, context) as Mesh
+    expect(node2.userData.hasFileColor).toBe(false)
+    expect(node2.userData.originalColor).not.toBe('#FF6A00') // partIndex 1 offset
+    expect(context.meshIndex).toBe(2)
+  })
+
+  test('parseVertices handles out-of-order XML attributes and varied whitespace', () => {
+    const xml = `
+      <vertex y="2.5" z="3.5" x="1.5"/>
+      <vertex   z="30"  x="10"   y="20"   />
+    `
+    const positions = parseVertices(xml)
+    expect(positions).toHaveLength(6)
+    expect(positions[0]).toBeCloseTo(1.5)
+    expect(positions[1]).toBeCloseTo(2.5)
+    expect(positions[2]).toBeCloseTo(3.5)
+    expect(positions[3]).toBeCloseTo(10)
+    expect(positions[4]).toBeCloseTo(20)
+    expect(positions[5]).toBeCloseTo(30)
+  })
+
+  test('buildWorkerObject handles self-referencing component cycles cleanly without crashing', () => {
+    const selfRefObj = {
+      id: 'self-1',
+      name: 'self-referential',
+      components: [
+        { objectId: 'self-1' },
+      ],
+    }
+    const objects = { 'self-1': selfRefObj }
+
+    expect(() => {
+      const node = buildWorkerObject(selfRefObj, objects)
+      expect(node).toBeDefined()
+      expect(node.children).toHaveLength(0)
+    }).not.toThrow()
+  })
+
+  test('buildWorkerObject handles indirect component cycles (A -> B -> A) cleanly', () => {
+    const objA = {
+      id: 'A',
+      name: 'node-A',
+      components: [{ objectId: 'B' }],
+    }
+    const objB = {
+      id: 'B',
+      name: 'node-B',
+      components: [{ objectId: 'A' }],
+    }
+    const objects = { A: objA, B: objB }
+
+    expect(() => {
+      const node = buildWorkerObject(objA, objects)
+      expect(node).toBeDefined()
+      expect(node.children).toHaveLength(1)
+      expect(node.children[0].children).toHaveLength(0)
+    }).not.toThrow()
   })
 })

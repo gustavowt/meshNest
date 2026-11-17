@@ -30,25 +30,34 @@ function parseTransform(transformStr: string | null): number[] | undefined {
   ]
 }
 
-function parseVertices(verticesXml: string): Float32Array {
-  let count = 0
-  let idx = 0
-  while (true) {
-    idx = verticesXml.indexOf('<vertex', idx)
-    if (idx === -1) break
-    count++
-    idx += 7
+export function parseVertices(verticesXml: string, vertexCount?: number): Float32Array {
+  let count = vertexCount ?? 0
+  if (count <= 0) {
+    let idx = 0
+    while (true) {
+      idx = verticesXml.indexOf('<vertex', idx)
+      if (idx === -1) break
+      count++
+      idx += 7
+    }
   }
 
   const positions = new Float32Array(count * 3)
-  const regex = /<vertex\s+x=["']([^"']+)["']\s+y=["']([^"']+)["']\s+z=["']([^"']+)["']/gi
+  const regex = /<vertex\b([^>]+)>/gi
   let match
   let pos = 0
   while ((match = regex.exec(verticesXml)) !== null) {
     if (pos >= positions.length) break
-    positions[pos++] = parseFloat(match[1])
-    positions[pos++] = parseFloat(match[2])
-    positions[pos++] = parseFloat(match[3])
+    const tag = match[1]
+    const x = getAttributeValue(tag, 'x')
+    const y = getAttributeValue(tag, 'y')
+    const z = getAttributeValue(tag, 'z')
+    const xVal = x !== null ? parseFloat(x) : 0
+    const yVal = y !== null ? parseFloat(y) : 0
+    const zVal = z !== null ? parseFloat(z) : 0
+    positions[pos++] = Number.isFinite(xVal) ? xVal : 0
+    positions[pos++] = Number.isFinite(yVal) ? yVal : 0
+    positions[pos++] = Number.isFinite(zVal) ? zVal : 0
   }
   return positions
 }
