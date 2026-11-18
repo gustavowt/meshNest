@@ -17,183 +17,193 @@
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
     :root {
-      --bg-deepest: #12101c;
-      --bg-deep: #191525;
-      --bg-surface: #201a2e;
-      --bg-elevated: #2a2340;
-      --bg-hover: #342c4e;
+      /* === App tokens (src/theme/variables.css) === */
+      --app-grad: linear-gradient(135deg, #0F172A 0%, #1E1B4B 100%);
+      --bg: #0F172A;
+      --bg-2: #1E1B4B;
+      --surface: rgba(30, 41, 59, 0.7);          /* --card-glass-bg */
+      --surface-solid: #1E293B;
+      --glass-border: 1px solid rgba(99, 102, 241, 0.15); /* --card-glass-border */
+      --glass-shadow: 0 8px 32px rgba(0, 0, 0, .3); /* --card-glass-shadow */
+      --border-subtle: rgba(99, 102, 241, 0.10);
+      --border-default: rgba(99, 102, 241, 0.20);
 
-      --border-subtle: #241f32;
-      --border-default: #302a44;
-      --border-strong: #45385f;
+      --text: #F8FAFC;
+      --text-2: #94A3B8;
+      --text-3: #64748B;
 
-      --text-primary: #ece9f5;
-      --text-secondary: #a49fc0;
-      --text-muted: #7a7399;
-
-      --indigo: #4f46e5;
-      --indigo-light: #6c64f0;
-      --indigo-dark: #453eb9;
-      --indigo-muted: rgba(79, 70, 229, 0.16);
-      --indigo-glow: rgba(79, 70, 229, 0.35);
-
-      --teal: #2dd4bf;
-      --teal-light: #5eead4;
-      --teal-muted: rgba(45, 212, 191, 0.14);
-
-      --green: #34d399;
-      --green-light: #6ee7b7;
+      --primary: #4F46E5;
+      --primary-light: #6366F1;          /* rgba(99,102,241) family used in app accents */
+      --primary-soft: rgba(99, 102, 241, 0.12);
+      --primary-glow: rgba(99, 102, 241, 0.25);
+      --danger: #EF4444;
+      --green: #22C55E;
     }
 
     html { scroll-behavior: smooth; }
     body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--bg-deepest);
-      color: var(--text-primary);
+      background: var(--app-grad);
+      background-attachment: fixed;
+      color: var(--text);
       line-height: 1.6;
       overflow-x: hidden;
+      min-height: 100vh;
     }
-    a { color: var(--indigo-light); text-decoration: none; transition: color .2s; }
-    a:hover { color: var(--teal-light); }
+    a { color: var(--primary-light); text-decoration: none; transition: color .2s; }
+    a:hover { color: #a5b4fc; }
     .container { max-width: 1140px; margin: 0 auto; padding: 0 24px; }
 
+    /* ===== Fixed toolbar (glass, like app toolbar) ===== */
     nav {
       position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-      background: rgba(18, 16, 28, 0.85);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border-subtle);
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(99, 102, 241, 0.15);
     }
-    nav .nav-inner {
-      display: flex; align-items: center; justify-content: space-between;
-      height: 64px;
-    }
-    .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; color: var(--text-primary); }
-    .nav-logo img { width: 28px; height: 28px; }
-    .nav-links { display: flex; gap: 28px; font-size: 14px; font-weight: 500; }
-    .nav-links a { color: var(--text-secondary); }
-    .nav-links a:hover { color: var(--text-primary); }
+    nav .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 62px; }
+    .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 17px; color: var(--text); }
+    .nav-logo img { width: 26px; height: 26px; }
+    .nav-links { display: flex; gap: 26px; font-size: 14px; font-weight: 500; }
+    .nav-links a { color: var(--text-2); padding: 6px 0; }
+    .nav-links a:hover { color: var(--text); }
     .nav-cta {
-      padding: 8px 18px; border-radius: 10px; font-weight: 600; font-size: 14px;
-      background: var(--indigo); color: #fff !important;
-      box-shadow: 0 0 18px var(--indigo-glow);
+      padding: 8px 16px; border-radius: 10px; font-weight: 600; font-size: 14px;
+      background: var(--primary); color: #fff !important;
     }
-    .nav-cta:hover { background: var(--indigo-dark); }
+    .nav-cta:hover { background: #4338CA; }
 
-    .hero { padding: 140px 0 60px; text-align: center; position: relative; }
-    .hero::before {
-      content: ''; position: absolute; inset: 0; pointer-events: none;
-      background:
-        radial-gradient(600px 300px at 50% 0%, var(--indigo-muted), transparent 70%),
-        radial-gradient(400px 220px at 30% 20%, rgba(45,212,191,0.06), transparent 70%);
+    /* ===== Segmented pill (like app mobile-tabs) ===== */
+    .seg {
+      position: fixed; left: 50%; transform: translateX(-50%); bottom: 18px; z-index: 90;
+      display: flex; gap: 2px; padding: 6px; border-radius: 12px;
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid rgba(99, 102, 241, 0.1);
+      backdrop-filter: blur(16px);
     }
-    .hero .container { position: relative; }
-    .hero-logo { width: 88px; height: 88px; margin: 0 auto 20px; display: block; filter: drop-shadow(0 0 24px var(--indigo-glow)); }
-    .hero h1 { font-size: 52px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; margin-bottom: 18px; }
-    .hero h1 .accent { color: var(--indigo-light); }
-    .hero .tagline { font-size: 20px; color: var(--text-secondary); max-width: 680px; margin: 0 auto 34px; }
-    .hero .cta-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+    .seg a {
+      font-size: 13px; font-weight: 600; color: var(--text-2);
+      padding: 8px 16px; border-radius: 8px; transition: background .15s;
+    }
+    .seg a:hover { color: var(--text); }
+    .seg a.active { background: var(--primary-soft); color: var(--primary-light); border: 1px solid rgba(99,102,241,.2); }
+
+    header { padding: 110px 0 40px; text-align: center; position: relative; }
+    header::before {
+      content: ''; position: absolute; inset: 0; pointer-events: none;
+      background: radial-gradient(700px 300px at 50% -40px, rgba(99, 102, 241, 0.14), transparent 70%);
+    }
+    header .container { position: relative; }
+    .hero-card {
+      display: inline-block; padding: 14px 18px; border-radius: 14px;
+      background: var(--surface); border: var(--glass-border); box-shadow: var(--glass-shadow);
+      margin-bottom: 22px;
+    }
+    .hero-card img { width: 74px; height: 74px; display: block; }
+    h1 { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.12; margin-bottom: 14px; }
+    h1 .grad {
+      background: linear-gradient(90deg, #818CF8, #A78BFA);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .tagline { font-size: 19px; color: var(--text-2); max-width: 660px; margin: 0 auto 30px; }
+    .cta-row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
     .btn {
       display: inline-flex; align-items: center; gap: 8px;
-      padding: 13px 26px; border-radius: 12px; font-weight: 600; font-size: 15px;
-      transition: transform .15s, box-shadow .2s;
+      padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 15px;
+      transition: transform .15s, background .2s;
     }
     .btn:hover { transform: translateY(-2px); }
-    .btn-primary { background: var(--indigo); color: #fff !important; box-shadow: 0 0 26px var(--indigo-glow); }
-    .btn-primary:hover { box-shadow: 0 0 40px var(--indigo-glow); }
-    .btn-secondary { background: var(--bg-elevated); color: var(--text-primary) !important; border: 1px solid var(--border-strong); }
-    .hero .badges { display: flex; gap: 10px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
-    .badge {
-      font-size: 12.5px; font-weight: 600; padding: 6px 14px; border-radius: 999px;
-      background: var(--bg-surface); border: 1px solid var(--border-default); color: var(--text-secondary);
-    }
-    .badge b { color: var(--teal-light); font-weight: 600; }
+    .btn-primary { background: var(--primary); color: #fff !important; }
+    .btn-primary:hover { background: #4338CA; }
+    .btn-glass { background: var(--surface); color: var(--text) !important; border: var(--glass-border); }
 
-    section { padding: 72px 0; }
-    .section-head { text-align: center; margin-bottom: 46px; }
-    .section-head .kicker {
-      font-size: 13px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
-      color: var(--teal-light); margin-bottom: 10px; display: block;
+    /* ===== Glass cards (app pattern) ===== */
+    .card {
+      background: var(--surface);
+      border: var(--glass-border);
+      box-shadow: var(--glass-shadow);
+      border-radius: 16px;
+      transition: border-color .2s;
     }
-    .section-head h2 { font-size: 34px; font-weight: 800; letter-spacing: -0.02em; }
-    .section-head p { color: var(--text-secondary); max-width: 640px; margin: 12px auto 0; }
+    section { padding: 64px 0; }
+    .section-head { text-align: center; margin-bottom: 40px; }
+    .kicker {
+      display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--primary-light);
+      padding: 5px 14px; border-radius: 999px;
+      background: var(--primary-soft); border: 1px solid var(--border-default);
+    }
+    .section-head h2 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; margin-top: 14px; }
+    .section-head p { color: var(--text-2); max-width: 620px; margin: 10px auto 0; }
 
-    .shot {
-      border-radius: 14px; border: 1px solid var(--border-default);
-      box-shadow: 0 24px 70px rgba(0,0,0,0.5), 0 0 60px var(--indigo-muted);
-      width: 100%; display: block;
-    }
-    .hero-shot-wrap { position: relative; margin-top: 54px; }
-    .hero-shot-wrap::after {
-      content: ''; position: absolute; left: 8%; right: 8%; bottom: -30px; height: 80px;
-      background: radial-gradient(50% 60px at 50% 50%, var(--indigo-glow), transparent 70%);
-      filter: blur(20px); z-index: -1;
-    }
-    .caption {
-      text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 14px;
-    }
+    .shot-img { width: 100%; display: block; border-radius: 12px; }
+    .hero-shot-wrap { margin-top: 46px; }
+    .caption { text-align: center; color: var(--text-3); font-size: 13px; margin-top: 12px; }
 
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-    .feature {
-      background: var(--bg-surface); border: 1px solid var(--border-default);
-      border-radius: 14px; padding: 26px;
-      transition: border-color .2s, transform .2s;
+    /* ===== Feature cards: 2-col grid, icon chip row (app settings style) ===== */
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+    @media (max-width: 820px) { .grid { grid-template-columns: 1fr; } }
+    .feature { display: flex; gap: 16px; padding: 22px; text-align: left; }
+    .feature:hover { border-color: rgba(99, 102, 241, 0.35); }
+    .f-icon {
+      flex: none; width: 42px; height: 42px; border-radius: 10px;
+      background: var(--primary-soft); border: 1px solid var(--border-default);
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
     }
-    .feature:hover { border-color: var(--border-strong); transform: translateY(-3px); }
-    .feature .icon {
-      width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
-      background: var(--indigo-muted); font-size: 20px; margin-bottom: 14px;
-    }
-    .feature h3 { font-size: 16.5px; font-weight: 700; margin-bottom: 8px; }
-    .feature p { font-size: 14px; color: var(--text-secondary); }
+    .feature h3 { font-size: 16px; font-weight: 700; margin: 2px 0 6px; }
+    .feature p { font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
 
-    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; align-items: start; }
-    @media (max-width: 860px) { .pair { grid-template-columns: 1fr; } }
-
-    .how { background: var(--bg-deep); border-block: 1px solid var(--border-subtle); }
-    .step {
-      display: flex; gap: 18px; align-items: flex-start;
-      background: var(--bg-surface); border: 1px solid var(--border-default);
-      border-radius: 14px; padding: 22px 24px;
-    }
+    /* ===== Steps: numbered cards like index queue ===== */
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+    @media (max-width: 880px) { .steps { grid-template-columns: 1fr 1fr; } }
+    .step { padding: 20px; }
     .step .num {
-      flex: none; width: 34px; height: 34px; border-radius: 50%; font-weight: 800; font-size: 15px;
-      display: flex; align-items: center; justify-content: center;
-      background: var(--indigo); color: #fff;
+      width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      background: var(--primary); color: #fff; font-weight: 800; font-size: 14px; margin-bottom: 12px;
     }
-    .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-    .step p { font-size: 14px; color: var(--text-secondary); }
-    .steps { display: grid; gap: 14px; max-width: 780px; margin: 0 auto; }
+    .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .step p { font-size: 13px; color: var(--text-2); }
 
+    /* ===== Screenshot pairs ===== */
+    .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    @media (max-width: 820px) { .pair { grid-template-columns: 1fr; } }
+
+    /* ===== Tech table in glass card ===== */
+    .tech-wrap { max-width: 760px; margin: 0 auto; }
     table.tech { width: 100%; border-collapse: collapse; font-size: 14px; }
-    table.tech th, table.tech td { padding: 11px 14px; border-bottom: 1px solid var(--border-subtle); text-align: left; }
-    table.tech th { color: var(--text-muted); font-weight: 600; font-size: 12.5px; text-transform: uppercase; letter-spacing: .08em; }
-    table.tech td b { color: var(--teal-light); font-weight: 600; }
-    table.tech td { color: var(--text-secondary); }
+    table.tech th, table.tech td { padding: 12px 16px; text-align: left; }
+    table.tech th { color: var(--text-3); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; border-bottom: 1px solid var(--border-default); }
+    table.tech td { color: var(--text-2); border-bottom: 1px solid var(--border-subtle); }
     table.tech tr:last-child td { border-bottom: none; }
-    .tech-wrap {
-      background: var(--bg-surface); border: 1px solid var(--border-default); border-radius: 14px;
-      overflow: hidden; max-width: 720px; margin: 0 auto;
-    }
+    table.tech td b { color: var(--primary-light); font-weight: 600; }
 
-    .cta-final {
-      text-align: center; padding: 80px 0; position: relative;
-      background: radial-gradient(700px 320px at 50% 100%, var(--indigo-muted), transparent 70%);
-    }
-    .cta-final h2 { font-size: 36px; font-weight: 800; margin-bottom: 14px; letter-spacing: -0.02em; }
-    .cta-final p { color: var(--text-secondary); margin-bottom: 30px; }
+    /* ===== Downloads strip (release links) ===== */
+    .dl-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; max-width: 780px; margin: 0 auto; }
+    @media (max-width: 720px) { .dl-strip { grid-template-columns: 1fr; } }
+    .dl { padding: 18px; text-align: center; }
+    .dl .os { font-size: 13px; color: var(--text-3); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+    .dl .file { font-size: 14.5px; font-weight: 600; margin: 6px 0 12px; color: var(--text); }
+    .dl .btn { width: 100%; justify-content: center; padding: 9px 0; font-size: 14px; }
+
+    .final { padding: 70px 0; text-align: center; }
+    .final h2 { font-size: 32px; font-weight: 800; margin-bottom: 10px; }
+    .final p { color: var(--text-2); margin-bottom: 28px; }
 
     footer {
-      border-top: 1px solid var(--border-subtle); padding: 30px 0;
-      color: var(--text-muted); font-size: 13.5px; text-align: center;
+      border-top: 1px solid var(--border-default); padding: 26px 0;
+      color: var(--text-3); font-size: 13.5px; text-align: center;
+      background: rgba(15, 23, 42, 0.5);
     }
     footer .container { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
-    footer a { color: var(--text-secondary); }
+    footer a { color: var(--text-2); }
 
     @media (max-width: 720px) {
       .nav-links { display: none; }
-      .hero h1 { font-size: 36px; }
-      .hero .tagline { font-size: 17px; }
-      .section-head h2 { font-size: 26px; }
+      h1 { font-size: 32px; }
+      .tagline { font-size: 16px; }
+      .section-head h2 { font-size: 24px; }
+      .seg { display: none; }
     }
   </style>
 </head>
@@ -205,33 +215,37 @@
         <a href="#features">Features</a>
         <a href="#how">How it works</a>
         <a href="#screenshots">Screenshots</a>
-        <a href="#tech">Tech</a>
+        <a href="#download">Download</a>
         <a href="https://github.com/gustavowt/meshNest#readme">Docs</a>
       </div>
       <a class="nav-cta" href="https://github.com/gustavowt/meshNest">Get started</a>
     </div>
   </nav>
 
-  <header class="hero" id="top">
+  <div class="seg" aria-hidden="true">
+    <a class="active" href="#top">Library</a>
+    <a href="#features">Features</a>
+    <a href="#how">How it works</a>
+    <a href="#download">Download</a>
+  </div>
+
+  <header id="top">
     <div class="container">
-      <img class="hero-logo" src="logo.png" alt="meshNest logo" />
-      <h1>Your print library,<br /><span class="accent">findable by meaning.</span></h1>
+      <div class="hero-card"><img src="logo.png" alt="meshNest logo" /></div>
+      <h1>Your print library,<br /><span class="grad">findable by meaning.</span></h1>
       <p class="tagline">
-        meshNest indexes your STL and 3MF collection with on-device AI — generating descriptions, tags and 3D
-        previews — so you can find any model by simply describing it in natural language. Local-first, no cloud required.
+        meshNest indexes your STL and 3MF collection with on-device AI — descriptions, tags and 3D previews —
+        so you can find any model by describing it in natural language. Local-first, powered by SQLite.
       </p>
       <div class="cta-row">
-        <a class="btn btn-primary" href="https://github.com/gustavowt/meshNest#readme">Read the docs</a>
-        <a class="btn btn-secondary" href="https://github.com/gustavowt/meshNest/releases">Download for macOS</a>
-      </div>
-      <div class="badges">
-        <span class="badge"><b>Local-first</b> SQLite + sqlite-vec on your machine</span>
-        <span class="badge">Multi-provider <b>Ollama</b> / OpenAI / Gemini / built-in</span>
-        <span class="badge"><b>STL + 3MF</b> preview, metadata and tags</span>
+        <a class="btn btn-primary" href="#download">Download for desktop</a>
+        <a class="btn btn-glass" href="https://github.com/gustavowt/meshNest#readme">Read the docs</a>
       </div>
 
       <div class="hero-shot-wrap">
-        <img class="shot" src="screenshot-library.png" alt="meshNest Library — semantic search over a 3D model collection" />
+        <div class="card" style="padding:10px;">
+          <img class="shot-img" src="screenshot-library.png" alt="meshNest Library — semantic search over a 3D model collection" />
+        </div>
         <p class="caption">The Library — every model described and tagged by AI, searchable in natural language.</p>
       </div>
     </div>
@@ -245,27 +259,27 @@
         <p>From the moment you point meshNest at a folder, it scans, understands and indexes your models — with your choice of AI provider.</p>
       </div>
       <div class="grid">
-        <div class="feature"><div class="icon">🔍</div><h3>Semantic search</h3><p>Describe what you want — "spooky halloween ghosts decoration" — and get the closest models ranked by vector similarity, powered by embeddings.</p></div>
-        <div class="feature"><div class="icon">🧠</div><h3>AI descriptions &amp; tags</h3><p>Vision models describe each model in natural language with tags, print-use suggestions and confidence — stored locally in SQLite.</p></div>
-        <div class="feature"><div class="icon">🖼️</div><h3>Deterministic 3D previews</h3><p>Three.js renders consistent multi-view thumbnails (back, front, left, perspective) for every model, even inside 3MF archives.</p></div>
-        <div class="feature"><div class="icon">🌐</div><h3>World search</h3><p>Out of ideas? Search public 3D model sites from the app and open results with your slicer in one click.</p></div>
-        <div class="feature"><div class="icon">⚙️</div><h3>Provider-agnostic</h3><p>Embeddings and vision via Ollama, OpenAI, Gemini or the built-in local model. Switching providers won't lose your metadata.</p></div>
-        <div class="feature"><div class="icon">🔒</div><h3>Local-first storage</h3><p>SQLite (WAL) with the sqlite-vec extension keeps models, metadata and embedding vectors entirely on your machine.</p></div>
+        <div class="card feature"><div class="f-icon">🔍</div><div><h3>Semantic search</h3><p>Describe what you want — "spooky halloween ghosts decoration" — and get the closest models ranked by vector similarity, powered by embeddings.</p></div></div>
+        <div class="card feature"><div class="f-icon">🧠</div><div><h3>AI descriptions &amp; tags</h3><p>Vision models describe each model in natural language with tags, print-use suggestions and confidence — stored locally in SQLite.</p></div></div>
+        <div class="card feature"><div class="f-icon">🖼️</div><div><h3>Deterministic 3D previews</h3><p>Three.js renders consistent multi-view thumbnails (back, front, left, perspective) for every model, even inside 3MF archives.</p></div></div>
+        <div class="card feature"><div class="f-icon">🌐</div><div><h3>World search</h3><p>Out of ideas? Search public 3D model sites from the app and open results with your slicer in one click.</p></div></div>
+        <div class="card feature"><div class="f-icon">⚙️</div><div><h3>Provider-agnostic</h3><p>Embeddings and vision via Ollama, OpenAI, Gemini or the built-in local model. Switching providers won't lose your metadata.</p></div></div>
+        <div class="card feature"><div class="f-icon">🔒</div><div><h3>Local-first storage</h3><p>SQLite (WAL) with the sqlite-vec extension keeps models, metadata and embedding vectors entirely on your machine.</p></div></div>
       </div>
     </div>
   </section>
 
-  <section class="how" id="how">
+  <section id="how">
     <div class="container">
       <div class="section-head">
         <span class="kicker">How it works</span>
         <h2>Point, scan, done</h2>
       </div>
       <div class="steps">
-        <div class="step"><div class="num">1</div><div><h3>Select your models folder</h3><p>Point meshNest at any local folder — it discovers <b>STL</b> and <b>3MF</b> files and watches for new ones.</p></div></div>
-        <div class="step"><div class="num">2</div><div><h3>Scan &amp; index</h3><p>Each file gets 3D renders extracted, 3MF internals parsed (object names, materials, colors) and geometry metadata stored.</p></div></div>
-        <div class="step"><div class="num">3</div><div><h3>AI describes</h3><p>Your configured vision provider turns renders into descriptions + searchable tags. Embeddings go into a vector index.</p></div></div>
-        <div class="step"><div class="num">4</div><div><h3>Ask your library</h3><p>Type what you're looking for. meshNest ranks matches, shows previews and opens the file in your slicer.</p></div></div>
+        <div class="card step"><div class="num">1</div><h3>Select folder</h3><p>Point meshNest at any local folder — it discovers STL and 3MF files and watches for new ones.</p></div>
+        <div class="card step"><div class="num">2</div><h3>Scan &amp; index</h3><p>Each file gets 3D renders extracted, 3MF internals parsed and geometry metadata stored.</p></div>
+        <div class="card step"><div class="num">3</div><h3>AI describes</h3><p>Your vision provider turns renders into descriptions and searchable tags. Embeddings go into a vector index.</p></div>
+        <div class="card step"><div class="num">4</div><h3>Ask your library</h3><p>Type what you're looking for. meshNest ranks matches, shows previews and opens the file in your slicer.</p></div>
       </div>
     </div>
   </section>
@@ -277,25 +291,29 @@
         <h2>See it in action</h2>
       </div>
       <div class="pair">
-        <div>
-          <img class="shot" src="screenshot-detail.png" alt="Model detail — 3D preview, render views and AI description" />
-          <p class="caption">Model detail: preview, render views, AI description, tags and confidence.</p>
-        </div>
-        <div>
-          <img class="shot" src="screenshot-semantic-search.png" alt="Semantic search ranked results" />
-          <p class="caption">Semantic search: ranked results with match confidence and AI tags.</p>
-        </div>
+        <div class="card" style="padding:10px;"><img class="shot-img" src="screenshot-detail.png" alt="Model detail — 3D preview, render views and AI description" /><p class="caption">Model detail: preview, render views, AI description, tags and confidence.</p></div>
+        <div class="card" style="padding:10px;"><img class="shot-img" src="screenshot-semantic-search.png" alt="Semantic search ranked results" /><p class="caption">Semantic search: ranked results with match confidence and AI tags.</p></div>
       </div>
-      <div class="pair" style="margin-top:22px;">
-        <div>
-          <img class="shot" src="screenshot-world-search.png" alt="World search" />
-          <p class="caption">World search: discover printable models across public sites.</p>
-        </div>
-        <div>
-          <img class="shot" src="screenshot-settings.png" alt="Settings — storage controls" />
-          <p class="caption">Settings: providers, library folder and storage controls.</p>
-        </div>
+      <div class="pair" style="margin-top:18px;">
+        <div class="card" style="padding:10px;"><img class="shot-img" src="screenshot-world-search.png" alt="World search" /><p class="caption">World search: discover printable models across public sites.</p></div>
+        <div class="card" style="padding:10px;"><img class="shot-img" src="screenshot-settings.png" alt="Settings — storage controls" /><p class="caption">Settings: providers, library folder and storage controls.</p></div>
       </div>
+    </div>
+  </section>
+
+  <section id="download">
+    <div class="container">
+      <div class="section-head">
+        <span class="kicker">Download</span>
+        <h2>meshNest for desktop</h2>
+        <p>Latest release — builds for macOS, Windows and Linux.</p>
+      </div>
+      <div class="dl-strip">
+        <div class="card dl"><div class="os">macOS</div><div class="file">meshNest.dmg</div><a class="btn btn-primary" href="https://github.com/gustavowt/meshNest/releases/latest">Download DMG</a></div>
+        <div class="card dl"><div class="os">Windows</div><div class="file">meshNest-Setup.exe</div><a class="btn btn-primary" href="https://github.com/gustavowt/meshNest/releases/latest">Download EXE</a></div>
+        <div class="card dl"><div class="os">Linux</div><div class="file">meshNest.AppImage</div><a class="btn btn-primary" href="https://github.com/gustavowt/meshNest/releases/latest">Download AppImage</a></div>
+      </div>
+      <p class="caption" style="margin-top:16px;">All platforms are unsigned builds — macOS: right-click → Open the first time. <a href="https://github.com/gustavowt/meshNest/releases">All releases →</a></p>
     </div>
   </section>
 
@@ -305,7 +323,7 @@
         <span class="kicker">Under the hood</span>
         <h2>Built local-first</h2>
       </div>
-      <div class="tech-wrap">
+      <div class="card tech-wrap" style="padding: 8px 4px;">
         <table class="tech">
           <tr><th>Layer</th><th>Stack</th></tr>
           <tr><td>UI</td><td><b>Ionic 8 + Vue 3</b> + TypeScript, Electron shell</td></tr>
@@ -318,13 +336,13 @@
     </div>
   </section>
 
-  <section class="cta-final">
+  <section class="final">
     <div class="container">
       <h2>Stop scrolling. Start describing.</h2>
       <p>meshNest is free and open source (AGPL). Star the repo if it saves your searching time.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="https://github.com/gustavowt/meshNest">Open the repository</a>
-        <a class="btn btn-secondary" href="https://github.com/gustavowt/meshNest/issues">Report an issue</a>
+        <a class="btn btn-glass" href="https://github.com/gustavowt/meshNest/issues">Report an issue</a>
       </div>
     </div>
   </section>
@@ -332,7 +350,7 @@
   <footer>
     <div class="container">
       <span>© 2026 meshNest — AGPL v3</span>
-      <span><a href="https://github.com/gustavowt/meshNest">GitHub</a> · <a href="https://github.com/gustavowt/meshNest/issues">Issues</a></span>
+      <span><a href="https://github.com/gustavowt/meshNest">GitHub</a> · <a href="https://github.com/gustavowt/meshNest/issues">Issues</a> · <a href="https://gustavowt.github.io/meshNest/">Website</a></span>
     </div>
   </footer>
 </body>
